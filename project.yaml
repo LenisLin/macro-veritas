@@ -1,0 +1,42 @@
+name: macro-veritas
+title: MacroVeritas
+one_liner: Lightweight initialization scaffold for claim-centered evidence grading and data-level verification in melanoma + ICI + macrophage literature.
+domain: Melanoma + ICI + macrophage literature verification
+stage: Initialization / scaffold
+owner: TBD
+license: TODO-license
+package_name: macro_veritas
+project_root: /home/lenislin/Experiment/projects/MacroVeritas
+data_root: /mnt/NAS_21T/ProjectData/MacroVeritas_Data
+entrypoints:
+  - python -m pip install -e ".[dev]"
+  - python -m macro_veritas --help
+  - python -m macro_veritas status
+  - python -m macro_veritas show-config
+  - python -m macro_veritas init-layout
+design_principles:
+  - docs-first
+  - CLI-first
+  - filesystem-based registry and persistence
+  - lightweight Python with stdlib-first implementation
+  - conda for development, Docker only for reproducibility
+non_goals:
+  - no scientific system implemented yet
+  - no evidence grading logic implemented yet
+  - no FastAPI or web service layer
+  - no SQL database
+  - no notebook-centric primary workflow
+repo_layout:
+  - "config/                 # committed project configuration scaffold"
+  - "docs/                   # project charter, state, constraints, decisions, contracts"
+  - "macro_veritas/          # repo-root bootstrap package for python -m macro_veritas"
+  - "prompts/                # retained AVCP operating prompt from the template"
+  - "scripts/dev/            # lightweight maintenance helpers kept from the template"
+  - "src/macro_veritas/      # installable package and CLI scaffold"
+  - "tests/                  # lightweight validation checks"
+initialization_notes:
+  - Converted from an AVCP template while keeping the docs-first repo-memory layout.
+  - A repo-root bootstrap package is present so python -m macro_veritas works without an editable install.
+  - The Python package identity is now macro_veritas.
+  - The configured data root points to the existing external project data directory.
+next_milestone: Define initial registry contracts and add the first claim and evidence ingestion workflow without introducing scientific inference logic.

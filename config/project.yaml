@@ -1,0 +1,9 @@
+project_name: MacroVeritas
+repo_name: macro-veritas
+package_name: macro_veritas
+data_root: /mnt/NAS_21T/ProjectData/MacroVeritas_Data
+registry_root: registry
+runs_root: runs
+reports_root: reports
+raw_root: raw
+processed_root: processed
