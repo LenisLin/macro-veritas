@@ -1,0 +1,155 @@
+# CLI Command Contracts
+
+## Purpose
+
+This document freezes the first internal command-family contracts for
+MacroVeritas.
+
+- It defines the reserved internal command families for the next phase.
+- It defines the expected owner, purpose, inputs, outputs, and dependency
+  boundary of each family.
+- It defines the shared internal command style used by the skeleton modules in
+  `macro_veritas.commands`.
+
+This document does not imply implemented runtime behavior.
+
+- It does not mean these commands are public yet.
+- It does not imply file IO, serializer behavior, or gateway execution.
+- It does not imply implemented flags, options, or handler logic.
+
+## Command Families
+
+### `ingest`
+
+- Owning module: `macro_veritas.commands.ingest`
+- Owning domain: Registry Department / 户部, intake boundary
+- Purpose: stage the intake of `StudyCard`, `DatasetCard`, or `ClaimCard`
+  material into the registry boundary
+- Expected primary inputs: curated source reference, target card-family label,
+  provisional full-card mapping, provenance note
+- Expected primary outputs: future gateway create-plan request and a CLI-facing
+  intake summary
+- Expected dependency boundary: registry governance intake descriptors,
+  card-contract docs, registry gateway create-planning contracts
+- Non-goals in this milestone: no identifier allocation, no gateway execution,
+  no registry writes, no flag design freeze
+
+### `bind`
+
+- Owning module: `macro_veritas.commands.bind`
+- Owning domain: Registry Department / 户部, locator-binding boundary
+- Purpose: stage the association of governed objects with raw, processed, or
+  artifact-facing locators
+- Expected primary inputs: target object identity, locator reference, binding
+  provenance note, full replacement card mapping when an update plan is needed
+- Expected primary outputs: future gateway read/update-plan request and a
+  binding summary
+- Expected dependency boundary: registry governance binding descriptors,
+  registry layout naming conventions, registry gateway read and update-planning
+  contracts
+- Non-goals in this milestone: no filesystem checks, no path mutation, no
+  gateway execution, no storage probing
+
+### `extract`
+
+- Owning module: `macro_veritas.commands.extract`
+- Owning domain: Registry Department / 户部, extraction-planning boundary
+- Purpose: stage claim or metadata capture tasks against curated sources
+- Expected primary inputs: curated source reference, extraction scope note,
+  linked study or dataset context, full-card mapping for a future create/update
+  plan
+- Expected primary outputs: future gateway read/create/update-plan request and
+  an extraction-task summary
+- Expected dependency boundary: registry governance extraction-planning
+  descriptors, card contracts, registry gateway read and mutation-plan
+  contracts
+- Non-goals in this milestone: no text parsing, no metadata extraction engine,
+  no gateway execution, no scientific interpretation
+
+### `audit`
+
+- Owning module: `macro_veritas.commands.audit`
+- Owning domain: Review Department / 刑部, routine audit lane
+- Purpose: stage routine audit checks and routine audit outcome recording around
+  reviewable objects
+- Expected primary inputs: object or bundle reference, audit scope note,
+  findings summary, intended audit outcome label
+- Expected primary outputs: audit action summary and future audit-record-facing
+  planning request
+- Expected dependency boundary: audit policy, review-governance descriptors, and
+  registry gateway read contracts for audited cards
+- Non-goals in this milestone: no audit engine, no adjudication runtime, no
+  evidence grading, no public CLI exposure
+
+### `review`
+
+- Owning module: `macro_veritas.commands.review`
+- Owning domain: Prosecution / 检察院, escalated review lane
+- Purpose: stage escalated review / prosecution intake after routine audit
+  escalation
+- Expected primary inputs: escalation packet, linked audit reference, dispute
+  summary, response-context note
+- Expected primary outputs: case-intake summary and prosecution handoff note
+- Expected dependency boundary: prosecution lane descriptors, audit escalation
+  policy, and registry gateway read contracts for linked cards
+- Non-goals in this milestone: no case management, no sanctions, no workflow
+  engine, no public CLI exposure
+
+### `run`
+
+- Owning module: `macro_veritas.commands.run`
+- Owning domain: Operations Department / 兵部, run/bundle boundary
+- Purpose: stage future run or bundle commands around declared inputs, methods,
+  and outputs
+- Expected primary inputs: method or bundle reference, linked input object
+  references, run intent note
+- Expected primary outputs: run-scope summary and future bundle-planning request
+- Expected dependency boundary: operations governance descriptors, run-domain
+  docs, and registry gateway read contracts for linked input cards
+- Non-goals in this milestone: no scientific execution, no bundle generation,
+  no orchestration runtime, no CellVoyager integration
+
+### `grade`
+
+- Owning module: `macro_veritas.commands.grade`
+- Owning domain: Review-adjacent grading boundary, provisionally aligned with
+  Review Department / 刑部
+- Purpose: stage a future evidence-judgment or claim-grading command family
+  without locking grading runtime behavior
+- Expected primary inputs: claim reference, linked dataset or bundle context,
+  judgment intent note
+- Expected primary outputs: grading summary and future evidence-judgment request
+- Expected dependency boundary: review governance, gateway read contracts for
+  linked cards, and later evidence-layer contracts that remain deferred
+- Non-goals in this milestone: no evidence grading logic, no scoring engine, no
+  report assembly runtime, no public CLI exposure
+
+## Command Style
+
+The frozen internal command style is conservative:
+
+- one module per reserved command family under `macro_veritas.commands`
+- one `build_parser(subparsers_or_parser: object) -> None` hook per family
+- one `handle_<family>_command(args: object) -> object` hook per family
+- static descriptor helpers for family metadata and dependency declarations
+- no runtime execution yet
+- no file IO
+- no silent side effects
+
+Interpretation:
+
+- `build_parser(...)` is an internal skeleton hook only.
+- `handle_<family>_command(...)` is an internal placeholder only.
+- Option and flag design remains deferred.
+- No family gets a deep subpackage tree in this milestone.
+
+## Public Exposure Rule
+
+These command families are reserved and skeletonized, but they are not yet part
+of the stable public CLI surface.
+
+- `python -m macro_veritas status` remains public.
+- `python -m macro_veritas show-config` remains public.
+- `python -m macro_veritas init-layout` remains public.
+- The reserved internal command families must not change current help text or
+  public CLI behavior in this milestone.

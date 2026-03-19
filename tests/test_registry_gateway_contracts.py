@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+from typing import get_args
+
+import pytest
+
+from macro_veritas.registry.errors import (
+    BrokenReferenceError,
+    CardAlreadyExistsError,
+    CardNotFoundError,
+    InvalidStateTransitionError,
+    RegistryError,
+    UnsupportedRegistryOperationError,
+)
+from macro_veritas.registry.gateway import (
+    describe_atomic_write_policy,
+    describe_gateway_error_semantics,
+    describe_gateway_result_contract,
+    describe_mutation_plan_contract,
+    describe_referential_integrity_policy,
+    describe_registry_gateway_role,
+    describe_update_policy,
+    get_study_card,
+    list_supported_card_families,
+    plan_create_dataset_card,
+)
+from macro_veritas.registry.layout import describe_layout_vs_gateway_boundary
+from macro_veritas.registry.specs import (
+    describe_integrity_enforcement_policy,
+    describe_registry_gateway_boundary,
+    list_registry_error_categories,
+)
+from macro_veritas.shared import types as shared_types
+
+
+def test_shared_gateway_contract_types_are_frozen() -> None:
+    assert get_args(shared_types.CardFamilyName) == (
+        "StudyCard",
+        "DatasetCard",
+        "ClaimCard",
+    )
+    assert get_args(shared_types.GatewayReadMode) == (
+        "get_by_id",
+        "exists_by_id",
+        "list_by_family",
+    )
+    assert get_args(shared_types.GatewayOperationKind) == (
+        "get_by_id",
+        "exists_by_id",
+        "list_by_family",
+        "plan_create",
+        "plan_update",
+    )
+    assert get_args(shared_types.MutationOperationKind) == ("create", "update")
+    assert tuple(shared_types.GatewayResultDescriptor.__annotations__.keys()) == (
+        "operation_kind",
+        "success_shape",
+        "failure_channel",
+        "notes",
+    )
+    assert tuple(shared_types.MutationPlanDescriptor.__annotations__.keys()) == (
+        "plan_kind",
+        "card_family",
+        "target_id",
+        "input_requirement",
+        "integrity_checks_required",
+        "atomicity_expectation",
+        "execution_state",
+        "deferred_execution_note",
+    )
+
+
+def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
+    boundary = describe_registry_gateway_boundary()
+    gateway_role = describe_registry_gateway_role()
+    result_contract = describe_gateway_result_contract()
+    error_semantics = describe_gateway_error_semantics()
+    mutation_plan_contract = describe_mutation_plan_contract()
+    update_policy = describe_update_policy()
+    integrity_policy = describe_referential_integrity_policy()
+    atomic_policy = describe_atomic_write_policy()
+    layout_boundary = describe_layout_vs_gateway_boundary()
+
+    assert boundary["source_of_truth_doc"] == "docs/registry_io_boundary.md"
+    assert "must not do raw path traversal" in boundary["cli_layer"]
+    assert boundary["gateway_role"].startswith("sole planned internal boundary")
+
+    assert list_supported_card_families() == (
+        "StudyCard",
+        "DatasetCard",
+        "ClaimCard",
+    )
+    assert gateway_role["boundary_status"] == "interface-skeleton-only"
+    assert gateway_role["operation_families"] == (
+        "get_by_id",
+        "exists_by_id",
+        "list_by_family",
+        "plan_create",
+        "plan_update",
+    )
+    assert gateway_role["communication_contract_doc"] == "docs/gateway_contracts.md"
+    assert result_contract["get_by_id"]["success_shape"] == "CardMapping"
+    assert result_contract["exists_by_id"]["success_shape"] == "bool"
+    assert result_contract["list_by_family"]["success_shape"] == "tuple[CardMapping, ...]"
+    assert result_contract["plan_update"]["success_shape"] == "MutationPlanDescriptor"
+    assert error_semantics["CardNotFoundError"]["applies_to"] == ("get_by_id", "plan_update")
+    assert error_semantics["UnsupportedRegistryOperationError"]["not_a_raw_os_exception"] is True
+    assert mutation_plan_contract["output_type"] == "MutationPlanDescriptor"
+    assert mutation_plan_contract["input_requirement"] == "full_card_mapping"
+    assert mutation_plan_contract["execution_state"] == "planned_only"
+    assert update_policy["style"] == "full-card replace only"
+    assert update_policy["patch_input_supported"] is False
+
+    assert integrity_policy == describe_integrity_enforcement_policy()
+    assert integrity_policy["enforcement_point"] == "registry gateway"
+    assert atomic_policy["write_shape"] == "write-temp-then-replace"
+    assert atomic_policy["multi_card_transaction_guarantee"] == "not planned in MVP"
+
+    assert layout_boundary["layout_is_access_api"] is False
+    assert layout_boundary["cli_should_use_layout_as_io_layer"] is False
+
+
+def test_registry_error_surface_is_small_and_explicit() -> None:
+    assert list_registry_error_categories() == (
+        "RegistryError",
+        "CardNotFoundError",
+        "CardAlreadyExistsError",
+        "BrokenReferenceError",
+        "InvalidStateTransitionError",
+        "UnsupportedRegistryOperationError",
+    )
+
+    assert issubclass(CardNotFoundError, RegistryError)
+    assert issubclass(CardAlreadyExistsError, RegistryError)
+    assert issubclass(BrokenReferenceError, RegistryError)
+    assert issubclass(InvalidStateTransitionError, RegistryError)
+    assert issubclass(UnsupportedRegistryOperationError, RegistryError)
+
+
+def test_registry_gateway_placeholders_raise_not_implemented() -> None:
+    with pytest.raises(NotImplementedError, match="placeholder only"):
+        get_study_card("study-001")
+
+    with pytest.raises(NotImplementedError, match="placeholder only"):
+        plan_create_dataset_card({"dataset_id": "dataset-001"})

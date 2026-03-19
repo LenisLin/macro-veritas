@@ -13,6 +13,19 @@ Recommended first-pass reading order:
 3. [`docs/state.md`](state.md) for the current snapshot of what exists now versus what is only documented.
 4. [`docs/constraints.md`](constraints.md) for the locked boundaries that must not be crossed in this phase.
 5. [`docs/decisions.md`](decisions.md) for the concrete architectural and governance decisions already made.
+6. [`docs/architecture.md`](architecture.md) for the high-level repository shape, governance layer direction, and current component boundaries.
+7. [`docs/governance_spec.md`](governance_spec.md) for the frozen A-header, department-office, and prosecution function descriptors.
+8. [`docs/module_map.md`](module_map.md) for the conservative governance-to-code mapping used by the current package skeleton.
+9. [`docs/registry_model.md`](registry_model.md) for planned object families and persistence forms.
+10. [`docs/state_machine.md`](state_machine.md) for minimum lifecycle states.
+11. [`docs/card_contracts.md`](card_contracts.md) for the field-level frozen contract of the first `StudyCard` / `DatasetCard` / `ClaimCard` slice.
+12. [`docs/registry_layout.md`](registry_layout.md) for the frozen filesystem placement, naming, and cross-reference conventions of that first card slice.
+13. [`docs/registry_io_boundary.md`](registry_io_boundary.md) for the frozen future internal access boundary, integrity rule, mutation-safety rule, and registry error surface.
+14. [`docs/gateway_contracts.md`](gateway_contracts.md) for the frozen gateway result, error, and mutation-plan communication contract.
+15. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
+16. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
+17. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen internal command-family contracts and skeleton-module responsibilities.
+18. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
 
 ## Status Labels
 
@@ -34,15 +47,26 @@ These documents define the current frozen position.
 These documents mix frozen-position context with design-intent detail.
 
 - [`docs/architecture.md`](architecture.md): explains the current repository shape, component boundaries, and filesystem-oriented direction. Defines current frozen position.
+- [`docs/governance_spec.md`](governance_spec.md): freezes A-header lanes, department offices, planned governance function names, and prosecution boundaries. Design intent / future-detail, but now the function-level source of truth.
+- [`docs/module_map.md`](module_map.md): bridges governance labels to conservative package and module paths for the current skeletonization round. Design intent / future-detail.
 - [`docs/registry_model.md`](registry_model.md): maps the MVP object families and their planned persistence forms. Design intent / future-detail.
 - [`docs/state_machine.md`](state_machine.md): defines minimal object lifecycle states for the MVP registry layer. Design intent / future-detail.
+- [`docs/registry_layout.md`](registry_layout.md): freezes the first-slice on-disk registry topology, naming, and cross-reference conventions without implying IO. Defines current frozen position for this slice.
+- [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes the future internal registry access boundary, integrity-enforcement point, mutation-safety rule, and planned error surface without implying implemented IO. Defines current frozen position for this slice.
+- [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the gateway-facing result shapes, error semantics, mutation-plan output contract, and full-replace update rule without implying runtime behavior. Defines current frozen position for this slice.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the reserved internal command-family contracts, family ownership, dependency boundaries, and skeleton style without making those commands public. Defines current frozen position for this slice.
 
 ## Contracts And Audit
 
 These documents describe the public CLI surface and the next layer of object and review contracts.
 
-- [`docs/api_specs.md`](api_specs.md): documents the current CLI contract and clearly states that there is no web API in v0.1. Defines current implemented CLI surface, plus future placeholders.
-- [`docs/data_contracts.md`](data_contracts.md): summarizes the minimum contract categories for planned object families without locking field-level schemas. Design intent / future-detail.
+- [`docs/card_contracts.md`](card_contracts.md): freezes the first field-level card contracts for `StudyCard`, `DatasetCard`, and `ClaimCard`. Defines current frozen position for this slice.
+- [`docs/registry_layout.md`](registry_layout.md): freezes where those first-slice cards conceptually live on disk and how their IDs map to canonical file paths. Defines current frozen position for this slice.
+- [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes who will own future registry access, where direct-reference checks belong, and what mutation-safety/error rules will apply. Defines current frozen position for this slice.
+- [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the precise language upper layers should consume from the gateway: success shapes, domain errors, mutation-plan outputs, and the full-replace rule. Defines current frozen position for this slice.
+- [`docs/api_specs.md`](api_specs.md): documents the current CLI contract and clearly states that there is no web API in v0.1. Defines current implemented CLI surface and the reserved-not-public command boundary.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the internal command-family contracts for `ingest`, `bind`, `extract`, `audit`, `review`, `run`, and `grade`. Defines current frozen position for this slice.
+- [`docs/data_contracts.md`](data_contracts.md): summarizes the minimum contract categories for planned object families and points to the first frozen card slice. Design intent / future-detail.
 - [`docs/audit_policy.md`](audit_policy.md): defines the lightweight MVP audit posture, trigger points, and outcomes without implying an implemented audit engine. Design intent / future-detail.
 
 ## Process And Template Docs
@@ -54,4 +78,4 @@ These documents support repository discipline rather than end-user functionality
 
 ## Practical Reading Rule
 
-If a question is about what is allowed now, read `state`, `constraints`, and `decisions` first. If a question is about how the next MVP layer is supposed to be organized, then read `architecture`, `registry_model`, `state_machine`, `data_contracts`, `api_specs`, and `audit_policy`.
+If a question is about what is allowed now, read `state`, `constraints`, and `decisions` first. If a question is about how the next MVP layer is supposed to be organized, then read `architecture`, `governance_spec`, `module_map`, `registry_model`, `state_machine`, `card_contracts`, `registry_layout`, `registry_io_boundary`, `gateway_contracts`, `data_contracts`, `api_specs`, `cli_command_contracts`, and `audit_policy`.

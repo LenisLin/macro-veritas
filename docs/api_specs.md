@@ -10,6 +10,12 @@ MacroVeritas v0.1 does not expose a web API.
 - No REST or HTTP endpoints
 - No SQL-backed service layer
 
+The current CLI can be reached through the installed console script or via `python -m macro_veritas` from the repository checkout. This document uses command family names as interface labels and does not claim that future groups already exist.
+
+`docs/cli_command_contracts.md` is the source of truth for the reserved
+internal command-family contracts. Those reserved families are not yet part of
+the stable public CLI surface.
+
 ## Implemented CLI Commands
 
 The following commands exist in the current scaffold.
@@ -32,14 +38,22 @@ The following commands exist in the current scaffold.
 - Expected effect: creates only missing top-level scaffold directories; with `--dry-run`, reports planned creations without writing.
 - What it should not do: delete or overwrite existing content, populate registry cards, infer scientific metadata, or run analysis logic.
 
-## Planned Next CLI Families
+## Reserved Internal Command Families
 
-The following command families are design placeholders only. They are not implemented yet, and their exact arguments remain open.
+The following names are reserved for internal skeletonization and future command
+family work. They are not yet public CLI commands, do not currently define
+flags or options, and should not be treated as exposed runtime behavior.
 
-- `ingest`: add new study, dataset, or claim records into the planned registry
-- `bind`: associate registry records with concrete raw or processed artifact locations
-- `extract`: capture claim or metadata fragments from curated sources into project records
-- `grade`: assemble a lightweight evidence judgment view for a claim
-- `audit`: record review outcomes such as pass, return, or escalate
+Their internal command-family contract is frozen in
+[`docs/cli_command_contracts.md`](cli_command_contracts.md). Governance
+alignment remains documentation-only and is not an implementation claim.
 
-No future command family in this section should be treated as a locked implementation contract yet.
+| CLI Group | Intended Purpose | Current Status | Internal Skeleton Module | Governance Domain Alignment |
+| --- | --- | --- | --- | --- |
+| `ingest` | Add initial study, dataset, or claim records into the planned registry. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
+| `bind` | Associate registry records with concrete raw, processed, or run-facing artifact locations. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.bind` | Registry Department / 户部 |
+| `extract` | Capture structured claim or metadata fragments from curated sources into project records. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.extract` | Registry Department / 户部 |
+| `audit` | Record routine review outcomes such as `pass`, `return`, or `escalate`. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.audit` | Review Department / 刑部 |
+| `review` | Hold the future escalated review / prosecution lane after a routine audit escalation. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.review` | Prosecution / 检察院 |
+| `run` | Manage declared run or bundle boundaries around future reanalysis work. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.run` | Operations Department / 兵部 |
+| `grade` | Assemble a lightweight evidence judgment view for a claim. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.grade` | Review-adjacent; provisionally aligned to Review Department / 刑部 |

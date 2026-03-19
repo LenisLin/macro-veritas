@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 
+from .shared.naming import registry_subdir_names
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "project.yaml"
 
@@ -49,6 +51,15 @@ class ProjectConfig:
     @property
     def processed_dir(self) -> Path:
         return self._resolve_path(self.processed_root)
+
+    def registry_subdir_path(self, subdir_name: str) -> Path:
+        return self.registry_dir / subdir_name
+
+    def first_slice_registry_dirs(self) -> dict[str, Path]:
+        return {
+            subdir_name: self.registry_subdir_path(subdir_name)
+            for subdir_name in registry_subdir_names()
+        }
 
     def layout_paths(self) -> dict[str, Path]:
         return {

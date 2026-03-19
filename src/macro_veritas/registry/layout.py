@@ -1,0 +1,102 @@
+"""Static relative-path helpers for the frozen first-slice registry layout.
+
+This module mirrors the filesystem conventions frozen in
+`docs/registry_layout.md` and returns canonical relative paths for first-slice
+card files.
+
+It does not access the filesystem, implement serialization, or resolve live
+references at runtime.
+Boundary docs: `docs/registry_layout.md` and `docs/registry_io_boundary.md`.
+"""
+
+from __future__ import annotations
+
+from macro_veritas.shared.naming import (
+    claim_card_filename,
+    dataset_card_filename,
+    registry_subdir_names,
+    study_card_filename,
+)
+
+_STUDIES_SUBDIR, _DATASETS_SUBDIR, _CLAIMS_SUBDIR = registry_subdir_names()
+
+
+def study_card_relative_path(study_id: str) -> str:
+    """Return the canonical relative path for a first-slice `StudyCard`."""
+
+    return f"{_STUDIES_SUBDIR}/{study_card_filename(study_id)}"
+
+
+def dataset_card_relative_path(dataset_id: str) -> str:
+    """Return the canonical relative path for a first-slice `DatasetCard`."""
+
+    return f"{_DATASETS_SUBDIR}/{dataset_card_filename(dataset_id)}"
+
+
+def claim_card_relative_path(claim_id: str) -> str:
+    """Return the canonical relative path for a first-slice `ClaimCard`."""
+
+    return f"{_CLAIMS_SUBDIR}/{claim_card_filename(claim_id)}"
+
+
+def describe_first_slice_layout() -> dict[str, dict[str, str | bool]]:
+    """Describe the frozen first-slice registry layout.
+
+    Inputs:
+        None.
+    Outputs:
+        A mapping from card family to canonical root, filename pattern, and
+        format label.
+    Non-goals:
+        This does not create directories or read registry cards.
+    """
+
+    return {
+        "StudyCard": {
+            "root_subdir": _STUDIES_SUBDIR,
+            "filename_pattern": "<study_id>.yaml",
+            "one_card_per_file": True,
+            "format_label": "yaml",
+        },
+        "DatasetCard": {
+            "root_subdir": _DATASETS_SUBDIR,
+            "filename_pattern": "<dataset_id>.yaml",
+            "one_card_per_file": True,
+            "format_label": "yaml",
+        },
+        "ClaimCard": {
+            "root_subdir": _CLAIMS_SUBDIR,
+            "filename_pattern": "<claim_id>.yaml",
+            "one_card_per_file": True,
+            "format_label": "yaml",
+        },
+    }
+
+
+def describe_layout_vs_gateway_boundary() -> dict[str, str | bool]:
+    """Describe the split between static layout helpers and future access logic.
+
+    Inputs:
+        None.
+    Outputs:
+        A static mapping that distinguishes path conventions from access responsibility.
+    Non-goals:
+        This does not perform access checks or gateway operations.
+    """
+
+    return {
+        "layout_role": "canonical relative paths and naming conventions only",
+        "gateway_role": "sole planned boundary for future registry retrieval and persistence",
+        "layout_is_access_api": False,
+        "cli_should_use_layout_as_io_layer": False,
+        "governance_should_use_layout_as_io_layer": False,
+    }
+
+
+__all__ = [
+    "claim_card_relative_path",
+    "dataset_card_relative_path",
+    "describe_first_slice_layout",
+    "describe_layout_vs_gateway_boundary",
+    "study_card_relative_path",
+]

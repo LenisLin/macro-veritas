@@ -6,6 +6,8 @@ Audit exists in MacroVeritas to keep registry objects and artifact bundles revie
 
 - Audit in this phase is human-led and document-driven.
 - No automated audit service, scoring engine, or adjudication system is implemented.
+- The routine audit and review lane is the lightweight review domain closest to the future `刑部` concept.
+- A future escalated review / prosecution lane (`检察院`) is distinct and is not implemented here.
 
 ## What Can Be Audited At MVP Level
 
@@ -37,9 +39,23 @@ Audit outcomes are intentionally simple:
 
 - `pass`: the object is sufficiently documented and linked for its current stage
 - `return`: the object needs clarification, missing provenance, or corrected linkage before it should continue
-- `escalate`: the issue is material enough to require project-lead review or a stronger future review lane
+- `escalate`: the issue is material enough to require project-lead review or handoff to a stronger future review lane
 
 An audit outcome should not delete artifacts or erase history.
+
+## Routine Review And Escalated Review
+
+MacroVeritas distinguishes two review concepts at the documentation level:
+
+- Routine review / audit lane: the default MVP review path for traceability, provenance, linkage, and stage readiness. This is the concept closest to the future `刑部`-like review domain.
+- Escalated review / prosecution lane: a separate future concept for materially disputed, high-risk, or governance-sensitive cases. This is the concept closest to the future `检察院` lane.
+
+For the MVP documentation layer:
+
+- routine review remains the primary and lightweight review policy
+- `AuditRecord` remains the planned record of routine review being applied
+- escalated review should build on routine audit outputs rather than replace them
+- neither lane is implemented as a service, engine, or formal workflow system
 
 ## What Audit Failure Does Not Mean
 
@@ -55,10 +71,4 @@ At MVP level, failure usually means the current record is not yet strong enough 
 
 ## Relation To Future "检察院" Concept
 
-MacroVeritas may later adopt a stronger, more adversarial review concept sometimes described as a "检察院" lane. That future concept is not implemented here.
-
-For the MVP documentation layer:
-
-- audit is the lightweight review and traceability policy
-- `AuditRecord` is the planned record of that policy being applied
-- future "检察院" work, if added, should build on these audit records rather than replace the need for basic object traceability
+MacroVeritas may later adopt a stronger, more adversarial review concept sometimes described as a `检察院` lane. That future concept remains distinct from routine audit and is not implemented here.

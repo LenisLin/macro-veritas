@@ -19,14 +19,17 @@ MacroVeritas uses object-level lifecycle states rather than a "4院 workflow" re
 
 | Status | Meaning |
 | --- | --- |
-| `draft` | A study candidate has been identified, but the canonical registry record is not yet stable. |
-| `registered` | The study has enough identity and provenance to serve as a stable anchor for downstream objects. |
-| `active` | The study is being used by one or more `DatasetCard` or `ClaimCard` records. |
-| `closed` | The study record is intentionally frozen, retired from active use, or superseded by a better canonical record. |
+| `draft` | A study candidate has been identified, but screening or intake metadata is still incomplete. |
+| `registered` | The study is in scope and has enough identity and provenance to anchor downstream objects. |
+| `closed` | The study record remains for traceability but is excluded, superseded, or intentionally retired. |
 
 Typical transition direction:
 
-`draft -> registered -> active -> closed`
+`draft -> registered -> closed`
+
+Common early close path:
+
+`draft -> closed`
 
 ## `DatasetCard` Lifecycle
 
@@ -47,7 +50,7 @@ Typical transition direction:
 | --- | --- |
 | `captured` | The claim has been recorded, but its scope is still rough or incomplete. |
 | `scoped` | The claim boundary is clear enough to link to a study and intended evidence target. |
-| `ready` | The claim has enough linkage and context to enter later reanalysis or evidence collection work. |
+| `ready` | The claim has enough linkage, provenance, and review context to enter later binding or evaluation work. |
 | `closed` | The claim record has been reviewed, deferred, or superseded with a retained reason. |
 
 Typical transition direction:
@@ -58,4 +61,5 @@ Typical transition direction:
 
 - An audit return does not create a separate workflow model. It simply means the object should move back to the last status whose requirements it actually satisfies.
 - Not every object family needs a full public state list in the MVP. The three families above are the minimum needed to make the registry model operational at a documentation level.
+- Study inclusion and exclusion reasons are tracked as fields in `docs/card_contracts.md`; they are not expanded into a larger study workflow engine here.
 - Additional object-family states can be added later only when their contracts and transition reasons are concrete enough to document without guesswork.
