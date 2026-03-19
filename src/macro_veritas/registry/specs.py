@@ -1,10 +1,11 @@
 """Registry-level descriptor functions for MacroVeritas.
 
 This module exposes static metadata about documented registry object families,
-their frozen first-slice layout, the planned gateway boundary, and the current
+their frozen first-slice layout, the gateway boundary, and the current
 implementation boundary.
 
-It does not implement persistence, lookup, or schema validation.
+It does not implement DatasetCard or ClaimCard persistence, lookup, or a
+general schema-validation framework.
 Boundary docs: `docs/module_map.md`, `docs/registry_layout.md`,
 `docs/registry_io_boundary.md`, `docs/registry_model.md`, and
 `docs/data_contracts.md`.
@@ -138,7 +139,7 @@ def describe_cross_reference_strategy() -> dict[str, str]:
 
 
 def describe_registry_gateway_boundary() -> dict[str, str]:
-    """Describe the frozen future access boundary for registry operations.
+    """Describe the frozen registry access boundary for registry operations.
 
     Inputs:
         None.
@@ -153,11 +154,15 @@ def describe_registry_gateway_boundary() -> dict[str, str]:
         "cli_layer": "must not do raw path traversal or raw file access for registry cards",
         "governance_layer": "must not do raw file access for registry cards",
         "gateway_role": (
-            "sole planned internal boundary for StudyCard/DatasetCard/ClaimCard "
+            "sole internal boundary for StudyCard/DatasetCard/ClaimCard "
             "retrieval and persistence"
         ),
         "serialization_layer": "future internal dependency beneath the gateway only",
         "layout_layer": "static naming/path helper layer only",
+        "current_runtime_scope": (
+            "StudyCard runtime is implemented; DatasetCard and ClaimCard remain "
+            "planned only"
+        ),
     }
 
 
@@ -216,7 +221,7 @@ def describe_registry_persistence_forms() -> dict[ObjectFamilyName, str]:
 
     return {
         "StudyCard": (
-            "Planned YAML registry card at "
+            "YAML registry card at "
             f"{first_slice_layout['StudyCard']['root_subdir']}/<study_id>.yaml."
         ),
         "DatasetCard": (
@@ -249,9 +254,9 @@ def describe_registry_boundaries() -> DescriptorSequence:
     return (
         "Registry objects are documented only; exact field schemas are deferred.",
         "First-slice filesystem placement is frozen by docs and static helpers only.",
-        "Future registry card retrieval and persistence are reserved to macro_veritas.registry.gateway.",
-        "No registry IO or object-store behavior is implemented.",
-        "No validation framework or referential-integrity engine is implemented.",
+        "Registry card retrieval and persistence are reserved to macro_veritas.registry.gateway.",
+        "StudyCard runtime IO is implemented; DatasetCard and ClaimCard remain contract-only.",
+        "No general validation framework or cross-card referential-integrity engine is implemented.",
     )
 
 

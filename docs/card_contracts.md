@@ -11,8 +11,28 @@ This document is the field-level source of truth for the first frozen registry s
 The freeze in this document is intentionally narrow.
 
 - It defines field names, minimal status vocabularies, and direct card-to-card pointers.
-- It does not define file formats, validation engines, registry IO, or scientific interpretation logic.
+- It defines the stored card representation for this first slice.
+- Gateway-facing payload and read/list DTO shapes live separately in
+  [`docs/payload_contracts.md`](payload_contracts.md).
+- StudyCard runtime file format and IO behavior now live in
+  [`docs/studycard_runtime.md`](studycard_runtime.md).
+- It does not define validation engines or scientific interpretation logic.
 - Remaining card families stay conceptual in `docs/registry_model.md` and `docs/data_contracts.md`.
+
+## Stored Card Contract Vs Payload Contract
+
+This document freezes the canonical stored card field contract.
+
+- [`docs/payload_contracts.md`](payload_contracts.md) freezes the
+  command-to-gateway transfer shapes used for create/update planning and bare
+  gateway reads.
+- For the first slice, those payloads intentionally reuse the same field sets
+  as the stored card contracts.
+- The StudyCard runtime stores those same field names directly as a YAML
+  mapping with no hidden metadata layer.
+- They remain distinct boundary layers because command handlers should prepare
+  gateway payloads, while storage concerns remain governed by the stored card
+  contract and future registry IO boundary.
 
 ## `StudyCard`
 
@@ -28,8 +48,10 @@ Represent the canonical study or paper unit tracked by MacroVeritas so downstrea
 
 ### Persistence expectation
 
-- Planned as a small registry card under `registry/`.
-- Current milestone freezes structure only; no read/write behavior is implemented.
+- Stored as a small YAML registry card at `studies/<study_id>.yaml` beneath the
+  configured registry root.
+- The first runtime slice now reads and writes this representation through the
+  registry gateway only.
 
 ### Required fields
 
@@ -79,7 +101,8 @@ Optional supporting reference field:
 
 - No citation parsing or DOI resolution.
 - No screening rule engine or automatic inclusion logic.
-- No registry file layout or mutation behavior.
+- No additional registry workflow logic beyond the narrow runtime slice
+  documented separately in `docs/studycard_runtime.md`.
 - No backlinks to `EvidenceCard` or `AuditRecord`.
 
 ## `DatasetCard`

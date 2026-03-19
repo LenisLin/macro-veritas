@@ -15,6 +15,7 @@ from typing import Literal
 from macro_veritas.shared.types import (
     CardFieldSequence,
     ContractCategoryName,
+    StudyScreeningDecision,
     RelationshipPointerMap,
     StudyCardStatus,
 )
@@ -45,6 +46,11 @@ _ALLOWED_STATUSES: tuple[StudyCardStatus, ...] = (
     "draft",
     "registered",
     "closed",
+)
+_ALLOWED_SCREENING_DECISIONS: tuple[StudyScreeningDecision, ...] = (
+    "pending",
+    "include",
+    "exclude",
 )
 _RELATIONSHIP_POINTERS: RelationshipPointerMap = {
     "inbound_from": (
@@ -109,6 +115,12 @@ def allowed_statuses() -> tuple[StudyCardStatus, ...]:
     return _ALLOWED_STATUSES
 
 
+def allowed_screening_decisions() -> tuple[StudyScreeningDecision, ...]:
+    """Return the allowed intake screening decisions for `StudyCard`."""
+
+    return _ALLOWED_SCREENING_DECISIONS
+
+
 def relationship_pointers() -> RelationshipPointerMap:
     """Return the direct relationship pointers documented for `StudyCard`."""
 
@@ -154,10 +166,17 @@ def describe_expected_persistence() -> str:
         This does not create files or naming rules.
     """
 
-    return "Planned YAML registry card under the registry/ area."
+    return "YAML registry card at studies/<study_id>.yaml beneath the configured registry root."
+
+
+def storage_field_order() -> CardFieldSequence:
+    """Return the canonical StudyCard field order used for stored YAML."""
+
+    return required_fields() + optional_fields()
 
 
 __all__ = [
+    "allowed_screening_decisions",
     "allowed_statuses",
     "contract_version",
     "describe_expected_persistence",
@@ -168,4 +187,5 @@ __all__ = [
     "optional_fields",
     "relationship_pointers",
     "required_fields",
+    "storage_field_order",
 ]

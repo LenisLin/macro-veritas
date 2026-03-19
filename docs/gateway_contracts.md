@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document freezes the gateway communication contract for future registry
+This document freezes the gateway communication contract for registry
 access.
 
 - It defines the success/result shapes for gateway operations.
@@ -10,13 +10,16 @@ access.
 - It defines the mutation-planning output contract for create and update flows.
 - It freezes the update style as full-card replace only for the MVP planning
   boundary.
+- It relies on [`docs/payload_contracts.md`](payload_contracts.md) for the
+  concrete first-slice payload and DTO shapes.
 
-This document does not imply implemented runtime behavior.
+This document now describes a mixed implementation state.
 
-- No gateway execution is implemented.
-- No registry IO is implemented.
-- No serializer or deserializer is implemented.
-- No parser or validator is implemented.
+- `StudyCard` read, exists, list, create, and update execution are runtime-real
+  behind the gateway.
+- `StudyCard` `plan_create` and `plan_update` return real planning descriptors
+  without writing storage.
+- `DatasetCard` and `ClaimCard` gateway behavior remains planned only.
 
 ## Access Result Contract
 
@@ -33,15 +36,15 @@ Why this is the chosen style:
 - It keeps mutation planning explicit without pretending that execution already
   happens.
 
-Planned operation results:
+Gateway result contract:
 
 | Operation Family | Planned Input | Success Result Shape | Failure Communication |
 | --- | --- | --- | --- |
-| `get` / `read` by ID | canonical card ID | bare `CardMapping` | raise domain error |
+| `get` / `read` by ID | canonical card ID | bare card mapping shaped by [`docs/payload_contracts.md`](payload_contracts.md) and [`docs/card_contracts.md`](card_contracts.md) | raise domain error |
 | `exists` | canonical card ID | bare `bool` | missing card is `False`, not a not-found error |
-| `list` by family | no additional input on family-specific function | bare `tuple[CardMapping, ...]` | raise domain error only for unsupported boundary use |
-| `plan_create` | full-card mapping | `MutationPlanDescriptor` | raise domain error |
-| `plan_update` | full-card mapping | `MutationPlanDescriptor` | raise domain error |
+| `list` by family | no additional input on family-specific function | bare tuple of card mappings shaped by [`docs/payload_contracts.md`](payload_contracts.md) and [`docs/card_contracts.md`](card_contracts.md) | raise domain error only for unsupported boundary use |
+| `plan_create` | full-card payload | `MutationPlanDescriptor` | raise domain error |
+| `plan_update` | full-card payload | `MutationPlanDescriptor` | raise domain error |
 
 Interpretation notes:
 
@@ -49,7 +52,12 @@ Interpretation notes:
 - `exists_*` returns `True` or `False`; absence is not exceptional.
 - `list_*` returns a bare tuple of card mappings; an empty family listing is an
   empty tuple.
+- These shapes are runtime-real today for `StudyCard` only.
+- The concrete first-slice mapping shapes live in
+  [`docs/payload_contracts.md`](payload_contracts.md).
 - `plan_*` returns a planning descriptor only; it does not mutate storage.
+- `create_study_card` and `update_study_card` are separate StudyCard-only
+  execution helpers that return the bare stored payload on success.
 
 ## Error Semantics
 
@@ -57,7 +65,7 @@ Gateway errors are domain-level contract semantics, not raw OS exceptions.
 Future lower-level filesystem or serializer failures must not cross the gateway
 boundary as raw implementation errors.
 
-Planned error categories:
+Gateway/domain error categories:
 
 - `RegistryError`: base gateway/domain failure category
 - `CardNotFoundError`: the requested target card is absent for read or update
@@ -73,7 +81,7 @@ Planned error categories:
 Communication rule:
 
 - These names define the contract surface seen by CLI and governance callers.
-- They do not claim any raw storage/runtime implementation strategy.
+- StudyCard runtime translates raw storage and YAML failures into these names.
 - They do not expose raw OS or serializer exception types as public contract
   surface.
 
@@ -92,7 +100,7 @@ Why this is the chosen rule:
 Patch rule:
 
 - `plan_update` does not accept patch-style input.
-- `plan_update` expects the complete replacement card mapping.
+- `plan_update` expects the complete replacement full-card payload.
 - No patch-merging engine is part of this freeze.
 
 The minimum `MutationPlanDescriptor` shape must describe:
@@ -102,7 +110,7 @@ The minimum `MutationPlanDescriptor` shape must describe:
 | `plan_kind` | `create` or `update` |
 | `card_family` | target card family |
 | `target_id` | canonical target card identifier |
-| `input_requirement` | always `full_card_mapping` in this MVP freeze |
+| `input_requirement` | always `full_card_payload` in this MVP freeze |
 | `integrity_checks_required` | direct reference or existence checks the gateway expects before execution |
 | `atomicity_expectation` | single-card atomic replace expectation |
 | `execution_state` | always `planned_only` in this milestone |
@@ -113,13 +121,18 @@ Planning interpretation:
 - `plan_create` and `plan_update` share the same plan result shape.
 - The plan object is the success result for mutation planning.
 - The plan object records intended execution semantics without performing IO.
+- The accepted payload families for the first slice are `StudyCardPayload`,
+  `DatasetCardPayload`, and `ClaimCardPayload` from
+  [`docs/payload_contracts.md`](payload_contracts.md).
+- For `StudyCard`, the plan functions are separate from the runtime execution
+  helpers and still do not write storage.
 
 ## Success Vs Failure Communication Rule
 
 At the contract level:
 
 - Success is returned as the operation's native domain shape:
-  `CardMapping`, `bool`, `tuple[CardMapping, ...]`, or
+  bare card mapping, `bool`, bare tuple of card mappings, or
   `MutationPlanDescriptor`.
 - Failure is communicated by raising a gateway/domain exception from the frozen
   registry error taxonomy.
@@ -130,10 +143,9 @@ At the contract level:
 
 This milestone does not add or imply:
 
-- runtime gateway implementation
-- registry IO
-- serializer or deserializer implementation
-- parser or validation engine
+- DatasetCard or ClaimCard runtime gateway implementation
+- broad parser or validation engine
+- payload conversion runtime
 - patch-merging engine
 - retry runtime
 - concurrency or locking runtime

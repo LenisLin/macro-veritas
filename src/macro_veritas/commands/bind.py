@@ -2,17 +2,24 @@
 
 Owning domain: Registry Department / 户部 locator-binding boundary.
 Non-goals: no filesystem checks, no path mutation, no public CLI wiring.
-Relevant docs: `docs/cli_command_contracts.md`, `docs/registry_layout.md`,
-`docs/gateway_contracts.md`, and `docs/api_specs.md`.
+Relevant docs: `docs/cli_command_contracts.md`, `docs/payload_contracts.md`,
+`docs/registry_layout.md`, `docs/gateway_contracts.md`, and
+`docs/api_specs.md`.
 """
 
 from __future__ import annotations
 
 from macro_veritas.commands.common import (
     build_command_descriptor,
+    build_command_payload_descriptor,
     command_handler_not_implemented,
 )
-from macro_veritas.shared.types import CommandDescriptor, CommandFamilyName, DescriptorSequence
+from macro_veritas.shared.types import (
+    CommandDescriptor,
+    CommandFamilyName,
+    CommandPayloadDescriptor,
+    DescriptorSequence,
+)
 
 _FAMILY_NAME: CommandFamilyName = "bind"
 _OWNING_MODULE = "macro_veritas.commands.bind"
@@ -22,16 +29,18 @@ _PURPOSE = (
     "filesystem paths or executing registry mutation."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
+    "future command-normalized binding input",
     "target object identity",
     "locator reference",
     "binding provenance note",
-    "full replacement card mapping when update planning is needed",
+    "full replacement gateway payload when update planning is needed",
 )
 _PRIMARY_OUTPUTS: DescriptorSequence = (
-    "future gateway read or update-plan request",
+    "future gateway read or update-plan request over full-card payloads",
     "binding summary",
 )
 _DEPENDENCY_CONTRACTS: DescriptorSequence = (
+    "docs/payload_contracts.md",
     "docs/registry_layout.md",
     "docs/registry_io_boundary.md",
     "docs/gateway_contracts.md",
@@ -45,6 +54,41 @@ _EXPECTED_GATEWAY_DEPENDENCIES: DescriptorSequence = (
     "plan_update_study_card",
     "plan_update_dataset_card",
     "plan_update_claim_card",
+)
+_PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
+    build_command_payload_descriptor(
+        card_family="StudyCard",
+        payload_type="StudyCardPayload",
+        usage="prepare_update",
+        gateway_reads=("get_study_card",),
+        gateway_mutations=("plan_update_study_card",),
+        notes=(
+            "Binding work may read the current StudyCard before preparing a full replacement payload.",
+            "Partial locator patches stay out of contract for the MVP.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="DatasetCard",
+        payload_type="DatasetCardPayload",
+        usage="prepare_update",
+        gateway_reads=("get_dataset_card",),
+        gateway_mutations=("plan_update_dataset_card",),
+        notes=(
+            "Binding work may read the current DatasetCard before preparing a full replacement payload.",
+            "Partial locator patches stay out of contract for the MVP.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="ClaimCard",
+        payload_type="ClaimCardPayload",
+        usage="prepare_update",
+        gateway_reads=("get_claim_card",),
+        gateway_mutations=("plan_update_claim_card",),
+        notes=(
+            "Binding work may read the current ClaimCard before preparing a full replacement payload.",
+            "Partial locator patches stay out of contract for the MVP.",
+        ),
+    ),
 )
 _DEFERRED_CAPABILITIES: DescriptorSequence = (
     "public CLI exposure",
@@ -101,11 +145,12 @@ def handle_bind_command(args: object) -> object:
     """Reserve the future handler boundary for the internal `bind` family.
 
     Inputs:
-        `args`: future parsed arguments for the reserved `bind` family.
+        `args`: future raw parsed arguments for the reserved `bind` family.
     Outputs:
         Future handler result object; this skeleton currently raises.
     Non-goals:
-        This placeholder does not call the gateway, inspect storage, or mutate state.
+        This placeholder does not normalize parser input, call the gateway,
+        inspect storage, or mutate state.
     """
 
     del args
@@ -118,6 +163,12 @@ def list_expected_gateway_dependencies() -> DescriptorSequence:
     return _EXPECTED_GATEWAY_DEPENDENCIES
 
 
+def describe_payload_contracts() -> tuple[CommandPayloadDescriptor, ...]:
+    """Describe the frozen MVP payload families touched by `bind`."""
+
+    return _PAYLOAD_CONTRACTS
+
+
 def list_deferred_capabilities() -> DescriptorSequence:
     """List deferred `bind` capabilities beyond this skeleton milestone."""
 
@@ -127,6 +178,7 @@ def list_deferred_capabilities() -> DescriptorSequence:
 __all__ = [
     "build_parser",
     "describe_command_family",
+    "describe_payload_contracts",
     "family_name",
     "handle_bind_command",
     "list_deferred_capabilities",

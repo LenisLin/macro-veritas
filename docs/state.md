@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- Phase: Initialization / MVP documentation freeze
+- Phase: Initialization / first StudyCard runtime slice
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
-- Documentation set status: MVP documentation set established for the current freeze
+- Documentation set status: MVP documentation set established with the first narrow registry runtime implementation
 
 ## Implemented Now
 
@@ -14,12 +14,17 @@
 - A documentation map exists at `docs/index.md` to support new contributors and new model sessions.
 - A minimal CLI scaffold exists with `status`, `show-config`, and `init-layout`.
 - A committed project config defines the current external data root and placeholder layout paths.
+- The registry gateway now implements real file-backed `StudyCard` read, exists, list, create, and update behavior.
+- StudyCard serialization/deserialization now uses one YAML file per card at the canonical StudyCard path.
+- StudyCard single-card writes now use a temp-file-plus-replace atomic write flow.
+- Internal tests now cover the StudyCard runtime slice.
 - AVCP-derived governance assets remain in place as internal process scaffolding.
 
 ## Documented But Not Implemented
 
 - The intended direction is a CLI-first, lightweight Python project with filesystem-oriented registry/persistence.
-- Planned object families and future CLI growth are documented at a placeholder level only.
+- `DatasetCard` and `ClaimCard` runtime remain contract-only.
+- Planned object families and future CLI growth beyond the current slice are documented at a placeholder level only.
 - Future execution-layer patterns may draw limited inspiration from CellVoyager, but no such layer is implemented here.
 
 ## Explicitly Deferred
@@ -28,7 +33,7 @@
 - claim extraction
 - evidence grading logic
 - audit engine behavior
-- real filesystem registry business logic
+- DatasetCard or ClaimCard filesystem registry business logic
 - real multi-agent logic
 - FastAPI or other web service layer
 - SQL persistence
@@ -42,4 +47,4 @@
 
 ## Next Milestone
 
-- Define the first narrow registry contracts and a small ingestion/audit path without introducing scientific inference logic.
+- Extend runtime only where contracts remain narrow and honest, without introducing scientific inference logic or widening the public CLI prematurely.

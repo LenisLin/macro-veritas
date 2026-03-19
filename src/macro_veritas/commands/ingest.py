@@ -2,17 +2,23 @@
 
 Owning domain: Registry Department / 户部 intake boundary.
 Non-goals: no registry writes, no identifier allocation, no public CLI wiring.
-Relevant docs: `docs/cli_command_contracts.md`, `docs/card_contracts.md`,
-`docs/gateway_contracts.md`, and `docs/api_specs.md`.
+Relevant docs: `docs/cli_command_contracts.md`, `docs/payload_contracts.md`,
+`docs/card_contracts.md`, `docs/gateway_contracts.md`, and `docs/api_specs.md`.
 """
 
 from __future__ import annotations
 
 from macro_veritas.commands.common import (
     build_command_descriptor,
+    build_command_payload_descriptor,
     command_handler_not_implemented,
 )
-from macro_veritas.shared.types import CommandDescriptor, CommandFamilyName, DescriptorSequence
+from macro_veritas.shared.types import (
+    CommandDescriptor,
+    CommandFamilyName,
+    CommandPayloadDescriptor,
+    DescriptorSequence,
+)
 
 _FAMILY_NAME: CommandFamilyName = "ingest"
 _OWNING_MODULE = "macro_veritas.commands.ingest"
@@ -22,16 +28,17 @@ _PURPOSE = (
     "registry boundary without performing runtime mutation."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
-    "curated source reference",
+    "future command-normalized intake input",
     "target card-family label",
-    "provisional full-card mapping",
+    "full-card gateway payload for StudyCard, DatasetCard, or ClaimCard create planning",
     "provenance note",
 )
 _PRIMARY_OUTPUTS: DescriptorSequence = (
-    "future gateway create-plan request",
+    "future gateway create-plan request prepared from a full-card payload",
     "CLI-facing intake summary",
 )
 _DEPENDENCY_CONTRACTS: DescriptorSequence = (
+    "docs/payload_contracts.md",
     "docs/card_contracts.md",
     "docs/registry_io_boundary.md",
     "docs/gateway_contracts.md",
@@ -42,6 +49,41 @@ _EXPECTED_GATEWAY_DEPENDENCIES: DescriptorSequence = (
     "plan_create_study_card",
     "plan_create_dataset_card",
     "plan_create_claim_card",
+)
+_PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
+    build_command_payload_descriptor(
+        card_family="StudyCard",
+        payload_type="StudyCardPayload",
+        usage="prepare_create",
+        gateway_reads=(),
+        gateway_mutations=("plan_create_study_card",),
+        notes=(
+            "Future handlers normalize raw CLI intake input before preparing a StudyCardPayload.",
+            "Create planning accepts a full-card payload only.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="DatasetCard",
+        payload_type="DatasetCardPayload",
+        usage="prepare_create",
+        gateway_reads=(),
+        gateway_mutations=("plan_create_dataset_card",),
+        notes=(
+            "Future handlers normalize raw CLI intake input before preparing a DatasetCardPayload.",
+            "Create planning accepts a full-card payload only.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="ClaimCard",
+        payload_type="ClaimCardPayload",
+        usage="prepare_create",
+        gateway_reads=(),
+        gateway_mutations=("plan_create_claim_card",),
+        notes=(
+            "Future handlers normalize raw CLI intake input before preparing a ClaimCardPayload.",
+            "Create planning accepts a full-card payload only.",
+        ),
+    ),
 )
 _DEFERRED_CAPABILITIES: DescriptorSequence = (
     "public CLI exposure",
@@ -98,11 +140,12 @@ def handle_ingest_command(args: object) -> object:
     """Reserve the future handler boundary for the internal `ingest` family.
 
     Inputs:
-        `args`: future parsed arguments for the reserved `ingest` family.
+        `args`: future raw parsed arguments for the reserved `ingest` family.
     Outputs:
         Future handler result object; this skeleton currently raises.
     Non-goals:
-        This placeholder does not call the gateway, write files, or mutate state.
+        This placeholder does not normalize parser input, call the gateway,
+        write files, or mutate state.
     """
 
     del args
@@ -115,6 +158,12 @@ def list_expected_gateway_dependencies() -> DescriptorSequence:
     return _EXPECTED_GATEWAY_DEPENDENCIES
 
 
+def describe_payload_contracts() -> tuple[CommandPayloadDescriptor, ...]:
+    """Describe the frozen MVP payload families touched by `ingest`."""
+
+    return _PAYLOAD_CONTRACTS
+
+
 def list_deferred_capabilities() -> DescriptorSequence:
     """List deferred `ingest` capabilities beyond this skeleton milestone."""
 
@@ -124,6 +173,7 @@ def list_deferred_capabilities() -> DescriptorSequence:
 __all__ = [
     "build_parser",
     "describe_command_family",
+    "describe_payload_contracts",
     "family_name",
     "handle_ingest_command",
     "list_deferred_capabilities",

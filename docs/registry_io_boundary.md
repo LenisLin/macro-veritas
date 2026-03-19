@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document freezes the future internal access boundary for registry
+This document freezes the internal access boundary for registry
 operations.
 
 - It defines the planned module boundary for reading and writing registry cards.
@@ -12,12 +12,14 @@ operations.
 - `docs/gateway_contracts.md` defines the exact gateway communication contract
   for results, mutation-plan outputs, and domain-error semantics.
 
-This document does not imply implemented IO.
+This document separates the frozen general boundary from the currently
+implemented runtime slice.
 
-- No registry reads are implemented.
-- No registry writes are implemented.
-- No serializer or deserializer is implemented.
-- No filesystem mutation logic is implemented.
+- The general boundary remains frozen and conservative.
+- `StudyCard` runtime reads, listings, existence checks, and single-card writes
+  are now implemented behind the gateway.
+- `DatasetCard` and `ClaimCard` remain contract-only and do not implement
+  runtime IO.
 
 ## Architectural Boundary
 
@@ -27,8 +29,8 @@ The intended split is conservative and layered.
 | --- | --- | --- |
 | CLI layer | Parse arguments, invoke package functions, and print results | Must not do raw path traversal or raw file access for registry cards |
 | Governance / rule layer | Define policy, review rules, lifecycle intent, and higher-level workflow decisions | Must not do raw file access for registry cards |
-| Registry gateway / repository boundary | Sole planned internal access boundary for retrieving and persisting `StudyCard`, `DatasetCard`, and `ClaimCard` | Future callers should use this boundary instead of touching layout helpers or files directly |
-| Future serialization layer | Convert between in-memory card mappings and on-disk representation | Internal implementation detail beneath the gateway; not called directly by CLI or governance |
+| Registry gateway / repository boundary | Sole internal access boundary for retrieving and persisting `StudyCard`, `DatasetCard`, and `ClaimCard` | Current callers should use this boundary instead of touching layout helpers or files directly |
+| Serialization layer | Convert between in-memory card mappings and on-disk representation | Implemented now for `StudyCard` only beneath the gateway; not called directly by CLI or governance |
 | Filesystem layout layer | Freeze canonical relative paths, naming rules, and static placement conventions | Path helper layer only; not a read/write access API |
 
 Planning rule:
@@ -51,16 +53,19 @@ Planned operation families:
 - `plan create`
 - `plan update`
 
-Planned scope:
+Current first-slice state:
 
-- `StudyCard`: `get`, `exists`, `list`, `plan create`, `plan update`
+- `StudyCard`: runtime-real `get`, `exists`, `list`, `plan create`,
+  `plan update`, plus gateway-level `create` and `update` execution helpers
 - `DatasetCard`: `get`, `exists`, `list`, `plan create`, `plan update`
+  remain planned only
 - `ClaimCard`: `get`, `exists`, `list`, `plan create`, `plan update`
+  remain planned only
 
-This freeze reserves operation families and function signatures only.
+The boundary remains narrow even where runtime now exists.
 
-- It does not define concrete read payload models.
-- It does not implement runtime behavior.
+- It does not introduce a broader repository abstraction.
+- It does not implement DatasetCard or ClaimCard runtime behavior.
 
 The exact success/result shapes and mutation-plan payload contract are frozen in
 [`docs/gateway_contracts.md`](gateway_contracts.md).
@@ -91,17 +96,18 @@ Why this is the chosen MVP boundary:
 
 ## Atomicity And Mutation Safety Strategy
 
-The future write rule is intentionally narrow:
+The write rule remains intentionally narrow and is now implemented for
+`StudyCard`:
 
 - Single-card create and update operations are expected to follow a write-temp-then-replace style atomic update principle for the canonical card file.
 
-Planned interpretation:
+Implemented interpretation:
 
 - The target of atomicity is one canonical card file at a time.
 - Future writes should avoid in-place partial overwrite of the canonical file.
 - A successful single-card mutation should appear as one completed replacement of the canonical card file.
 
-Explicit limits for this freeze:
+Explicit limits:
 
 - No multi-card transaction guarantee is planned yet.
 - No cross-card commit bundle is planned yet.
@@ -112,7 +118,7 @@ Explicit limits for this freeze:
 
 The minimum planned registry access error surface is conservative and small.
 
-Planned categories:
+Gateway/domain categories:
 
 - `RegistryError`: base registry access error
 - `CardNotFoundError`: requested card does not exist
@@ -121,8 +127,9 @@ Planned categories:
 - `InvalidStateTransitionError`: requested change conflicts with the frozen lifecycle/state policy
 - `UnsupportedRegistryOperationError`: requested registry action is outside the supported gateway contract
 
-This freeze does not add a rich exception framework. It only fixes the minimum
-names and semantic categories.
+The runtime slice still uses a small error surface. Lower-level StudyCard
+filesystem and YAML failures are translated into this domain layer at the
+gateway.
 
 The exact gateway-facing meaning of those error categories is frozen in
 [`docs/gateway_contracts.md`](gateway_contracts.md).
@@ -131,12 +138,11 @@ The exact gateway-facing meaning of those error categories is frozen in
 
 This milestone does not add or imply:
 
-- real registry IO
-- serializer or deserializer implementation
 - transaction engine
 - concurrent locking system
 - manifest or index engine
-- parsing or validation engine
+- DatasetCard or ClaimCard runtime IO
+- broad parsing or validation engine
 - scientific logic
 - evidence grading
 - CellVoyager integration

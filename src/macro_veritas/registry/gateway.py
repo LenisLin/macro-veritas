@@ -1,31 +1,62 @@
-"""Interface skeleton for the future registry access boundary.
+"""Registry gateway for the first MacroVeritas runtime slice.
 
-This module reserves the internal boundary that future code should use to
-retrieve or persist first-slice registry cards.
+This module remains the sole internal boundary that higher layers should use to
+retrieve or persist first-slice registry cards through frozen payload/DTO
+shapes.
+
+Implemented now:
+- real file-backed runtime reads, existence checks, listings, create, and
+  update for `StudyCard`
+- planning descriptors for `StudyCard` create and update
+- domain-level translation of lower-level StudyCard filesystem/YAML failures
 
 Non-goals:
-- no registry IO
-- no serializer or deserializer implementation
-- no filesystem mutation logic
-- no validation or parsing engine
+- no DatasetCard or ClaimCard runtime IO
+- no CLI wiring
+- no scientific logic, evidence grading, or CellVoyager integration
 
-Boundary docs: `docs/registry_io_boundary.md` and `docs/gateway_contracts.md`.
+Boundary docs: `docs/registry_io_boundary.md`, `docs/gateway_contracts.md`,
+`docs/payload_contracts.md`, and `docs/studycard_runtime.md`.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from macro_veritas.config import load_project_config
+from macro_veritas.registry.errors import (
+    CardAlreadyExistsError,
+    CardNotFoundError,
+    InvalidStateTransitionError,
+    RegistryError,
+    UnsupportedRegistryOperationError,
+)
 from macro_veritas.registry.specs import (
     describe_integrity_enforcement_policy,
     describe_registry_gateway_boundary,
     list_registry_error_categories,
 )
+from macro_veritas.registry.study_runtime import (
+    StudyCardFormatError,
+    StudyCardIdentifierError,
+    StudyCardStateTransitionError,
+    create_study_card as _runtime_create_study_card,
+    ensure_study_card_update_allowed,
+    list_study_cards as _runtime_list_study_cards,
+    normalize_study_card_payload,
+    read_study_card as _runtime_read_study_card,
+    study_card_exists as _runtime_study_card_exists,
+    update_study_card as _runtime_update_study_card,
+)
 from macro_veritas.shared.types import (
     CardFamilyName,
-    CardMapping,
-    CardSequence,
+    ClaimCardPayload,
+    DatasetCardPayload,
     GatewayOperationKind,
     GatewayResultDescriptor,
+    MutationOperationKind,
     MutationPlanDescriptor,
+    StudyCardPayload,
 )
 
 _SUPPORTED_CARD_FAMILIES: tuple[CardFamilyName, ...] = (
@@ -43,10 +74,10 @@ _OPERATION_FAMILIES: tuple[GatewayOperationKind, ...] = (
 _RESULT_CONTRACT: dict[GatewayOperationKind, GatewayResultDescriptor] = {
     "get_by_id": {
         "operation_kind": "get_by_id",
-        "success_shape": "CardMapping",
+        "success_shape": "GatewayReadCard",
         "failure_channel": "raise RegistryError subclass",
         "notes": (
-            "Returns one bare card mapping on success.",
+            "Returns one bare card mapping shaped like the frozen card contract.",
             "Absence is communicated as CardNotFoundError.",
         ),
     },
@@ -61,10 +92,10 @@ _RESULT_CONTRACT: dict[GatewayOperationKind, GatewayResultDescriptor] = {
     },
     "list_by_family": {
         "operation_kind": "list_by_family",
-        "success_shape": "tuple[CardMapping, ...]",
+        "success_shape": "GatewayListResult",
         "failure_channel": "raise RegistryError subclass only for unsupported boundary use",
         "notes": (
-            "Returns a bare tuple of card mappings.",
+            "Returns a bare tuple of card mappings shaped like the frozen card contract.",
             "An empty family listing is communicated as an empty tuple.",
         ),
     },
@@ -73,7 +104,7 @@ _RESULT_CONTRACT: dict[GatewayOperationKind, GatewayResultDescriptor] = {
         "success_shape": "MutationPlanDescriptor",
         "failure_channel": "raise RegistryError subclass",
         "notes": (
-            "Expects a full card mapping, not a patch.",
+            "Expects a full-card payload, not raw argparse objects or a patch.",
             "Returns an explicit mutation-plan descriptor without performing IO.",
         ),
     },
@@ -82,7 +113,7 @@ _RESULT_CONTRACT: dict[GatewayOperationKind, GatewayResultDescriptor] = {
         "success_shape": "MutationPlanDescriptor",
         "failure_channel": "raise RegistryError subclass",
         "notes": (
-            "Expects the complete replacement card mapping, not a patch.",
+            "Expects the complete replacement full-card payload, not a patch.",
             "Uses the same plan descriptor shape as create planning.",
         ),
     },
@@ -102,9 +133,63 @@ _MUTATION_PLAN_FIELDS: tuple[str, ...] = (
 def _not_implemented(operation_name: str) -> NotImplementedError:
     return NotImplementedError(
         f"{operation_name} is a frozen registry gateway placeholder only. "
-        "Registry IO, serialization, validation, and filesystem mutation are "
-        "not implemented."
+        "This milestone implements runtime behavior for StudyCard only."
     )
+
+
+def _registry_root() -> Path:
+    return load_project_config().registry_dir
+
+
+def _studycard_plan_descriptor(
+    plan_kind: MutationOperationKind,
+    study_id: str,
+) -> MutationPlanDescriptor:
+    integrity_checks_required: tuple[str, ...]
+    if plan_kind == "create":
+        integrity_checks_required = ("canonical StudyCard path must not already exist",)
+    else:
+        integrity_checks_required = (
+            "canonical StudyCard path must already exist",
+            "closed StudyCard status must not reopen to an active status",
+        )
+
+    return {
+        "plan_kind": plan_kind,
+        "card_family": "StudyCard",
+        "target_id": study_id,
+        "input_requirement": "full_card_payload",
+        "integrity_checks_required": integrity_checks_required,
+        "atomicity_expectation": "single-card atomic replace",
+        "execution_state": "planned_only",
+        "deferred_execution_note": (
+            "Planning only. Runtime execution for StudyCard is available through "
+            "create_study_card/update_study_card."
+        ),
+    }
+
+
+def _translate_study_runtime_error(
+    operation_name: str,
+    exc: Exception,
+) -> RegistryError:
+    if isinstance(exc, StudyCardIdentifierError):
+        return UnsupportedRegistryOperationError(str(exc))
+    if isinstance(exc, FileNotFoundError):
+        return CardNotFoundError(
+            f"{operation_name} could not find the requested StudyCard at its canonical path."
+        )
+    if isinstance(exc, FileExistsError):
+        return CardAlreadyExistsError(
+            f"{operation_name} targeted a StudyCard that already exists at its canonical path."
+        )
+    if isinstance(exc, StudyCardStateTransitionError):
+        return InvalidStateTransitionError(str(exc))
+    if isinstance(exc, StudyCardFormatError):
+        return RegistryError(str(exc))
+    if isinstance(exc, OSError):
+        return RegistryError(f"{operation_name} failed during StudyCard filesystem access: {exc}")
+    return RegistryError(f"{operation_name} failed during StudyCard runtime translation: {exc}")
 
 
 def describe_registry_gateway_role() -> dict[str, object]:
@@ -112,14 +197,22 @@ def describe_registry_gateway_role() -> dict[str, object]:
 
     return {
         **describe_registry_gateway_boundary(),
-        "boundary_status": "interface-skeleton-only",
+        "boundary_status": "studycard-runtime-only",
         "communication_contract_doc": "docs/gateway_contracts.md",
+        "payload_contract_doc": "docs/payload_contracts.md",
+        "studycard_runtime_doc": "docs/studycard_runtime.md",
         "supported_card_families": list_supported_card_families(),
         "operation_families": _OPERATION_FAMILIES,
         "planned_error_categories": list_registry_error_categories(),
+        "runtime_real_behavior": {
+            "StudyCard": ("get", "exists", "list", "plan_create", "plan_update", "create", "update"),
+            "DatasetCard": (),
+            "ClaimCard": (),
+        },
         "result_style": (
-            "bare card reads + bool exists + tuple listings + explicit "
-            "mutation-plan descriptor + domain exceptions"
+            "bare card reads shaped like the frozen card contract + bool exists "
+            "+ tuple listings + explicit mutation-plan descriptor + StudyCard "
+            "runtime create/update helpers + domain exceptions"
         ),
     }
 
@@ -142,19 +235,19 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
     return {
         "RegistryError": {
             "semantic_layer": "gateway/domain",
-            "meaning": "base registry contract failure",
+            "meaning": "base registry contract failure, including malformed StudyCard content and translated filesystem failures",
             "not_a_raw_os_exception": True,
         },
         "CardNotFoundError": {
             "semantic_layer": "gateway/domain",
-            "meaning": "requested target card is absent for read or update planning",
-            "applies_to": ("get_by_id", "plan_update"),
+            "meaning": "requested target card is absent for read, StudyCard update execution, or update planning",
+            "applies_to": ("get_by_id", "plan_update", "update"),
             "not_a_raw_os_exception": True,
         },
         "CardAlreadyExistsError": {
             "semantic_layer": "gateway/domain",
-            "meaning": "create planning targets an already existing card",
-            "applies_to": ("plan_create",),
+            "meaning": "create planning or StudyCard create execution targets an already existing card",
+            "applies_to": ("plan_create", "create"),
             "not_a_raw_os_exception": True,
         },
         "BrokenReferenceError": {
@@ -165,13 +258,13 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
         },
         "InvalidStateTransitionError": {
             "semantic_layer": "gateway/domain",
-            "meaning": "requested change conflicts with the frozen state policy",
-            "applies_to": ("plan_create", "plan_update"),
+            "meaning": "requested StudyCard update conflicts with the frozen state policy",
+            "applies_to": ("plan_update", "update"),
             "not_a_raw_os_exception": True,
         },
         "UnsupportedRegistryOperationError": {
             "semantic_layer": "gateway/domain",
-            "meaning": "caller requested an operation or input style outside the frozen contract",
+            "meaning": "caller requested an operation or input style outside the frozen contract, including unsafe StudyCard lookup IDs",
             "applies_to": _OPERATION_FAMILIES,
             "not_a_raw_os_exception": True,
         },
@@ -185,12 +278,14 @@ def describe_referential_integrity_policy() -> dict[str, object]:
 
 
 def describe_atomic_write_policy() -> dict[str, str]:
-    """Describe the planned future single-card mutation-safety rule."""
+    """Describe the single-card mutation-safety rule used by StudyCard runtime."""
 
     return {
         "policy": "single-card atomic replace",
         "write_shape": "write-temp-then-replace",
         "guarantee_scope": "one canonical card file per create or update operation",
+        "implemented_for": "StudyCard only",
+        "durability_steps": "fsync temp file before replace; fsync parent directory after replace",
         "multi_card_transaction_guarantee": "not planned in MVP",
         "concurrent_locking": "not implemented",
     }
@@ -202,10 +297,18 @@ def describe_mutation_plan_contract() -> dict[str, object]:
     return {
         "output_type": "MutationPlanDescriptor",
         "required_fields": _MUTATION_PLAN_FIELDS,
-        "input_requirement": "full_card_mapping",
+        "input_requirement": "full_card_payload",
+        "accepted_payload_types": (
+            "StudyCardPayload",
+            "DatasetCardPayload",
+            "ClaimCardPayload",
+        ),
         "execution_state": "planned_only",
         "atomicity_expectation": "single-card atomic replace",
-        "deferred_execution_note": "planning result only; no IO or serializer work has occurred",
+        "deferred_execution_note": (
+            "planning result only; StudyCard runtime execution lives in separate "
+            "gateway helpers and no write occurs during planning"
+        ),
     }
 
 
@@ -215,7 +318,7 @@ def describe_update_policy() -> dict[str, str | bool]:
     return {
         "style": "full-card replace only",
         "patch_input_supported": False,
-        "caller_obligation": "plan_update expects the complete replacement card mapping",
+        "caller_obligation": "plan_update expects the complete replacement full-card payload",
         "why": (
             "Patch semantics are deferred until merge, validation, and serializer "
             "rules exist."
@@ -223,29 +326,34 @@ def describe_update_policy() -> dict[str, str | bool]:
     }
 
 
-def get_study_card(study_id: str) -> CardMapping:
-    """Planned gateway read for `StudyCard` retrieval by canonical ID.
+def get_study_card(study_id: str) -> StudyCardPayload:
+    """Read one StudyCard from its canonical YAML path by canonical ID.
 
     Inputs:
         `study_id`: canonical `StudyCard` identifier.
     Outputs:
-        On success, the future gateway returns one bare `CardMapping`.
+        On success, the gateway returns one bare `StudyCardPayload`
+        mapping shaped like the frozen stored-card contract.
     Expected domain errors:
         `CardNotFoundError` when the target card is absent.
     Non-goals:
-        This placeholder does not read files, deserialize data, or validate fields.
+        This does not read DatasetCard or ClaimCard files.
     """
 
-    raise _not_implemented("get_study_card")
+    try:
+        return _runtime_read_study_card(_registry_root(), study_id)
+    except Exception as exc:
+        raise _translate_study_runtime_error("get_study_card", exc) from exc
 
 
-def get_dataset_card(dataset_id: str) -> CardMapping:
+def get_dataset_card(dataset_id: str) -> DatasetCardPayload:
     """Planned gateway read for `DatasetCard` retrieval by canonical ID.
 
     Inputs:
         `dataset_id`: canonical `DatasetCard` identifier.
     Outputs:
-        On success, the future gateway returns one bare `CardMapping`.
+        On success, the future gateway returns one bare `DatasetCardPayload`
+        mapping shaped like the frozen stored-card contract.
     Expected domain errors:
         `CardNotFoundError` when the target card is absent.
     Non-goals:
@@ -255,13 +363,14 @@ def get_dataset_card(dataset_id: str) -> CardMapping:
     raise _not_implemented("get_dataset_card")
 
 
-def get_claim_card(claim_id: str) -> CardMapping:
+def get_claim_card(claim_id: str) -> ClaimCardPayload:
     """Planned gateway read for `ClaimCard` retrieval by canonical ID.
 
     Inputs:
         `claim_id`: canonical `ClaimCard` identifier.
     Outputs:
-        On success, the future gateway returns one bare `CardMapping`.
+        On success, the future gateway returns one bare `ClaimCardPayload`
+        mapping shaped like the frozen stored-card contract.
     Expected domain errors:
         `CardNotFoundError` when the target card is absent.
     Non-goals:
@@ -272,7 +381,7 @@ def get_claim_card(claim_id: str) -> CardMapping:
 
 
 def study_card_exists(study_id: str) -> bool:
-    """Planned gateway existence check for `StudyCard` by canonical ID.
+    """Check whether the canonical StudyCard YAML file exists.
 
     Inputs:
         `study_id`: canonical `StudyCard` identifier.
@@ -281,10 +390,13 @@ def study_card_exists(study_id: str) -> bool:
     Expected domain errors:
         Missing cards are communicated as `False`, not `CardNotFoundError`.
     Non-goals:
-        This placeholder does not inspect storage or perform raw path access.
+        This does not inspect DatasetCard or ClaimCard storage.
     """
 
-    raise _not_implemented("study_card_exists")
+    try:
+        return _runtime_study_card_exists(_registry_root(), study_id)
+    except Exception as exc:
+        raise _translate_study_runtime_error("study_card_exists", exc) from exc
 
 
 def dataset_card_exists(dataset_id: str) -> bool:
@@ -319,30 +431,33 @@ def claim_card_exists(claim_id: str) -> bool:
     raise _not_implemented("claim_card_exists")
 
 
-def list_study_cards() -> CardSequence:
-    """Planned gateway listing operation for `StudyCard` records.
+def list_study_cards() -> tuple[StudyCardPayload, ...]:
+    """List StudyCards stored beneath the canonical StudyCard family directory.
 
     Inputs:
         None.
     Outputs:
-        On success, the future gateway returns `tuple[CardMapping, ...]`.
+        On success, the gateway returns `tuple[StudyCardPayload, ...]`.
         An empty family listing is an empty tuple.
     Expected domain errors:
-        None for an empty family listing.
+        A malformed StudyCard file is translated to `RegistryError`.
     Non-goals:
-        This placeholder does not read files or freeze listing order semantics.
+        This does not traverse DatasetCard or ClaimCard directories.
     """
 
-    raise _not_implemented("list_study_cards")
+    try:
+        return _runtime_list_study_cards(_registry_root())
+    except Exception as exc:
+        raise _translate_study_runtime_error("list_study_cards", exc) from exc
 
 
-def list_dataset_cards() -> CardSequence:
+def list_dataset_cards() -> tuple[DatasetCardPayload, ...]:
     """Planned gateway listing operation for `DatasetCard` records.
 
     Inputs:
         None.
     Outputs:
-        On success, the future gateway returns `tuple[CardMapping, ...]`.
+        On success, the future gateway returns `tuple[DatasetCardPayload, ...]`.
         An empty family listing is an empty tuple.
     Expected domain errors:
         None for an empty family listing.
@@ -353,13 +468,13 @@ def list_dataset_cards() -> CardSequence:
     raise _not_implemented("list_dataset_cards")
 
 
-def list_claim_cards() -> CardSequence:
+def list_claim_cards() -> tuple[ClaimCardPayload, ...]:
     """Planned gateway listing operation for `ClaimCard` records.
 
     Inputs:
         None.
     Outputs:
-        On success, the future gateway returns `tuple[CardMapping, ...]`.
+        On success, the future gateway returns `tuple[ClaimCardPayload, ...]`.
         An empty family listing is an empty tuple.
     Expected domain errors:
         None for an empty family listing.
@@ -370,29 +485,38 @@ def list_claim_cards() -> CardSequence:
     raise _not_implemented("list_claim_cards")
 
 
-def plan_create_study_card(card: CardMapping) -> MutationPlanDescriptor:
-    """Reserve the future gateway contract for `StudyCard` create planning.
+def plan_create_study_card(card: StudyCardPayload) -> MutationPlanDescriptor:
+    """Return the StudyCard create planning descriptor without writing storage.
 
     Inputs:
-        `card`: complete `StudyCard` mapping for the planned create operation.
+        `card`: complete `StudyCardPayload` for the planned create operation.
     Outputs:
-        On success, the future gateway returns a `MutationPlanDescriptor`.
+        On success, the gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
-        `CardAlreadyExistsError`, `InvalidStateTransitionError`,
-        or `UnsupportedRegistryOperationError`.
+        `CardAlreadyExistsError` or `UnsupportedRegistryOperationError`.
     Non-goals:
-        This placeholder does not write files, allocate identifiers, or validate fields.
+        This does not perform a write.
     """
 
-    del card
-    raise _not_implemented("plan_create_study_card")
+    try:
+        normalized = normalize_study_card_payload(card)
+        if _runtime_study_card_exists(_registry_root(), normalized["study_id"]):
+            raise CardAlreadyExistsError(
+                "plan_create_study_card targeted a StudyCard that already exists "
+                "at its canonical path."
+            )
+        return _studycard_plan_descriptor("create", normalized["study_id"])
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_study_runtime_error("plan_create_study_card", exc) from exc
 
 
-def plan_create_dataset_card(card: CardMapping) -> MutationPlanDescriptor:
+def plan_create_dataset_card(card: DatasetCardPayload) -> MutationPlanDescriptor:
     """Reserve the future gateway contract for `DatasetCard` create planning.
 
     Inputs:
-        `card`: complete `DatasetCard` mapping for the planned create operation.
+        `card`: complete `DatasetCardPayload` for the planned create operation.
     Outputs:
         On success, the future gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
@@ -406,11 +530,11 @@ def plan_create_dataset_card(card: CardMapping) -> MutationPlanDescriptor:
     raise _not_implemented("plan_create_dataset_card")
 
 
-def plan_create_claim_card(card: CardMapping) -> MutationPlanDescriptor:
+def plan_create_claim_card(card: ClaimCardPayload) -> MutationPlanDescriptor:
     """Reserve the future gateway contract for `ClaimCard` create planning.
 
     Inputs:
-        `card`: complete `ClaimCard` mapping for the planned create operation.
+        `card`: complete `ClaimCardPayload` for the planned create operation.
     Outputs:
         On success, the future gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
@@ -424,31 +548,54 @@ def plan_create_claim_card(card: CardMapping) -> MutationPlanDescriptor:
     raise _not_implemented("plan_create_claim_card")
 
 
-def plan_update_study_card(card: CardMapping) -> MutationPlanDescriptor:
-    """Reserve the future gateway contract for `StudyCard` update planning.
+def plan_update_study_card(card: StudyCardPayload) -> MutationPlanDescriptor:
+    """Return the StudyCard update planning descriptor without writing storage.
 
     Inputs:
-        `card`: complete replacement `StudyCard` mapping. Patch input is out of
-        contract for this MVP freeze.
+        `card`: complete replacement `StudyCardPayload`. Patch input is out of
+        contract for this MVP freeze, and raw argparse objects are not accepted.
     Outputs:
-        On success, the future gateway returns a `MutationPlanDescriptor`.
+        On success, the gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
         `CardNotFoundError`, `InvalidStateTransitionError`,
         or `UnsupportedRegistryOperationError`.
     Non-goals:
-        This placeholder does not write files, merge patches, or validate fields.
+        This does not perform a write or merge patches.
     """
 
-    del card
-    raise _not_implemented("plan_update_study_card")
+    try:
+        normalized = normalize_study_card_payload(card)
+        current_card = _runtime_read_study_card(_registry_root(), normalized["study_id"])
+        ensure_study_card_update_allowed(current_card, normalized)
+        return _studycard_plan_descriptor("update", normalized["study_id"])
+    except Exception as exc:
+        raise _translate_study_runtime_error("plan_update_study_card", exc) from exc
 
 
-def plan_update_dataset_card(card: CardMapping) -> MutationPlanDescriptor:
+def create_study_card(card: StudyCardPayload) -> StudyCardPayload:
+    """Create one StudyCard through the gateway's real runtime path."""
+
+    try:
+        return _runtime_create_study_card(_registry_root(), card)
+    except Exception as exc:
+        raise _translate_study_runtime_error("create_study_card", exc) from exc
+
+
+def update_study_card(card: StudyCardPayload) -> StudyCardPayload:
+    """Replace one StudyCard through the gateway's real runtime path."""
+
+    try:
+        return _runtime_update_study_card(_registry_root(), card)
+    except Exception as exc:
+        raise _translate_study_runtime_error("update_study_card", exc) from exc
+
+
+def plan_update_dataset_card(card: DatasetCardPayload) -> MutationPlanDescriptor:
     """Reserve the future gateway contract for `DatasetCard` update planning.
 
     Inputs:
-        `card`: complete replacement `DatasetCard` mapping. Patch input is out
-        of contract for this MVP freeze.
+        `card`: complete replacement `DatasetCardPayload`. Patch input is out
+        of contract for this MVP freeze, and raw argparse objects are not accepted.
     Outputs:
         On success, the future gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
@@ -462,12 +609,12 @@ def plan_update_dataset_card(card: CardMapping) -> MutationPlanDescriptor:
     raise _not_implemented("plan_update_dataset_card")
 
 
-def plan_update_claim_card(card: CardMapping) -> MutationPlanDescriptor:
+def plan_update_claim_card(card: ClaimCardPayload) -> MutationPlanDescriptor:
     """Reserve the future gateway contract for `ClaimCard` update planning.
 
     Inputs:
-        `card`: complete replacement `ClaimCard` mapping. Patch input is out of
-        contract for this MVP freeze.
+        `card`: complete replacement `ClaimCardPayload`. Patch input is out of
+        contract for this MVP freeze, and raw argparse objects are not accepted.
     Outputs:
         On success, the future gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
@@ -483,6 +630,7 @@ def plan_update_claim_card(card: CardMapping) -> MutationPlanDescriptor:
 
 __all__ = [
     "claim_card_exists",
+    "create_study_card",
     "dataset_card_exists",
     "describe_atomic_write_policy",
     "describe_gateway_error_semantics",
@@ -505,4 +653,5 @@ __all__ = [
     "plan_update_dataset_card",
     "plan_update_study_card",
     "study_card_exists",
+    "update_study_card",
 ]

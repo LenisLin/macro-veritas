@@ -2,17 +2,23 @@
 
 Owning domain: Prosecution / 检察院 escalated review lane.
 Non-goals: no case management, no sanctions, no public CLI wiring.
-Relevant docs: `docs/cli_command_contracts.md`, `docs/audit_policy.md`,
-`docs/gateway_contracts.md`, and `docs/api_specs.md`.
+Relevant docs: `docs/cli_command_contracts.md`, `docs/payload_contracts.md`,
+`docs/audit_policy.md`, `docs/gateway_contracts.md`, and `docs/api_specs.md`.
 """
 
 from __future__ import annotations
 
 from macro_veritas.commands.common import (
     build_command_descriptor,
+    build_command_payload_descriptor,
     command_handler_not_implemented,
 )
-from macro_veritas.shared.types import CommandDescriptor, CommandFamilyName, DescriptorSequence
+from macro_veritas.shared.types import (
+    CommandDescriptor,
+    CommandFamilyName,
+    CommandPayloadDescriptor,
+    DescriptorSequence,
+)
 
 _FAMILY_NAME: CommandFamilyName = "review"
 _OWNING_MODULE = "macro_veritas.commands.review"
@@ -22,16 +28,18 @@ _PURPOSE = (
     "escalation without implementing a case workflow."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
+    "future command-normalized review intake input",
     "escalation packet",
     "linked audit reference",
     "dispute summary",
     "response-context note",
 )
 _PRIMARY_OUTPUTS: DescriptorSequence = (
-    "case-intake summary",
+    "read-driven case-intake summary",
     "prosecution handoff note",
 )
 _DEPENDENCY_CONTRACTS: DescriptorSequence = (
+    "docs/payload_contracts.md",
     "docs/audit_policy.md",
     "docs/registry_io_boundary.md",
     "docs/gateway_contracts.md",
@@ -42,6 +50,38 @@ _EXPECTED_GATEWAY_DEPENDENCIES: DescriptorSequence = (
     "get_study_card",
     "get_dataset_card",
     "get_claim_card",
+)
+_PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
+    build_command_payload_descriptor(
+        card_family="StudyCard",
+        payload_type="StudyCardPayload",
+        usage="read_only",
+        gateway_reads=("get_study_card",),
+        gateway_mutations=(),
+        notes=(
+            "Review reads StudyCard context only; it does not prepare mutation payloads in the MVP.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="DatasetCard",
+        payload_type="DatasetCardPayload",
+        usage="read_only",
+        gateway_reads=("get_dataset_card",),
+        gateway_mutations=(),
+        notes=(
+            "Review reads DatasetCard context only; it does not prepare mutation payloads in the MVP.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="ClaimCard",
+        payload_type="ClaimCardPayload",
+        usage="read_only",
+        gateway_reads=("get_claim_card",),
+        gateway_mutations=(),
+        notes=(
+            "Review reads ClaimCard context only; it does not prepare mutation payloads in the MVP.",
+        ),
+    ),
 )
 _DEFERRED_CAPABILITIES: DescriptorSequence = (
     "public CLI exposure",
@@ -98,11 +138,12 @@ def handle_review_command(args: object) -> object:
     """Reserve the future handler boundary for the internal `review` family.
 
     Inputs:
-        `args`: future parsed arguments for the reserved `review` family.
+        `args`: future raw parsed arguments for the reserved `review` family.
     Outputs:
         Future handler result object; this skeleton currently raises.
     Non-goals:
-        This placeholder does not manage cases, call the gateway, or mutate state.
+        This placeholder does not normalize parser input, manage cases, call
+        the gateway, or mutate state.
     """
 
     del args
@@ -115,6 +156,12 @@ def list_expected_gateway_dependencies() -> DescriptorSequence:
     return _EXPECTED_GATEWAY_DEPENDENCIES
 
 
+def describe_payload_contracts() -> tuple[CommandPayloadDescriptor, ...]:
+    """Describe the frozen MVP payload families touched by `review`."""
+
+    return _PAYLOAD_CONTRACTS
+
+
 def list_deferred_capabilities() -> DescriptorSequence:
     """List deferred `review` capabilities beyond this skeleton milestone."""
 
@@ -124,6 +171,7 @@ def list_deferred_capabilities() -> DescriptorSequence:
 __all__ = [
     "build_parser",
     "describe_command_family",
+    "describe_payload_contracts",
     "family_name",
     "handle_review_command",
     "list_deferred_capabilities",

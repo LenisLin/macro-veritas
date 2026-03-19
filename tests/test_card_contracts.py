@@ -35,8 +35,21 @@ def test_study_card_contract_metadata() -> None:
         "screening_note",
         "source_artifact_locator",
     )
+    assert study.allowed_screening_decisions() == ("pending", "include", "exclude")
     assert study.allowed_statuses() == ("draft", "registered", "closed")
     assert study.list_lifecycle_states() == study.allowed_statuses()
+    assert study.storage_field_order() == (
+        "study_id",
+        "citation_handle",
+        "tumor_scope_tags",
+        "therapy_scope_tags",
+        "relevance_scope_tags",
+        "screening_decision",
+        "status",
+        "created_from_note",
+        "screening_note",
+        "source_artifact_locator",
+    )
     assert study.relationship_pointers() == {
         "inbound_from": ("DatasetCard.study_id", "ClaimCard.study_id")
     }

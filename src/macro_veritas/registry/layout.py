@@ -11,6 +11,8 @@ Boundary docs: `docs/registry_layout.md` and `docs/registry_io_boundary.md`.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from macro_veritas.shared.naming import (
     claim_card_filename,
     dataset_card_filename,
@@ -37,6 +39,18 @@ def claim_card_relative_path(claim_id: str) -> str:
     """Return the canonical relative path for a first-slice `ClaimCard`."""
 
     return f"{_CLAIMS_SUBDIR}/{claim_card_filename(claim_id)}"
+
+
+def study_cards_dir(registry_root: str | Path) -> Path:
+    """Return the canonical StudyCard directory beneath a resolved registry root."""
+
+    return Path(registry_root) / _STUDIES_SUBDIR
+
+
+def study_card_path(registry_root: str | Path, study_id: str) -> Path:
+    """Return the canonical filesystem path for a first-slice `StudyCard`."""
+
+    return study_cards_dir(registry_root) / study_card_filename(study_id)
 
 
 def describe_first_slice_layout() -> dict[str, dict[str, str | bool]]:
@@ -86,7 +100,7 @@ def describe_layout_vs_gateway_boundary() -> dict[str, str | bool]:
 
     return {
         "layout_role": "canonical relative paths and naming conventions only",
-        "gateway_role": "sole planned boundary for future registry retrieval and persistence",
+        "gateway_role": "sole boundary for registry retrieval and persistence",
         "layout_is_access_api": False,
         "cli_should_use_layout_as_io_layer": False,
         "governance_should_use_layout_as_io_layer": False,
@@ -98,5 +112,7 @@ __all__ = [
     "dataset_card_relative_path",
     "describe_first_slice_layout",
     "describe_layout_vs_gateway_boundary",
+    "study_card_path",
+    "study_cards_dir",
     "study_card_relative_path",
 ]

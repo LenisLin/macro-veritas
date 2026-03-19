@@ -31,6 +31,20 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "run",
         "grade",
     )
+    assert get_args(shared_types.CommandPayloadUsage) == (
+        "prepare_create",
+        "prepare_update",
+        "prepare_create_or_update",
+        "read_only",
+    )
+    assert tuple(shared_types.CommandPayloadDescriptor.__annotations__.keys()) == (
+        "card_family",
+        "payload_type",
+        "usage",
+        "gateway_reads",
+        "gateway_mutations",
+        "notes",
+    )
     assert tuple(shared_types.CommandDescriptor.__annotations__.keys()) == (
         "family_name",
         "owning_module",
@@ -48,11 +62,18 @@ def test_shared_command_contract_types_are_frozen() -> None:
 
 def test_common_command_style_descriptor_is_static() -> None:
     style = common.describe_command_contract_style()
+    payload_style = common.describe_command_payload_contract_style()
+    payload_boundary = common.describe_gateway_payload_boundary()
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
     assert style["runtime_status"] == "internal skeleton only"
     assert style["public_exposure"] == "reserved but not part of the stable public CLI"
+    assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
+    assert payload_style["raw_cli_argument_layer"].startswith("deferred")
+    assert payload_boundary["gateway_consumes_argparse_objects"] is False
+    assert payload_boundary["gateway_consumes_full_card_payloads_only"] is True
+    assert payload_boundary["patch_payloads_supported"] is False
 
 
 def test_command_family_modules_export_static_metadata() -> None:
@@ -68,8 +89,15 @@ def test_command_family_modules_export_static_metadata() -> None:
         assert descriptor["handler"] == f"handle_{family}_command"
         assert descriptor["public_exposure"] == "reserved internal skeleton; not public CLI"
         assert isinstance(module.list_expected_gateway_dependencies(), tuple)
+        assert isinstance(module.describe_payload_contracts(), tuple)
         assert isinstance(module.list_deferred_capabilities(), tuple)
         assert module.build_parser(object()) is None
+
+        for payload_descriptor in module.describe_payload_contracts():
+            assert payload_descriptor["payload_type"].endswith("Payload")
+            assert isinstance(payload_descriptor["gateway_reads"], tuple)
+            assert isinstance(payload_descriptor["gateway_mutations"], tuple)
+            assert isinstance(payload_descriptor["notes"], tuple)
 
 
 def test_command_handlers_raise_precise_placeholders() -> None:

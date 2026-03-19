@@ -2,17 +2,23 @@
 
 Owning domain: Operations Department / 兵部 run/bundle boundary.
 Non-goals: no scientific execution, no orchestration runtime, no public CLI wiring.
-Relevant docs: `docs/cli_command_contracts.md`, `docs/gateway_contracts.md`,
-`docs/api_specs.md`, and `docs/constraints.md`.
+Relevant docs: `docs/cli_command_contracts.md`, `docs/payload_contracts.md`,
+`docs/gateway_contracts.md`, `docs/api_specs.md`, and `docs/constraints.md`.
 """
 
 from __future__ import annotations
 
 from macro_veritas.commands.common import (
     build_command_descriptor,
+    build_command_payload_descriptor,
     command_handler_not_implemented,
 )
-from macro_veritas.shared.types import CommandDescriptor, CommandFamilyName, DescriptorSequence
+from macro_veritas.shared.types import (
+    CommandDescriptor,
+    CommandFamilyName,
+    CommandPayloadDescriptor,
+    DescriptorSequence,
+)
 
 _FAMILY_NAME: CommandFamilyName = "run"
 _OWNING_MODULE = "macro_veritas.commands.run"
@@ -22,15 +28,17 @@ _PURPOSE = (
     "outputs without implementing scientific execution."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
+    "future command-normalized run input",
     "method or bundle reference",
     "linked input object references",
     "run intent note",
 )
 _PRIMARY_OUTPUTS: DescriptorSequence = (
-    "run-scope summary",
+    "read-driven run-scope summary",
     "future bundle-planning request",
 )
 _DEPENDENCY_CONTRACTS: DescriptorSequence = (
+    "docs/payload_contracts.md",
     "docs/gateway_contracts.md",
     "docs/registry_io_boundary.md",
     "macro_veritas.governance.departments.operations",
@@ -41,6 +49,38 @@ _EXPECTED_GATEWAY_DEPENDENCIES: DescriptorSequence = (
     "get_study_card",
     "get_dataset_card",
     "get_claim_card",
+)
+_PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
+    build_command_payload_descriptor(
+        card_family="StudyCard",
+        payload_type="StudyCardPayload",
+        usage="read_only",
+        gateway_reads=("get_study_card",),
+        gateway_mutations=(),
+        notes=(
+            "Run planning reads StudyCard context only in the MVP.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="DatasetCard",
+        payload_type="DatasetCardPayload",
+        usage="read_only",
+        gateway_reads=("get_dataset_card",),
+        gateway_mutations=(),
+        notes=(
+            "Run planning reads DatasetCard context only in the MVP.",
+        ),
+    ),
+    build_command_payload_descriptor(
+        card_family="ClaimCard",
+        payload_type="ClaimCardPayload",
+        usage="read_only",
+        gateway_reads=("get_claim_card",),
+        gateway_mutations=(),
+        notes=(
+            "Run planning reads ClaimCard context only in the MVP.",
+        ),
+    ),
 )
 _DEFERRED_CAPABILITIES: DescriptorSequence = (
     "public CLI exposure",
@@ -97,11 +137,12 @@ def handle_run_command(args: object) -> object:
     """Reserve the future handler boundary for the internal `run` family.
 
     Inputs:
-        `args`: future parsed arguments for the reserved `run` family.
+        `args`: future raw parsed arguments for the reserved `run` family.
     Outputs:
         Future handler result object; this skeleton currently raises.
     Non-goals:
-        This placeholder does not execute methods, call the gateway, or mutate state.
+        This placeholder does not normalize parser input, execute methods, call
+        the gateway, or mutate state.
     """
 
     del args
@@ -114,6 +155,12 @@ def list_expected_gateway_dependencies() -> DescriptorSequence:
     return _EXPECTED_GATEWAY_DEPENDENCIES
 
 
+def describe_payload_contracts() -> tuple[CommandPayloadDescriptor, ...]:
+    """Describe the frozen MVP payload families touched by `run`."""
+
+    return _PAYLOAD_CONTRACTS
+
+
 def list_deferred_capabilities() -> DescriptorSequence:
     """List deferred `run` capabilities beyond this skeleton milestone."""
 
@@ -123,6 +170,7 @@ def list_deferred_capabilities() -> DescriptorSequence:
 __all__ = [
     "build_parser",
     "describe_command_family",
+    "describe_payload_contracts",
     "family_name",
     "handle_run_command",
     "list_deferred_capabilities",

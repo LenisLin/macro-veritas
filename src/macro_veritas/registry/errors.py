@@ -1,13 +1,17 @@
-"""Planned registry access error surface for MacroVeritas.
+"""Registry access error surface for MacroVeritas.
 
 These exception classes freeze the minimum semantic categories expected at the
-future registry gateway boundary.
+registry gateway boundary.
 
 They define domain-level gateway semantics, not raw OS or serializer exception
-types. Future implementations are expected to translate lower-level failures
+types. Runtime implementations are expected to translate lower-level failures
 before they cross the gateway boundary.
 
-They do not implement recovery policy, logging, or filesystem behavior.
+The first real runtime slice currently uses these classes for StudyCard gateway
+operations only.
+
+They do not implement recovery policy, logging, or filesystem behavior by
+themselves.
 Boundary docs: `docs/registry_io_boundary.md` and `docs/gateway_contracts.md`.
 """
 
@@ -15,7 +19,7 @@ from __future__ import annotations
 
 
 class RegistryError(Exception):
-    """Base class for planned gateway/domain registry contract failures."""
+    """Base class for gateway/domain registry contract failures."""
 
 
 class CardNotFoundError(RegistryError):
