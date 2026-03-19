@@ -4,6 +4,9 @@
 - chore(init): convert AVCP template into MacroVeritas scaffold
 - docs(mvp): establish the MVP documentation freeze across governance, architecture, registry/state/audit, and CLI contract docs; project remains docs-first with no scientific system implemented and CellVoyager reference-only
 
+## v0.3.0 - 2026-03-19
+- release: DatasetCard runtime implemented with real YAML-backed persistence; gateway enforces StudyCard existence for DatasetCard create/update; ClaimCard remains contract-only; public CLI unchanged; release version chosen: v0.3.0
+
 ## v0.2.0 - 2026-03-19
 - release: StudyCard runtime gateway implemented with YAML-backed StudyCard persistence and atomic single-card writes; DatasetCard and ClaimCard remain contract-only; public CLI unchanged
 

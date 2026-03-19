@@ -6,8 +6,9 @@ first-slice payload contract between internal command handlers and the
 registry gateway.
 
 They do not define scientific schemas, validators, persistence models,
-DatasetCard/ClaimCard runtime state, or broad serializer behavior. The first
-StudyCard runtime slice reuses these payload shapes directly. Boundary docs:
+ClaimCard runtime state, or broad serializer behavior. The implemented
+StudyCard and DatasetCard runtime slices reuse these payload shapes directly.
+Boundary docs:
 `docs/governance_spec.md`, `docs/module_map.md`, `docs/card_contracts.md`,
 `docs/payload_contracts.md`, `docs/gateway_contracts.md`,
 `docs/cli_command_contracts.md`, and `docs/constraints.md`.

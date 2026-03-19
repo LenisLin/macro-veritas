@@ -17,9 +17,10 @@ implemented runtime slice.
 
 - The general boundary remains frozen and conservative.
 - `StudyCard` runtime reads, listings, existence checks, and single-card writes
-  are now implemented behind the gateway.
-- `DatasetCard` and `ClaimCard` remain contract-only and do not implement
-  runtime IO.
+  are implemented behind the gateway.
+- `DatasetCard` runtime reads, listings, existence checks, and single-card
+  writes are now implemented behind the gateway.
+- `ClaimCard` remains contract-only and does not implement runtime IO.
 
 ## Architectural Boundary
 
@@ -30,7 +31,7 @@ The intended split is conservative and layered.
 | CLI layer | Parse arguments, invoke package functions, and print results | Must not do raw path traversal or raw file access for registry cards |
 | Governance / rule layer | Define policy, review rules, lifecycle intent, and higher-level workflow decisions | Must not do raw file access for registry cards |
 | Registry gateway / repository boundary | Sole internal access boundary for retrieving and persisting `StudyCard`, `DatasetCard`, and `ClaimCard` | Current callers should use this boundary instead of touching layout helpers or files directly |
-| Serialization layer | Convert between in-memory card mappings and on-disk representation | Implemented now for `StudyCard` only beneath the gateway; not called directly by CLI or governance |
+| Serialization layer | Convert between in-memory card mappings and on-disk representation | Implemented now for `StudyCard` and `DatasetCard` beneath the gateway; not called directly by CLI or governance |
 | Filesystem layout layer | Freeze canonical relative paths, naming rules, and static placement conventions | Path helper layer only; not a read/write access API |
 
 Planning rule:
@@ -57,15 +58,15 @@ Current first-slice state:
 
 - `StudyCard`: runtime-real `get`, `exists`, `list`, `plan create`,
   `plan update`, plus gateway-level `create` and `update` execution helpers
-- `DatasetCard`: `get`, `exists`, `list`, `plan create`, `plan update`
-  remain planned only
+- `DatasetCard`: runtime-real `get`, `exists`, `list`, `plan create`,
+  `plan update`, plus gateway-level `create` and `update` execution helpers
 - `ClaimCard`: `get`, `exists`, `list`, `plan create`, `plan update`
   remain planned only
 
 The boundary remains narrow even where runtime now exists.
 
 - It does not introduce a broader repository abstraction.
-- It does not implement DatasetCard or ClaimCard runtime behavior.
+- It does not implement ClaimCard runtime behavior.
 
 The exact success/result shapes and mutation-plan payload contract are frozen in
 [`docs/gateway_contracts.md`](gateway_contracts.md).
@@ -82,6 +83,14 @@ Planned direct-reference checks:
 - `ClaimCard` create/update must confirm the referenced `StudyCard` exists.
 - `ClaimCard` create/update must confirm each referenced `DatasetCard` exists.
 
+Implemented now:
+
+- `DatasetCard` create/update enforce parent `StudyCard` existence at the
+  gateway boundary before the DatasetCard runtime helper writes storage.
+- `DatasetCard` planning descriptors perform the same direct parent existence
+  check without writing storage.
+- `ClaimCard` direct-reference enforcement remains planned only.
+
 What remains above the gateway:
 
 - Governance may still decide whether a proposed linkage is allowed by policy.
@@ -97,7 +106,7 @@ Why this is the chosen MVP boundary:
 ## Atomicity And Mutation Safety Strategy
 
 The write rule remains intentionally narrow and is now implemented for
-`StudyCard`:
+`StudyCard` and `DatasetCard`:
 
 - Single-card create and update operations are expected to follow a write-temp-then-replace style atomic update principle for the canonical card file.
 
@@ -127,9 +136,9 @@ Gateway/domain categories:
 - `InvalidStateTransitionError`: requested change conflicts with the frozen lifecycle/state policy
 - `UnsupportedRegistryOperationError`: requested registry action is outside the supported gateway contract
 
-The runtime slice still uses a small error surface. Lower-level StudyCard
-filesystem and YAML failures are translated into this domain layer at the
-gateway.
+The runtime slice still uses a small error surface. Lower-level StudyCard and
+DatasetCard filesystem/YAML failures are translated into this domain layer at
+the gateway.
 
 The exact gateway-facing meaning of those error categories is frozen in
 [`docs/gateway_contracts.md`](gateway_contracts.md).
@@ -141,7 +150,7 @@ This milestone does not add or imply:
 - transaction engine
 - concurrent locking system
 - manifest or index engine
-- DatasetCard or ClaimCard runtime IO
+- ClaimCard runtime IO
 - broad parsing or validation engine
 - scientific logic
 - evidence grading

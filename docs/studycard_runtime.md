@@ -2,7 +2,8 @@
 
 ## Purpose
 
-This document is the source of truth for the first real runtime slice in
+This document is the source of truth for the implemented StudyCard runtime
+slice in
 MacroVeritas:
 
 - file-backed registry gateway behavior for `StudyCard` only
@@ -36,11 +37,12 @@ Interpretation:
 
 ## Still Non-Runtime
 
-The following remain contract-only and do not perform runtime IO:
+The following remain outside this StudyCard runtime slice:
 
-- all `DatasetCard` gateway reads, listings, existence checks, and mutations
+- `DatasetCard` runtime behavior, which is documented separately in
+  [`docs/datasetcard_runtime.md`](datasetcard_runtime.md)
 - all `ClaimCard` gateway reads, listings, existence checks, and mutations
-- cross-card referential integrity for `DatasetCard` and `ClaimCard`
+- ClaimCard referential integrity
 - public CLI wiring for StudyCard create or update
 
 ## Canonical StudyCard Path Rule
@@ -106,7 +108,6 @@ Implemented translations:
 
 This milestone does not add:
 
-- DatasetCard runtime IO
 - ClaimCard runtime IO
 - scientific logic
 - evidence grading

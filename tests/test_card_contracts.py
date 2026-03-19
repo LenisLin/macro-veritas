@@ -17,6 +17,12 @@ def test_shared_status_literals_match_frozen_card_contracts() -> None:
         "retired",
     )
     assert get_args(shared_types.ClaimCardStatus) == ("captured", "scoped", "ready", "closed")
+    assert get_args(shared_types.DatasetAvailabilityStatus) == (
+        "unknown",
+        "open",
+        "restricted",
+        "unavailable",
+    )
 
 
 def test_study_card_contract_metadata() -> None:
@@ -73,8 +79,28 @@ def test_dataset_card_contract_metadata() -> None:
         "artifact_locator",
         "availability_note",
     )
+    assert dataset.allowed_availability_statuses() == (
+        "unknown",
+        "open",
+        "restricted",
+        "unavailable",
+    )
     assert dataset.allowed_statuses() == ("identified", "registered", "bound", "retired")
     assert dataset.list_lifecycle_states() == dataset.allowed_statuses()
+    assert dataset.storage_field_order() == (
+        "dataset_id",
+        "study_id",
+        "source_locator",
+        "availability_status",
+        "modality_scope_tags",
+        "cohort_summary",
+        "platform_summary",
+        "status",
+        "locator_confidence_note",
+        "accession_id",
+        "artifact_locator",
+        "availability_note",
+    )
     assert dataset.relationship_pointers() == {
         "study_id": ("StudyCard.study_id",),
     }

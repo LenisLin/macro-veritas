@@ -5,7 +5,8 @@ metadata for the first `DatasetCard` slice.
 
 It does not read registry files, resolve real dataset locations, or enforce
 schemas at runtime. Boundary docs: `docs/card_contracts.md`,
-`docs/registry_model.md`, and `docs/state_machine.md`.
+`docs/registry_model.md`, `docs/state_machine.md`, and
+`docs/datasetcard_runtime.md`.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from typing import Literal
 from macro_veritas.shared.types import (
     CardFieldSequence,
     ContractCategoryName,
+    DatasetAvailabilityStatus,
     DatasetCardStatus,
     RelationshipPointerMap,
 )
@@ -48,6 +50,12 @@ _ALLOWED_STATUSES: tuple[DatasetCardStatus, ...] = (
     "registered",
     "bound",
     "retired",
+)
+_ALLOWED_AVAILABILITY_STATUSES: tuple[DatasetAvailabilityStatus, ...] = (
+    "unknown",
+    "open",
+    "restricted",
+    "unavailable",
 )
 _RELATIONSHIP_POINTERS: RelationshipPointerMap = {
     "study_id": ("StudyCard.study_id",),
@@ -109,6 +117,12 @@ def allowed_statuses() -> tuple[DatasetCardStatus, ...]:
     return _ALLOWED_STATUSES
 
 
+def allowed_availability_statuses() -> tuple[DatasetAvailabilityStatus, ...]:
+    """Return the allowed availability labels for `DatasetCard`."""
+
+    return _ALLOWED_AVAILABILITY_STATUSES
+
+
 def relationship_pointers() -> RelationshipPointerMap:
     """Return the direct relationship pointers documented for `DatasetCard`."""
 
@@ -154,10 +168,20 @@ def describe_expected_persistence() -> str:
         This does not create files or resolve bindings.
     """
 
-    return "Planned YAML registry card with references to raw/ or processed/ locations."
+    return (
+        "YAML registry card at datasets/<dataset_id>.yaml beneath the configured "
+        "registry root."
+    )
+
+
+def storage_field_order() -> CardFieldSequence:
+    """Return the canonical DatasetCard field order used for stored YAML."""
+
+    return required_fields() + optional_fields()
 
 
 __all__ = [
+    "allowed_availability_statuses",
     "allowed_statuses",
     "contract_version",
     "describe_expected_persistence",
@@ -168,4 +192,5 @@ __all__ = [
     "optional_fields",
     "relationship_pointers",
     "required_fields",
+    "storage_field_order",
 ]

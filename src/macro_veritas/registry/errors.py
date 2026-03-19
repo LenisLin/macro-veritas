@@ -7,8 +7,8 @@ They define domain-level gateway semantics, not raw OS or serializer exception
 types. Runtime implementations are expected to translate lower-level failures
 before they cross the gateway boundary.
 
-The first real runtime slice currently uses these classes for StudyCard gateway
-operations only.
+The current real runtime slices use these classes for StudyCard and DatasetCard
+gateway operations.
 
 They do not implement recovery policy, logging, or filesystem behavior by
 themselves.

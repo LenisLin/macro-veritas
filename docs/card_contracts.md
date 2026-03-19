@@ -16,6 +16,8 @@ The freeze in this document is intentionally narrow.
   [`docs/payload_contracts.md`](payload_contracts.md).
 - StudyCard runtime file format and IO behavior now live in
   [`docs/studycard_runtime.md`](studycard_runtime.md).
+- DatasetCard runtime file format and IO behavior now live in
+  [`docs/datasetcard_runtime.md`](datasetcard_runtime.md).
 - It does not define validation engines or scientific interpretation logic.
 - Remaining card families stay conceptual in `docs/registry_model.md` and `docs/data_contracts.md`.
 
@@ -28,8 +30,8 @@ This document freezes the canonical stored card field contract.
   gateway reads.
 - For the first slice, those payloads intentionally reuse the same field sets
   as the stored card contracts.
-- The StudyCard runtime stores those same field names directly as a YAML
-  mapping with no hidden metadata layer.
+- The StudyCard and DatasetCard runtimes store those same field names directly
+  as YAML mappings with no hidden metadata layer.
 - They remain distinct boundary layers because command handlers should prepare
   gateway payloads, while storage concerns remain governed by the stored card
   contract and future registry IO boundary.
@@ -119,8 +121,12 @@ Represent one dataset associated with a study together with the minimum locator 
 
 ### Persistence expectation
 
-- Planned as a small registry card under `registry/`.
-- It may later reference paths under `raw/` or `processed/`, but this milestone does not implement those bindings.
+- Stored as a small YAML registry card at `datasets/<dataset_id>.yaml` beneath
+  the configured registry root.
+- The current runtime reads and writes this representation through the registry
+  gateway only.
+- It may later reference paths under `raw/` or `processed/`, but this
+  milestone does not implement those bindings.
 
 ### Required fields
 
