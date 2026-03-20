@@ -122,8 +122,25 @@ def test_claim_card_contract_metadata() -> None:
         "dataset_ids",
         "claim_summary_handle",
     )
+    assert claim.allowed_review_readiness() == (
+        "needs_scope",
+        "reviewable",
+        "execution_candidate",
+    )
     assert claim.allowed_statuses() == ("captured", "scoped", "ready", "closed")
     assert claim.list_lifecycle_states() == claim.allowed_statuses()
+    assert claim.storage_field_order() == (
+        "claim_id",
+        "study_id",
+        "claim_text",
+        "claim_type",
+        "provenance_pointer",
+        "status",
+        "review_readiness",
+        "created_from_note",
+        "dataset_ids",
+        "claim_summary_handle",
+    )
     assert claim.relationship_pointers() == {
         "study_id": ("StudyCard.study_id",),
         "dataset_ids": ("DatasetCard.dataset_id",),

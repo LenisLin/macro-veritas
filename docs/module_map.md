@@ -12,6 +12,7 @@ This document bridges the governance freeze to the current package skeleton.
 - [`docs/gateway_contracts.md`](gateway_contracts.md) is the source of truth for gateway result, error, and mutation-plan communication contracts.
 - [`docs/studycard_runtime.md`](studycard_runtime.md) is the source of truth for the first real StudyCard runtime slice.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) is the source of truth for the real DatasetCard runtime slice.
+- [`docs/claimcard_runtime.md`](claimcard_runtime.md) is the source of truth for the real ClaimCard runtime slice.
 - [`docs/cli_command_contracts.md`](cli_command_contracts.md) is the source of truth for reserved internal command-family contracts.
 - This file maps those frozen responsibilities onto the existing package and module layout.
 - It does not claim that the mapped functions, CLI groups, or workflows are implemented.
@@ -60,7 +61,7 @@ The first precise card-contract slice lives in `macro_veritas.registry`, not in 
 | --- | --- | --- |
 | `src/macro_veritas/registry/study.py` | Static `StudyCard` contract metadata for fields, statuses, and relationship anchors | No IO, no file mutation, no screening engine, no validation runtime |
 | `src/macro_veritas/registry/dataset.py` | Static `DatasetCard` contract metadata for fields, statuses, and direct study linkage | No binding engine, no locator resolution, no filesystem mutation |
-| `src/macro_veritas/registry/claim.py` | Static `ClaimCard` contract metadata for fields, statuses, and direct study/dataset pointers | No extraction engine, no evidence grading, no review runtime |
+| `src/macro_veritas/registry/claim.py` | Static `ClaimCard` contract metadata for fields, statuses, and direct study/dataset pointers | No extraction engine, no evidence grading, no higher-level review runtime |
 
 ## Registry Layout And Access Boundary Modules
 
@@ -70,13 +71,14 @@ static helper modules.
 | Code Path | Current Role | Explicit Boundary |
 | --- | --- | --- |
 | `src/macro_veritas/config.py` | Resolve configured roots and expose conservative root-level helpers for the registry tree | No directory creation beyond existing CLI scaffold, no registry-card IO |
-| `src/macro_veritas/shared/types.py` | Provide lightweight descriptor aliases plus first-slice payload/DTO TypedDicts shared across documentation-oriented modules | No validation engine, no runtime model classes, no serializer behavior |
+| `src/macro_veritas/shared/types.py` | Provide lightweight descriptor aliases plus first-slice payload/DTO TypedDicts shared across documentation-oriented modules | No validation engine, no runtime model classes, no general serializer framework |
 | `src/macro_veritas/shared/naming.py` | Provide canonical first-slice subdirectory and filename helpers | No identifier validation, no filesystem access, no serialization |
 | `src/macro_veritas/registry/specs.py` | Describe the frozen registry topology, gateway boundary, integrity policy, and planned error categories | No resolver engine, no manifest/index, no persistence runtime |
-| `src/macro_veritas/registry/layout.py` | Return canonical first-slice relative paths plus the canonical StudyCard and DatasetCard directory/path helpers used by runtime code | Path/layout helper layer only; not a caller-facing IO API |
-| `src/macro_veritas/registry/gateway.py` | Hold the gateway contract descriptors plus the real StudyCard and DatasetCard runtime boundary | Real StudyCard and DatasetCard reads/listings/planning/create/update; ClaimCard remains placeholder |
+| `src/macro_veritas/registry/layout.py` | Return canonical first-slice relative paths plus the canonical StudyCard, DatasetCard, and ClaimCard directory/path helpers used by runtime code | Path/layout helper layer only; not a caller-facing IO API |
+| `src/macro_veritas/registry/gateway.py` | Hold the gateway contract descriptors plus the real StudyCard, DatasetCard, and ClaimCard runtime boundary | Real StudyCard, DatasetCard, and ClaimCard reads/listings/planning/create/update with gateway-owned direct-reference checks |
 | `src/macro_veritas/registry/study_runtime.py` | Internal StudyCard-only runtime helper layer beneath the gateway | YAML serialization, minimal validation, canonical path checks, and single-card atomic writes only |
 | `src/macro_veritas/registry/dataset_runtime.py` | Internal DatasetCard-only runtime helper layer beneath the gateway | YAML serialization, minimal validation, canonical path checks, and single-card atomic writes only; direct StudyCard existence checks stay in the gateway |
+| `src/macro_veritas/registry/claim_runtime.py` | Internal ClaimCard-only runtime helper layer beneath the gateway | YAML serialization, minimal validation, canonical path checks, and single-card atomic writes only; direct StudyCard and DatasetCard existence checks stay in the gateway |
 | `src/macro_veritas/registry/errors.py` | Freeze the domain-level registry error taxonomy used by gateway contracts | No recovery engine, no exception routing framework, no runtime enforcement by itself |
 
 No separate `macro_veritas.registry.contracts` module is introduced in this
@@ -141,6 +143,7 @@ src/macro_veritas/
     gateway.py
     layout.py
     specs.py
+    claim_runtime.py
     dataset_runtime.py
     study_runtime.py
   runs/
@@ -170,6 +173,7 @@ src/macro_veritas/
 - `docs/gateway_contracts.md` is the source of truth for gateway result, error, and mutation-plan communication semantics.
 - `docs/studycard_runtime.md` is the source of truth for the implemented StudyCard runtime slice.
 - `docs/datasetcard_runtime.md` is the source of truth for the implemented DatasetCard runtime slice.
+- `docs/claimcard_runtime.md` is the source of truth for the implemented ClaimCard runtime slice.
 - `docs/cli_command_contracts.md` is the source of truth for reserved internal command-family contracts.
 - `macro_veritas.registry.gateway` is the sole internal boundary for registry card retrieval and persistence.
 - `macro_veritas.commands` is the reserved internal command-family layer between the current public CLI scaffold and future gateway/governance operations.
@@ -178,8 +182,8 @@ src/macro_veritas/
 - Higher layers must consume gateway contracts rather than raw filesystem semantics.
 - Higher command layers must normalize raw parser input before preparing gateway payloads.
 - Higher command layers must consume gateway/governance contracts rather than raw filesystem semantics.
-- The StudyCard and DatasetCard runtime slices implement narrow registry IO; ClaimCard remains an interface or metadata module.
+- The StudyCard, DatasetCard, and ClaimCard runtime slices implement narrow registry IO.
 - CLI and governance code must not do raw path traversal or raw file access for registry cards.
 - Prosecution remains distinct from routine review and should not be folded into `macro_veritas.governance.departments.review`.
 - Reserved command families may be aligned to governance domains in docs and internal skeletons, but current public CLI behavior does not change.
-- This round must not add ClaimCard runtime, FastAPI, SQL, notebook-centric workflow, evidence grading logic, or CellVoyager integration.
+- This round must not add FastAPI, SQL, notebook-centric workflow, evidence grading logic, or CellVoyager integration.

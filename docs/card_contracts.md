@@ -18,6 +18,8 @@ The freeze in this document is intentionally narrow.
   [`docs/studycard_runtime.md`](studycard_runtime.md).
 - DatasetCard runtime file format and IO behavior now live in
   [`docs/datasetcard_runtime.md`](datasetcard_runtime.md).
+- ClaimCard runtime file format and IO behavior now live in
+  [`docs/claimcard_runtime.md`](claimcard_runtime.md).
 - It does not define validation engines or scientific interpretation logic.
 - Remaining card families stay conceptual in `docs/registry_model.md` and `docs/data_contracts.md`.
 
@@ -30,8 +32,8 @@ This document freezes the canonical stored card field contract.
   gateway reads.
 - For the first slice, those payloads intentionally reuse the same field sets
   as the stored card contracts.
-- The StudyCard and DatasetCard runtimes store those same field names directly
-  as YAML mappings with no hidden metadata layer.
+- The StudyCard, DatasetCard, and ClaimCard runtimes store those same field
+  names directly as YAML mappings with no hidden metadata layer.
 - They remain distinct boundary layers because command handlers should prepare
   gateway payloads, while storage concerns remain governed by the stored card
   contract and future registry IO boundary.
@@ -197,8 +199,11 @@ Represent one scoped scientific claim candidate so later review or reanalysis pl
 
 ### Persistence expectation
 
-- Planned as a small registry card under `registry/`.
-- Current milestone freezes only the static field contract and direct pointers.
+- Stored as a small YAML registry card at `claims/<claim_id>.yaml` beneath the
+  configured registry root.
+- The current runtime reads and writes this representation through the registry
+  gateway only.
+- When present, `dataset_ids` is stored as a YAML list using the same field name.
 
 ### Required fields
 
@@ -250,5 +255,5 @@ Optional supporting reference field:
 
 - No claim extraction engine or text-span parser.
 - No scientific truth evaluation or evidence grading logic.
-- No enforcement that `dataset_ids` must already exist in a registry.
+- No reverse index or backlink materialization for claim-to-dataset links.
 - No links to `EvidenceCard` or `AuditRecord`.

@@ -14,7 +14,7 @@ MacroVeritas:
   domain errors
 
 This milestone stays intentionally narrow. It makes DatasetCard registry IO
-runtime-real without widening the public CLI or implementing ClaimCard runtime.
+runtime-real without widening the public CLI.
 
 ## Runtime-Real Now
 
@@ -60,13 +60,13 @@ Current implementation notes:
 - the same direct check is also applied by `plan_create_dataset_card` and
   `plan_update_dataset_card`, but those functions still do not write storage
 
-## Still Non-Runtime
+## Boundary Notes
 
-The following remain contract-only and do not perform runtime IO:
-
-- all `ClaimCard` gateway reads, listings, existence checks, and mutations
-- ClaimCard referential integrity
-- public CLI wiring for DatasetCard create or update
+- ClaimCard runtime now exists separately and is defined in
+  [`docs/claimcard_runtime.md`](claimcard_runtime.md).
+- Canonical DatasetCard files now also serve as reference targets for ClaimCard
+  gateway integrity checks when `ClaimCard.dataset_ids` is present.
+- Public CLI wiring for DatasetCard create or update remains absent.
 
 ## Canonical DatasetCard Path Rule
 
@@ -137,8 +137,6 @@ Implemented translations:
 
 This milestone does not add:
 
-- ClaimCard runtime IO
-- ClaimCard referential integrity
 - scientific logic
 - evidence grading
 - multi-card transactions

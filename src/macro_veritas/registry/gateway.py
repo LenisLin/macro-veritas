@@ -1,4 +1,4 @@
-"""Registry gateway for the first two MacroVeritas runtime slices.
+"""Registry gateway for the first three MacroVeritas runtime slices.
 
 This module remains the sole internal boundary that higher layers should use to
 retrieve or persist first-slice registry cards through frozen payload/DTO
@@ -9,20 +9,24 @@ Implemented now:
   update for `StudyCard`
 - real file-backed runtime reads, existence checks, listings, create, and
   update for `DatasetCard`
-- planning descriptors for `StudyCard` and `DatasetCard` create and update
+- real file-backed runtime reads, existence checks, listings, create, and
+  update for `ClaimCard`
+- planning descriptors for `StudyCard`, `DatasetCard`, and `ClaimCard` create
+  and update
 - gateway-level `StudyCard` referential-integrity checks for `DatasetCard`
   create and update
-- domain-level translation of lower-level StudyCard/DatasetCard
+- gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
+  checks for `ClaimCard` create and update
+- domain-level translation of lower-level StudyCard/DatasetCard/ClaimCard
   filesystem/YAML failures
 
 Non-goals:
-- no ClaimCard runtime IO
 - no CLI wiring
 - no scientific logic, evidence grading, or CellVoyager integration
 
 Boundary docs: `docs/registry_io_boundary.md`, `docs/gateway_contracts.md`,
 `docs/payload_contracts.md`, `docs/studycard_runtime.md`, and
-`docs/datasetcard_runtime.md`.
+`docs/datasetcard_runtime.md`, and `docs/claimcard_runtime.md`.
 """
 
 from __future__ import annotations
@@ -30,6 +34,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from macro_veritas.config import load_project_config
+from macro_veritas.registry.claim_runtime import (
+    ClaimCardFormatError,
+    ClaimCardIdentifierError,
+    claim_card_exists as _runtime_claim_card_exists,
+    create_claim_card as _runtime_create_claim_card,
+    list_claim_cards as _runtime_list_claim_cards,
+    normalize_claim_card_payload,
+    read_claim_card as _runtime_read_claim_card,
+    update_claim_card as _runtime_update_claim_card,
+)
 from macro_veritas.registry.dataset_runtime import (
     DatasetCardFormatError,
     DatasetCardIdentifierError,
@@ -149,13 +163,6 @@ _MUTATION_PLAN_FIELDS: tuple[str, ...] = (
 )
 
 
-def _not_implemented(operation_name: str) -> NotImplementedError:
-    return NotImplementedError(
-        f"{operation_name} is a frozen registry gateway placeholder only. "
-        "This milestone implements runtime behavior for StudyCard and DatasetCard only."
-    )
-
-
 def _registry_root() -> Path:
     return load_project_config().registry_dir
 
@@ -219,6 +226,39 @@ def _datasetcard_plan_descriptor(
     }
 
 
+def _claimcard_plan_descriptor(
+    plan_kind: MutationOperationKind,
+    claim_id: str,
+) -> MutationPlanDescriptor:
+    integrity_checks_required: tuple[str, ...]
+    if plan_kind == "create":
+        integrity_checks_required = (
+            "referenced StudyCard canonical path must already exist",
+            "referenced DatasetCard canonical paths must already exist when dataset_ids are present",
+            "canonical ClaimCard path must not already exist",
+        )
+    else:
+        integrity_checks_required = (
+            "referenced StudyCard canonical path must already exist",
+            "referenced DatasetCard canonical paths must already exist when dataset_ids are present",
+            "canonical ClaimCard path must already exist",
+        )
+
+    return {
+        "plan_kind": plan_kind,
+        "card_family": "ClaimCard",
+        "target_id": claim_id,
+        "input_requirement": "full_card_payload",
+        "integrity_checks_required": integrity_checks_required,
+        "atomicity_expectation": "single-card atomic replace",
+        "execution_state": "planned_only",
+        "deferred_execution_note": (
+            "Planning only. Runtime execution for ClaimCard is available through "
+            "create_claim_card/update_claim_card."
+        ),
+    }
+
+
 def _translate_study_runtime_error(
     operation_name: str,
     exc: Exception,
@@ -265,17 +305,80 @@ def _translate_dataset_runtime_error(
     return RegistryError(f"{operation_name} failed during DatasetCard runtime translation: {exc}")
 
 
-def _require_dataset_parent_study_exists(operation_name: str, study_id: str) -> None:
+def _translate_claim_runtime_error(
+    operation_name: str,
+    exc: Exception,
+) -> RegistryError:
+    if isinstance(exc, ClaimCardIdentifierError):
+        return UnsupportedRegistryOperationError(str(exc))
+    if isinstance(exc, FileNotFoundError):
+        return CardNotFoundError(
+            f"{operation_name} could not find the requested ClaimCard at its canonical path."
+        )
+    if isinstance(exc, FileExistsError):
+        return CardAlreadyExistsError(
+            f"{operation_name} targeted a ClaimCard that already exists at its canonical path."
+        )
+    if isinstance(exc, ClaimCardFormatError):
+        return RegistryError(str(exc))
+    if isinstance(exc, OSError):
+        return RegistryError(f"{operation_name} failed during ClaimCard filesystem access: {exc}")
+    return RegistryError(f"{operation_name} failed during ClaimCard runtime translation: {exc}")
+
+
+def _require_study_reference_exists(
+    operation_name: str,
+    study_id: str,
+    *,
+    referencing_card_family: str,
+) -> None:
     try:
         if not _runtime_study_card_exists(_registry_root(), study_id):
             raise BrokenReferenceError(
-                f"{operation_name} requires the referenced StudyCard '{study_id}' "
-                "to exist at its canonical path."
+                f"{operation_name} requires the referenced StudyCard '{study_id}' for "
+                f"{referencing_card_family} to exist at its canonical path."
             )
     except RegistryError:
         raise
     except Exception as exc:
         raise _translate_study_runtime_error(operation_name, exc) from exc
+
+
+def _require_claim_dataset_references_exist(
+    operation_name: str,
+    dataset_ids: list[str],
+) -> None:
+    missing_dataset_ids: list[str] = []
+    for dataset_id in dataset_ids:
+        try:
+            if not _runtime_dataset_card_exists(_registry_root(), dataset_id):
+                if dataset_id not in missing_dataset_ids:
+                    missing_dataset_ids.append(dataset_id)
+        except RegistryError:
+            raise
+        except Exception as exc:
+            raise _translate_dataset_runtime_error(operation_name, exc) from exc
+
+    if missing_dataset_ids:
+        missing_display = ", ".join(missing_dataset_ids)
+        raise BrokenReferenceError(
+            f"{operation_name} requires referenced DatasetCard(s) to exist at their "
+            f"canonical paths: {missing_display}."
+        )
+
+
+def _require_claim_references_exist(
+    operation_name: str,
+    card: ClaimCardPayload,
+) -> None:
+    _require_study_reference_exists(
+        operation_name,
+        card["study_id"],
+        referencing_card_family="ClaimCard",
+    )
+    dataset_ids = card.get("dataset_ids")
+    if dataset_ids:
+        _require_claim_dataset_references_exist(operation_name, list(dataset_ids))
 
 
 def describe_registry_gateway_role() -> dict[str, object]:
@@ -284,13 +387,14 @@ def describe_registry_gateway_role() -> dict[str, object]:
     return {
         **describe_registry_gateway_boundary(),
         "current_runtime_scope": (
-            "StudyCard and DatasetCard runtime are implemented; ClaimCard remains planned only"
+            "StudyCard, DatasetCard, and ClaimCard runtime are implemented"
         ),
-        "boundary_status": "studycard-and-datasetcard-runtime",
+        "boundary_status": "studycard-datasetcard-claimcard-runtime",
         "communication_contract_doc": "docs/gateway_contracts.md",
         "payload_contract_doc": "docs/payload_contracts.md",
         "studycard_runtime_doc": "docs/studycard_runtime.md",
         "datasetcard_runtime_doc": "docs/datasetcard_runtime.md",
+        "claimcard_runtime_doc": "docs/claimcard_runtime.md",
         "supported_card_families": list_supported_card_families(),
         "operation_families": _OPERATION_FAMILIES,
         "planned_error_categories": list_registry_error_categories(),
@@ -305,12 +409,20 @@ def describe_registry_gateway_role() -> dict[str, object]:
                 "create",
                 "update",
             ),
-            "ClaimCard": (),
+            "ClaimCard": (
+                "get",
+                "exists",
+                "list",
+                "plan_create",
+                "plan_update",
+                "create",
+                "update",
+            ),
         },
         "result_style": (
             "bare card reads shaped like the frozen card contract + bool exists "
             "+ tuple listings + explicit mutation-plan descriptor + "
-            "StudyCard/DatasetCard runtime create/update helpers + domain exceptions"
+            "StudyCard/DatasetCard/ClaimCard runtime create/update helpers + domain exceptions"
         ),
     }
 
@@ -335,7 +447,7 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
             "semantic_layer": "gateway/domain",
             "meaning": (
                 "base registry contract failure, including malformed StudyCard or "
-                "DatasetCard content and translated filesystem failures"
+                "DatasetCard or ClaimCard content and translated filesystem failures"
             ),
             "not_a_raw_os_exception": True,
         },
@@ -369,7 +481,7 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
             "semantic_layer": "gateway/domain",
             "meaning": (
                 "caller requested an operation or input style outside the frozen contract, "
-                "including unsafe StudyCard or DatasetCard lookup IDs"
+                "including unsafe StudyCard, DatasetCard, or ClaimCard lookup IDs"
             ),
             "applies_to": _OPERATION_FAMILIES,
             "not_a_raw_os_exception": True,
@@ -390,7 +502,7 @@ def describe_atomic_write_policy() -> dict[str, str]:
         "policy": "single-card atomic replace",
         "write_shape": "write-temp-then-replace",
         "guarantee_scope": "one canonical card file per create or update operation",
-        "implemented_for": "StudyCard and DatasetCard",
+        "implemented_for": "StudyCard, DatasetCard, and ClaimCard",
         "durability_steps": "fsync temp file before replace; fsync parent directory after replace",
         "multi_card_transaction_guarantee": "not planned in MVP",
         "concurrent_locking": "not implemented",
@@ -412,8 +524,8 @@ def describe_mutation_plan_contract() -> dict[str, object]:
         "execution_state": "planned_only",
         "atomicity_expectation": "single-card atomic replace",
         "deferred_execution_note": (
-            "planning result only; StudyCard and DatasetCard runtime execution lives "
-            "in separate gateway helpers and no write occurs during planning"
+            "planning result only; StudyCard, DatasetCard, and ClaimCard runtime "
+            "execution lives in separate gateway helpers and no write occurs during planning"
         ),
     }
 
@@ -473,20 +585,23 @@ def get_dataset_card(dataset_id: str) -> DatasetCardPayload:
 
 
 def get_claim_card(claim_id: str) -> ClaimCardPayload:
-    """Planned gateway read for `ClaimCard` retrieval by canonical ID.
+    """Read one ClaimCard from its canonical YAML path by canonical ID.
 
     Inputs:
         `claim_id`: canonical `ClaimCard` identifier.
     Outputs:
-        On success, the future gateway returns one bare `ClaimCardPayload`
+        On success, the gateway returns one bare `ClaimCardPayload`
         mapping shaped like the frozen stored-card contract.
     Expected domain errors:
         `CardNotFoundError` when the target card is absent.
     Non-goals:
-        This placeholder does not read files, deserialize data, or validate fields.
+        This does not read StudyCard or DatasetCard files directly.
     """
 
-    raise _not_implemented("get_claim_card")
+    try:
+        return _runtime_read_claim_card(_registry_root(), claim_id)
+    except Exception as exc:
+        raise _translate_claim_runtime_error("get_claim_card", exc) from exc
 
 
 def study_card_exists(study_id: str) -> bool:
@@ -528,7 +643,7 @@ def dataset_card_exists(dataset_id: str) -> bool:
 
 
 def claim_card_exists(claim_id: str) -> bool:
-    """Planned gateway existence check for `ClaimCard` by canonical ID.
+    """Check whether the canonical ClaimCard YAML file exists.
 
     Inputs:
         `claim_id`: canonical `ClaimCard` identifier.
@@ -537,10 +652,13 @@ def claim_card_exists(claim_id: str) -> bool:
     Expected domain errors:
         Missing cards are communicated as `False`, not `CardNotFoundError`.
     Non-goals:
-        This placeholder does not inspect storage or perform raw path access.
+        This does not inspect StudyCard or DatasetCard storage.
     """
 
-    raise _not_implemented("claim_card_exists")
+    try:
+        return _runtime_claim_card_exists(_registry_root(), claim_id)
+    except Exception as exc:
+        raise _translate_claim_runtime_error("claim_card_exists", exc) from exc
 
 
 def list_study_cards() -> tuple[StudyCardPayload, ...]:
@@ -584,20 +702,23 @@ def list_dataset_cards() -> tuple[DatasetCardPayload, ...]:
 
 
 def list_claim_cards() -> tuple[ClaimCardPayload, ...]:
-    """Planned gateway listing operation for `ClaimCard` records.
+    """List ClaimCards stored beneath the canonical ClaimCard family directory.
 
     Inputs:
         None.
     Outputs:
-        On success, the future gateway returns `tuple[ClaimCardPayload, ...]`.
+        On success, the gateway returns `tuple[ClaimCardPayload, ...]`.
         An empty family listing is an empty tuple.
     Expected domain errors:
-        None for an empty family listing.
+        A malformed ClaimCard file is translated to `RegistryError`.
     Non-goals:
-        This placeholder does not read files or freeze listing order semantics.
+        This does not traverse StudyCard or DatasetCard directories.
     """
 
-    raise _not_implemented("list_claim_cards")
+    try:
+        return _runtime_list_claim_cards(_registry_root())
+    except Exception as exc:
+        raise _translate_claim_runtime_error("list_claim_cards", exc) from exc
 
 
 def plan_create_study_card(card: StudyCardPayload) -> MutationPlanDescriptor:
@@ -643,9 +764,10 @@ def plan_create_dataset_card(card: DatasetCardPayload) -> MutationPlanDescriptor
 
     try:
         normalized = normalize_dataset_card_payload(card)
-        _require_dataset_parent_study_exists(
+        _require_study_reference_exists(
             "plan_create_dataset_card",
             normalized["study_id"],
+            referencing_card_family="DatasetCard",
         )
         if _runtime_dataset_card_exists(_registry_root(), normalized["dataset_id"]):
             raise CardAlreadyExistsError(
@@ -660,21 +782,32 @@ def plan_create_dataset_card(card: DatasetCardPayload) -> MutationPlanDescriptor
 
 
 def plan_create_claim_card(card: ClaimCardPayload) -> MutationPlanDescriptor:
-    """Reserve the future gateway contract for `ClaimCard` create planning.
+    """Return the ClaimCard create planning descriptor without writing storage.
 
     Inputs:
         `card`: complete `ClaimCardPayload` for the planned create operation.
     Outputs:
-        On success, the future gateway returns a `MutationPlanDescriptor`.
+        On success, the gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
         `CardAlreadyExistsError`, `BrokenReferenceError`,
-        `InvalidStateTransitionError`, or `UnsupportedRegistryOperationError`.
+        or `UnsupportedRegistryOperationError`.
     Non-goals:
-        This placeholder does not write files, merge patches, or validate fields.
+        This does not perform a write.
     """
 
-    del card
-    raise _not_implemented("plan_create_claim_card")
+    try:
+        normalized = normalize_claim_card_payload(card)
+        _require_claim_references_exist("plan_create_claim_card", normalized)
+        if _runtime_claim_card_exists(_registry_root(), normalized["claim_id"]):
+            raise CardAlreadyExistsError(
+                "plan_create_claim_card targeted a ClaimCard that already exists "
+                "at its canonical path."
+            )
+        return _claimcard_plan_descriptor("create", normalized["claim_id"])
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_claim_runtime_error("plan_create_claim_card", exc) from exc
 
 
 def plan_update_study_card(card: StudyCardPayload) -> MutationPlanDescriptor:
@@ -724,7 +857,11 @@ def create_dataset_card(card: DatasetCardPayload) -> DatasetCardPayload:
 
     try:
         normalized = normalize_dataset_card_payload(card)
-        _require_dataset_parent_study_exists("create_dataset_card", normalized["study_id"])
+        _require_study_reference_exists(
+            "create_dataset_card",
+            normalized["study_id"],
+            referencing_card_family="DatasetCard",
+        )
         return _runtime_create_dataset_card(_registry_root(), normalized)
     except RegistryError:
         raise
@@ -737,7 +874,11 @@ def update_dataset_card(card: DatasetCardPayload) -> DatasetCardPayload:
 
     try:
         normalized = normalize_dataset_card_payload(card)
-        _require_dataset_parent_study_exists("update_dataset_card", normalized["study_id"])
+        _require_study_reference_exists(
+            "update_dataset_card",
+            normalized["study_id"],
+            referencing_card_family="DatasetCard",
+        )
         return _runtime_update_dataset_card(_registry_root(), normalized)
     except RegistryError:
         raise
@@ -762,9 +903,10 @@ def plan_update_dataset_card(card: DatasetCardPayload) -> MutationPlanDescriptor
 
     try:
         normalized = normalize_dataset_card_payload(card)
-        _require_dataset_parent_study_exists(
+        _require_study_reference_exists(
             "plan_update_dataset_card",
             normalized["study_id"],
+            referencing_card_family="DatasetCard",
         )
         _runtime_read_dataset_card(_registry_root(), normalized["dataset_id"])
         return _datasetcard_plan_descriptor("update", normalized["dataset_id"])
@@ -774,27 +916,61 @@ def plan_update_dataset_card(card: DatasetCardPayload) -> MutationPlanDescriptor
         raise _translate_dataset_runtime_error("plan_update_dataset_card", exc) from exc
 
 
+def create_claim_card(card: ClaimCardPayload) -> ClaimCardPayload:
+    """Create one ClaimCard through the gateway's real runtime path."""
+
+    try:
+        normalized = normalize_claim_card_payload(card)
+        _require_claim_references_exist("create_claim_card", normalized)
+        return _runtime_create_claim_card(_registry_root(), normalized)
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_claim_runtime_error("create_claim_card", exc) from exc
+
+
+def update_claim_card(card: ClaimCardPayload) -> ClaimCardPayload:
+    """Replace one ClaimCard through the gateway's real runtime path."""
+
+    try:
+        normalized = normalize_claim_card_payload(card)
+        _require_claim_references_exist("update_claim_card", normalized)
+        return _runtime_update_claim_card(_registry_root(), normalized)
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_claim_runtime_error("update_claim_card", exc) from exc
+
+
 def plan_update_claim_card(card: ClaimCardPayload) -> MutationPlanDescriptor:
-    """Reserve the future gateway contract for `ClaimCard` update planning.
+    """Return the ClaimCard update planning descriptor without writing storage.
 
     Inputs:
         `card`: complete replacement `ClaimCardPayload`. Patch input is out of
         contract for this MVP freeze, and raw argparse objects are not accepted.
     Outputs:
-        On success, the future gateway returns a `MutationPlanDescriptor`.
+        On success, the gateway returns a `MutationPlanDescriptor`.
     Expected domain errors:
         `CardNotFoundError`, `BrokenReferenceError`,
-        `InvalidStateTransitionError`, or `UnsupportedRegistryOperationError`.
+        or `UnsupportedRegistryOperationError`.
     Non-goals:
-        This placeholder does not write files, merge patches, or validate fields.
+        This does not perform a write or merge patches.
     """
 
-    del card
-    raise _not_implemented("plan_update_claim_card")
+    try:
+        normalized = normalize_claim_card_payload(card)
+        _require_claim_references_exist("plan_update_claim_card", normalized)
+        _runtime_read_claim_card(_registry_root(), normalized["claim_id"])
+        return _claimcard_plan_descriptor("update", normalized["claim_id"])
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_claim_runtime_error("plan_update_claim_card", exc) from exc
 
 
 __all__ = [
     "claim_card_exists",
+    "create_claim_card",
     "create_dataset_card",
     "create_study_card",
     "dataset_card_exists",
@@ -819,6 +995,7 @@ __all__ = [
     "plan_update_dataset_card",
     "plan_update_study_card",
     "study_card_exists",
+    "update_claim_card",
     "update_dataset_card",
     "update_study_card",
 ]

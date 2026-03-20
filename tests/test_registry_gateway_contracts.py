@@ -13,6 +13,8 @@ from macro_veritas.registry.errors import (
     UnsupportedRegistryOperationError,
 )
 from macro_veritas.registry.gateway import (
+    claim_card_exists,
+    create_claim_card,
     create_dataset_card,
     describe_atomic_write_policy,
     describe_gateway_error_semantics,
@@ -24,10 +26,12 @@ from macro_veritas.registry.gateway import (
     get_claim_card,
     list_claim_cards,
     list_supported_card_families,
+    plan_create_claim_card,
     plan_create_dataset_card,
     plan_create_study_card,
     plan_update_claim_card,
     plan_update_study_card,
+    update_claim_card,
     update_dataset_card,
 )
 from macro_veritas.registry.layout import describe_layout_vs_gateway_boundary
@@ -91,7 +95,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
     assert "must not do raw path traversal" in boundary["cli_layer"]
     assert boundary["gateway_role"].startswith("sole internal boundary")
     assert boundary["current_runtime_scope"] == (
-        "StudyCard and DatasetCard runtime are implemented; ClaimCard remains planned only"
+        "StudyCard, DatasetCard, and ClaimCard runtime are implemented"
     )
 
     assert list_supported_card_families() == (
@@ -99,7 +103,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "DatasetCard",
         "ClaimCard",
     )
-    assert gateway_role["boundary_status"] == "studycard-and-datasetcard-runtime"
+    assert gateway_role["boundary_status"] == "studycard-datasetcard-claimcard-runtime"
     assert gateway_role["operation_families"] == (
         "get_by_id",
         "exists_by_id",
@@ -111,6 +115,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
     assert gateway_role["payload_contract_doc"] == "docs/payload_contracts.md"
     assert gateway_role["studycard_runtime_doc"] == "docs/studycard_runtime.md"
     assert gateway_role["datasetcard_runtime_doc"] == "docs/datasetcard_runtime.md"
+    assert gateway_role["claimcard_runtime_doc"] == "docs/claimcard_runtime.md"
     assert gateway_role["runtime_real_behavior"]["StudyCard"] == (
         "get",
         "exists",
@@ -129,7 +134,15 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "create",
         "update",
     )
-    assert gateway_role["runtime_real_behavior"]["ClaimCard"] == ()
+    assert gateway_role["runtime_real_behavior"]["ClaimCard"] == (
+        "get",
+        "exists",
+        "list",
+        "plan_create",
+        "plan_update",
+        "create",
+        "update",
+    )
     assert result_contract["get_by_id"]["success_shape"] == "GatewayReadCard"
     assert result_contract["exists_by_id"]["success_shape"] == "bool"
     assert result_contract["list_by_family"]["success_shape"] == "GatewayListResult"
@@ -160,7 +173,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
     assert integrity_policy == describe_integrity_enforcement_policy()
     assert integrity_policy["enforcement_point"] == "registry gateway"
     assert atomic_policy["write_shape"] == "write-temp-then-replace"
-    assert atomic_policy["implemented_for"] == "StudyCard and DatasetCard"
+    assert atomic_policy["implemented_for"] == "StudyCard, DatasetCard, and ClaimCard"
     assert atomic_policy["multi_card_transaction_guarantee"] == "not planned in MVP"
 
     assert layout_boundary["layout_is_access_api"] is False
@@ -183,24 +196,26 @@ def test_registry_error_surface_is_small_and_explicit() -> None:
     assert issubclass(InvalidStateTransitionError, RegistryError)
     assert issubclass(UnsupportedRegistryOperationError, RegistryError)
 
-
-def test_claimcard_gateway_placeholders_raise_not_implemented() -> None:
-    with pytest.raises(NotImplementedError, match="placeholder only"):
-        get_claim_card("claim-001")
-
-    with pytest.raises(NotImplementedError, match="placeholder only"):
-        list_claim_cards()
-
-
 def test_gateway_signatures_reference_frozen_payload_types() -> None:
+    claim_exists_hints = get_type_hints(claim_card_exists)
+    create_claim_hints = get_type_hints(create_claim_card)
+    get_claim_hints = get_type_hints(get_claim_card)
+    plan_create_claim_hints = get_type_hints(plan_create_claim_card)
     plan_create_study_hints = get_type_hints(plan_create_study_card)
     plan_create_dataset_hints = get_type_hints(plan_create_dataset_card)
     list_claim_hints = get_type_hints(list_claim_cards)
     plan_update_study_hints = get_type_hints(plan_update_study_card)
     plan_update_claim_hints = get_type_hints(plan_update_claim_card)
     create_dataset_hints = get_type_hints(create_dataset_card)
+    update_claim_hints = get_type_hints(update_claim_card)
     update_dataset_hints = get_type_hints(update_dataset_card)
 
+    assert claim_exists_hints["return"] is bool
+    assert create_claim_hints["card"] is shared_types.ClaimCardPayload
+    assert create_claim_hints["return"] is shared_types.ClaimCardPayload
+    assert get_claim_hints["return"] is shared_types.ClaimCardPayload
+    assert plan_create_claim_hints["card"] is shared_types.ClaimCardPayload
+    assert plan_create_claim_hints["return"] is shared_types.MutationPlanDescriptor
     assert plan_create_study_hints["card"] is shared_types.StudyCardPayload
     assert plan_create_study_hints["return"] is shared_types.MutationPlanDescriptor
     assert plan_create_dataset_hints["card"] is shared_types.DatasetCardPayload
@@ -212,5 +227,7 @@ def test_gateway_signatures_reference_frozen_payload_types() -> None:
     assert plan_update_claim_hints["return"] is shared_types.MutationPlanDescriptor
     assert create_dataset_hints["card"] is shared_types.DatasetCardPayload
     assert create_dataset_hints["return"] is shared_types.DatasetCardPayload
+    assert update_claim_hints["card"] is shared_types.ClaimCardPayload
+    assert update_claim_hints["return"] is shared_types.ClaimCardPayload
     assert update_dataset_hints["card"] is shared_types.DatasetCardPayload
     assert update_dataset_hints["return"] is shared_types.DatasetCardPayload

@@ -25,7 +25,13 @@ This document now describes a mixed implementation state.
   descriptors without writing storage.
 - `DatasetCard` create/update and planning enforce referenced `StudyCard`
   existence at the gateway boundary.
-- `ClaimCard` gateway behavior remains planned only.
+- `ClaimCard` read, exists, list, create, and update execution are now
+  runtime-real behind the gateway.
+- `ClaimCard` `plan_create` and `plan_update` return real planning descriptors
+  without writing storage.
+- `ClaimCard` create/update and planning enforce referenced `StudyCard`
+  existence and referenced `DatasetCard` existence when `dataset_ids` is
+  present.
 
 ## Access Result Contract
 
@@ -58,13 +64,14 @@ Interpretation notes:
 - `exists_*` returns `True` or `False`; absence is not exceptional.
 - `list_*` returns a bare tuple of card mappings; an empty family listing is an
   empty tuple.
-- These shapes are runtime-real today for `StudyCard` and `DatasetCard`.
+- These shapes are runtime-real today for `StudyCard`, `DatasetCard`, and
+  `ClaimCard`.
 - The concrete first-slice mapping shapes live in
   [`docs/payload_contracts.md`](payload_contracts.md).
 - `plan_*` returns a planning descriptor only; it does not mutate storage.
-- `create_study_card`, `update_study_card`, `create_dataset_card`, and
-  `update_dataset_card` are separate execution helpers that return the bare
-  stored payload on success.
+- `create_study_card`, `update_study_card`, `create_dataset_card`,
+  `update_dataset_card`, `create_claim_card`, and `update_claim_card` are
+  separate execution helpers that return the bare stored payload on success.
 
 ## Error Semantics
 
@@ -88,8 +95,8 @@ Gateway/domain error categories:
 Communication rule:
 
 - These names define the contract surface seen by CLI and governance callers.
-- StudyCard and DatasetCard runtime translate raw storage and YAML failures
-  into these names.
+- StudyCard, DatasetCard, and ClaimCard runtime translate raw storage and YAML
+  failures into these names.
 - They do not expose raw OS or serializer exception types as public contract
   surface.
 
@@ -137,6 +144,10 @@ Planning interpretation:
 - For `DatasetCard`, the plan functions are separate from the runtime execution
   helpers, still do not write storage, and do perform the direct parent
   `StudyCard` existence check.
+- For `ClaimCard`, the plan functions are separate from the runtime execution
+  helpers, still do not write storage, and do perform the direct parent
+  `StudyCard` existence check plus optional `DatasetCard` existence checks when
+  `dataset_ids` is present.
 
 ## Success Vs Failure Communication Rule
 
@@ -154,7 +165,6 @@ At the contract level:
 
 This milestone does not add or imply:
 
-- ClaimCard runtime gateway implementation
 - broad parser or validation engine
 - payload conversion runtime
 - patch-merging engine

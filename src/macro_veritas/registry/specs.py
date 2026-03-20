@@ -4,8 +4,7 @@ This module exposes static metadata about documented registry object families,
 their frozen first-slice layout, the gateway boundary, and the current
 implementation boundary.
 
-It does not implement ClaimCard persistence, lookup, or a general
-schema-validation framework.
+It does not implement a general schema-validation framework.
 Boundary docs: `docs/module_map.md`, `docs/registry_layout.md`,
 `docs/registry_io_boundary.md`, `docs/registry_model.md`, and
 `docs/data_contracts.md`.
@@ -160,8 +159,7 @@ def describe_registry_gateway_boundary() -> dict[str, str]:
         "serialization_layer": "future internal dependency beneath the gateway only",
         "layout_layer": "static naming/path helper layer only",
         "current_runtime_scope": (
-            "StudyCard and DatasetCard runtime are implemented; ClaimCard remains "
-            "planned only"
+            "StudyCard, DatasetCard, and ClaimCard runtime are implemented"
         ),
     }
 
@@ -229,7 +227,7 @@ def describe_registry_persistence_forms() -> dict[ObjectFamilyName, str]:
             f"{first_slice_layout['DatasetCard']['root_subdir']}/<dataset_id>.yaml."
         ),
         "ClaimCard": (
-            "Planned YAML registry card at "
+            "YAML registry card at "
             f"{first_slice_layout['ClaimCard']['root_subdir']}/<claim_id>.yaml."
         ),
         "MethodCard": "Planned YAML registry card.",
@@ -254,7 +252,7 @@ def describe_registry_boundaries() -> DescriptorSequence:
         "Registry objects are documented only; exact field schemas are deferred.",
         "First-slice filesystem placement is frozen by docs and static helpers only.",
         "Registry card retrieval and persistence are reserved to macro_veritas.registry.gateway.",
-        "StudyCard and DatasetCard runtime IO are implemented; ClaimCard remains contract-only.",
+        "StudyCard, DatasetCard, and ClaimCard runtime IO are implemented.",
         "No general validation framework or cross-card referential-integrity engine is implemented.",
     )
 

@@ -4,6 +4,8 @@ from pathlib import Path
 
 from macro_veritas.config import load_project_config
 from macro_veritas.registry.layout import (
+    claim_card_path,
+    claim_cards_dir,
     claim_card_relative_path,
     dataset_card_path,
     dataset_cards_dir,
@@ -110,4 +112,8 @@ def test_project_config_resolves_first_slice_registry_dirs(tmp_path: Path) -> No
     assert dataset_cards_dir(config.registry_dir) == data_root.resolve() / "registry" / "datasets"
     assert dataset_card_path(config.registry_dir, "dataset-001") == (
         data_root.resolve() / "registry" / "datasets" / "dataset-001.yaml"
+    )
+    assert claim_cards_dir(config.registry_dir) == data_root.resolve() / "registry" / "claims"
+    assert claim_card_path(config.registry_dir, "claim-001") == (
+        data_root.resolve() / "registry" / "claims" / "claim-001.yaml"
     )

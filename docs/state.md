@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- Phase: Initialization / second narrow registry runtime slice
+- Phase: Initialization / third narrow registry runtime slice
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
-- Documentation set status: MVP documentation set established with narrow StudyCard and DatasetCard registry runtime implementations
+- Documentation set status: MVP documentation set established with narrow StudyCard, DatasetCard, and ClaimCard registry runtime implementations
 
 ## Implemented Now
 
@@ -16,19 +16,23 @@
 - A committed project config defines the current external data root and placeholder layout paths.
 - The registry gateway now implements real file-backed `StudyCard` read, exists, list, create, and update behavior.
 - The registry gateway now implements real file-backed `DatasetCard` read, exists, list, create, and update behavior.
+- The registry gateway now implements real file-backed `ClaimCard` read, exists, list, create, and update behavior.
 - StudyCard serialization/deserialization now uses one YAML file per card at the canonical StudyCard path.
 - DatasetCard serialization/deserialization now uses one YAML file per card at the canonical DatasetCard path.
+- ClaimCard serialization/deserialization now uses one YAML file per card at the canonical ClaimCard path.
 - StudyCard single-card writes now use a temp-file-plus-replace atomic write flow.
 - DatasetCard single-card writes now use the same temp-file-plus-replace atomic write flow.
+- ClaimCard single-card writes now use the same temp-file-plus-replace atomic write flow.
 - DatasetCard create/update now enforce parent StudyCard existence at the gateway boundary.
-- Internal tests now cover the StudyCard and DatasetCard runtime slices.
+- ClaimCard create/update now enforce parent StudyCard existence and optional referenced DatasetCard existence at the gateway boundary.
+- Internal tests now cover the StudyCard, DatasetCard, and ClaimCard runtime slices.
 - The public CLI remains `status`, `show-config`, and `init-layout` only.
+- Reserved command families remain internal and non-public.
 - AVCP-derived governance assets remain in place as internal process scaffolding.
 
 ## Documented But Not Implemented
 
 - The intended direction is a CLI-first, lightweight Python project with filesystem-oriented registry/persistence.
-- `ClaimCard` runtime remains contract-only.
 - Planned object families and future CLI growth beyond the current slice are documented at a placeholder level only.
 - Future execution-layer patterns may draw limited inspiration from CellVoyager, but no such layer is implemented here.
 
@@ -38,7 +42,6 @@
 - claim extraction
 - evidence grading logic
 - audit engine behavior
-- ClaimCard filesystem registry business logic
 - real multi-agent logic
 - FastAPI or other web service layer
 - SQL persistence
@@ -52,4 +55,4 @@
 
 ## Next Milestone
 
-- Extend runtime only where contracts remain narrow and honest, without introducing scientific inference logic, ClaimCard runtime, or widening the public CLI prematurely.
+- Extend runtime only where contracts remain narrow and honest, without introducing scientific inference logic or widening the public CLI prematurely.

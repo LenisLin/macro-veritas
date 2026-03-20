@@ -5,10 +5,10 @@ This module mirrors the filesystem conventions frozen in
 card files.
 
 It does not access the filesystem for callers, implement serialization, or
-resolve live references at runtime. It does expose the canonical StudyCard and
-DatasetCard directory/path helpers used by the internal runtime helpers.
-Boundary docs: `docs/registry_layout.md`, `docs/registry_io_boundary.md`, and
-`docs/datasetcard_runtime.md`.
+resolve live references at runtime. It does expose the canonical StudyCard,
+DatasetCard, and ClaimCard directory/path helpers used by the internal runtime
+helpers. Boundary docs: `docs/registry_layout.md`,
+`docs/registry_io_boundary.md`, and `docs/claimcard_runtime.md`.
 """
 
 from __future__ import annotations
@@ -67,6 +67,18 @@ def dataset_card_path(registry_root: str | Path, dataset_id: str) -> Path:
     return dataset_cards_dir(registry_root) / dataset_card_filename(dataset_id)
 
 
+def claim_cards_dir(registry_root: str | Path) -> Path:
+    """Return the canonical ClaimCard directory beneath a resolved registry root."""
+
+    return Path(registry_root) / _CLAIMS_SUBDIR
+
+
+def claim_card_path(registry_root: str | Path, claim_id: str) -> Path:
+    """Return the canonical filesystem path for a first-slice `ClaimCard`."""
+
+    return claim_cards_dir(registry_root) / claim_card_filename(claim_id)
+
+
 def describe_first_slice_layout() -> dict[str, dict[str, str | bool]]:
     """Describe the frozen first-slice registry layout.
 
@@ -122,6 +134,8 @@ def describe_layout_vs_gateway_boundary() -> dict[str, str | bool]:
 
 
 __all__ = [
+    "claim_card_path",
+    "claim_cards_dir",
     "claim_card_relative_path",
     "dataset_card_path",
     "dataset_cards_dir",

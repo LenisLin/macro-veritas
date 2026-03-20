@@ -3,9 +3,9 @@
 This module freezes field names, lifecycle states, and direct relationship
 metadata for the first `ClaimCard` slice.
 
-It does not extract claims, grade evidence, or enforce schemas at runtime.
-Boundary docs: `docs/card_contracts.md`, `docs/registry_model.md`,
-and `docs/state_machine.md`.
+It does not extract claims, grade evidence, or implement higher-level review
+workflow. Boundary docs: `docs/card_contracts.md`, `docs/registry_model.md`,
+`docs/state_machine.md`, and `docs/claimcard_runtime.md`.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import Literal
 
 from macro_veritas.shared.types import (
     CardFieldSequence,
+    ClaimReviewReadiness,
     ClaimCardStatus,
     ContractCategoryName,
     RelationshipPointerMap,
@@ -46,6 +47,11 @@ _ALLOWED_STATUSES: tuple[ClaimCardStatus, ...] = (
     "scoped",
     "ready",
     "closed",
+)
+_ALLOWED_REVIEW_READINESS: tuple[ClaimReviewReadiness, ...] = (
+    "needs_scope",
+    "reviewable",
+    "execution_candidate",
 )
 _RELATIONSHIP_POINTERS: RelationshipPointerMap = {
     "study_id": ("StudyCard.study_id",),
@@ -108,6 +114,12 @@ def allowed_statuses() -> tuple[ClaimCardStatus, ...]:
     return _ALLOWED_STATUSES
 
 
+def allowed_review_readiness() -> tuple[ClaimReviewReadiness, ...]:
+    """Return the allowed readiness labels for `ClaimCard`."""
+
+    return _ALLOWED_REVIEW_READINESS
+
+
 def relationship_pointers() -> RelationshipPointerMap:
     """Return the direct relationship pointers documented for `ClaimCard`."""
 
@@ -153,10 +165,17 @@ def describe_expected_persistence() -> str:
         This does not create files or define a claim schema.
     """
 
-    return "Planned YAML registry card under the registry/ area."
+    return "YAML registry card at claims/<claim_id>.yaml beneath the configured registry root."
+
+
+def storage_field_order() -> CardFieldSequence:
+    """Return the canonical ClaimCard field order used for stored YAML."""
+
+    return required_fields() + optional_fields()
 
 
 __all__ = [
+    "allowed_review_readiness",
     "allowed_statuses",
     "contract_version",
     "describe_expected_persistence",
@@ -167,4 +186,5 @@ __all__ = [
     "optional_fields",
     "relationship_pointers",
     "required_fields",
+    "storage_field_order",
 ]

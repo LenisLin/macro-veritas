@@ -5,9 +5,9 @@ across the governance, command, and registry modules while freezing the
 first-slice payload contract between internal command handlers and the
 registry gateway.
 
-They do not define scientific schemas, validators, persistence models,
-ClaimCard runtime state, or broad serializer behavior. The implemented
-StudyCard and DatasetCard runtime slices reuse these payload shapes directly.
+They do not define scientific schemas, validators, persistence models, or
+broad serializer behavior. The implemented StudyCard, DatasetCard, and
+ClaimCard runtime slices reuse these payload shapes directly.
 Boundary docs:
 `docs/governance_spec.md`, `docs/module_map.md`, `docs/card_contracts.md`,
 `docs/payload_contracts.md`, `docs/gateway_contracts.md`,
