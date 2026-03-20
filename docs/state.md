@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Phase: Initialization / first internal command execution bridge
+- Phase: Initialization / first public StudyCard ingest command
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow StudyCard, DatasetCard, and ClaimCard registry runtime implementations
@@ -12,15 +12,17 @@
 - The repository has been initialized as a MacroVeritas project skeleton.
 - The MVP documentation set now covers governance docs, architecture docs, registry/state/audit docs, and CLI contract docs.
 - A documentation map exists at `docs/index.md` to support new contributors and new model sessions.
-- A minimal CLI scaffold exists with `status`, `show-config`, and `init-layout`.
+- A minimal public CLI now exists with `status`, `show-config`, `init-layout`, and `ingest study`.
 - A committed project config defines the current external data root and placeholder layout paths.
 - The registry gateway now implements real file-backed `StudyCard` read, exists, list, create, and update behavior.
 - The registry gateway now implements real file-backed `DatasetCard` read, exists, list, create, and update behavior.
 - The registry gateway now implements real file-backed `ClaimCard` read, exists, list, create, and update behavior.
 - The internal command layer now implements a real StudyCard-only ingest bridge.
-- The internal StudyCard ingest bridge now normalizes command-facing input into
-  a `StudyCardPayload`, calls StudyCard gateway planning and runtime create,
-  and returns a narrow internal command result mapping.
+- The public CLI now exposes one real domain command: create-only `StudyCard`
+  ingest at `ingest study`.
+- The StudyCard ingest path now adapts public CLI flags into normalized command
+  input, prepares a `StudyCardPayload`, calls StudyCard gateway planning and
+  runtime create, and returns a narrow command result mapping.
 - StudyCard serialization/deserialization now uses one YAML file per card at the canonical StudyCard path.
 - DatasetCard serialization/deserialization now uses one YAML file per card at the canonical DatasetCard path.
 - ClaimCard serialization/deserialization now uses one YAML file per card at the canonical ClaimCard path.
@@ -31,8 +33,9 @@
 - ClaimCard create/update now enforce parent StudyCard existence and optional referenced DatasetCard existence at the gateway boundary.
 - Internal tests now cover the StudyCard, DatasetCard, and ClaimCard runtime slices.
 - Internal tests now cover the StudyCard ingest command bridge.
-- The public CLI remains `status`, `show-config`, and `init-layout` only.
-- Reserved command families remain internal and non-public.
+- The public CLI otherwise remains minimal.
+- `ingest` is public only for `StudyCard` create-only ingest.
+- Reserved command families otherwise remain internal and non-public.
 - DatasetCard and ClaimCard ingest command execution remain skeleton-only.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain skeleton-only.
 - AVCP-derived governance assets remain in place as internal process scaffolding.
@@ -62,4 +65,6 @@
 
 ## Next Milestone
 
-- Extend runtime only where contracts remain narrow and honest, without introducing scientific inference logic or widening the public CLI prematurely.
+- Extend runtime only where contracts remain narrow and honest, without
+  introducing scientific inference logic or widening the public CLI beyond the
+  single public `StudyCard` ingest path prematurely.

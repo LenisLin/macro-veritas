@@ -26,11 +26,12 @@ Recommended first-pass reading order:
 16. [`docs/studycard_runtime.md`](studycard_runtime.md) for the real file-backed StudyCard runtime slice.
 17. [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) for the real file-backed DatasetCard runtime slice.
 18. [`docs/claimcard_runtime.md`](claimcard_runtime.md) for the real file-backed ClaimCard runtime slice.
-19. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real internal StudyCard command execution bridge.
-20. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
-21. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
-22. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen internal command-family contracts and skeleton-module responsibilities.
-23. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
+19. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real StudyCard ingest runtime path.
+20. [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md) for the first public domain command surface.
+21. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
+22. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
+23. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and skeleton-module responsibilities.
+24. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
 
 ## Status Labels
 
@@ -63,8 +64,9 @@ These documents mix frozen-position context with design-intent detail.
 - [`docs/studycard_runtime.md`](studycard_runtime.md): defines the implemented StudyCard runtime slice, including canonical path usage, YAML storage, atomic writes, and error translation. Defines current implemented position for this slice.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): defines the implemented DatasetCard runtime slice, including canonical path usage, YAML storage, gateway-level StudyCard reference checks, atomic writes, and error translation. Defines current implemented position for this slice.
 - [`docs/claimcard_runtime.md`](claimcard_runtime.md): defines the implemented ClaimCard runtime slice, including canonical path usage, YAML storage, gateway-level StudyCard and optional DatasetCard reference checks, atomic writes, and error translation. Defines current implemented position for this slice.
-- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the reserved internal command-family contracts, family ownership, dependency boundaries, and skeleton style without making those commands public. Defines current frozen position for this slice.
-- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): defines the first real internal command execution bridge for StudyCard ingest while keeping the public CLI unchanged. Defines current implemented position for this slice.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the command-family contracts, family ownership, dependency boundaries, and skeleton style while distinguishing the one public `ingest study` path from the still-internal families. Defines current frozen position for this slice.
+- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): defines the first real StudyCard ingest runtime path beneath the public CLI adapter. Defines current implemented position for this slice.
+- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): defines the first public domain command surface for create-only `StudyCard` ingest. Defines current implemented position for this slice.
 
 ## Contracts And Audit
 
@@ -78,7 +80,8 @@ These documents describe the public CLI surface and the next layer of object and
 - [`docs/studycard_runtime.md`](studycard_runtime.md): records exactly what StudyCard registry behavior is runtime-real now and what remains deferred. Defines current implemented position for this slice.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records exactly what DatasetCard registry behavior is runtime-real now and what remains deferred. Defines current implemented position for this slice.
 - [`docs/claimcard_runtime.md`](claimcard_runtime.md): records exactly what ClaimCard registry behavior is runtime-real now and what remains deferred. Defines current implemented position for this slice.
-- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records exactly what internal StudyCard ingest command behavior is runtime-real now and what remains deferred. Defines current implemented position for this slice.
+- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records exactly what StudyCard ingest runtime behavior is real now and what remains deferred. Defines current implemented position for this slice.
+- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` command shape, create-only behavior, and user-facing success/failure expectations. Defines current implemented position for this slice.
 - [`docs/api_specs.md`](api_specs.md): documents the current CLI contract and clearly states that there is no web API in v0.1. Defines current implemented CLI surface and the reserved-not-public command boundary.
 - [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the internal command-family contracts for `ingest`, `bind`, `extract`, `audit`, `review`, `run`, and `grade`. Defines current frozen position for this slice.
 - [`docs/data_contracts.md`](data_contracts.md): summarizes the minimum contract categories for planned object families and points to the first frozen card slice. Design intent / future-detail.

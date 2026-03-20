@@ -156,6 +156,26 @@ class StudyCardIngestInput(_StudyCardIngestInputRequired, total=False):
     source_artifact: str
 
 
+class _StudyCardCLIInputRequired(TypedDict):
+    """Required fields for the public `ingest study` CLI adapter boundary."""
+
+    study_id: str
+    citation_handle: str
+    tumor_type: Sequence[str]
+    therapy_scope: Sequence[str]
+    relevance_scope: Sequence[str]
+    screening_decision: StudyScreeningDecision
+    status: StudyCardStatus
+    created_from: str
+
+
+class StudyCardCLIInput(_StudyCardCLIInputRequired, total=False):
+    """Typed mapping built from parsed CLI args before internal normalization."""
+
+    screening_note: str
+    source_artifact: str
+
+
 class _DatasetCardPayloadRequired(TypedDict):
     """Required keys for a first-slice `DatasetCard` gateway payload."""
 
@@ -348,6 +368,7 @@ __all__ = [
     "ReservedCLIFamilyName",
     "ResponsibilityMap",
     "StudyCardIngestInput",
+    "StudyCardCLIInput",
     "StudyCardPayload",
     "StudyScreeningDecision",
     "StudyCardStatus",

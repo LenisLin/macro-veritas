@@ -82,6 +82,20 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "screening_note",
         "source_artifact",
     }
+    assert shared_types.StudyCardCLIInput.__required_keys__ == {
+        "study_id",
+        "citation_handle",
+        "tumor_type",
+        "therapy_scope",
+        "relevance_scope",
+        "screening_decision",
+        "status",
+        "created_from",
+    }
+    assert shared_types.StudyCardCLIInput.__optional_keys__ == {
+        "screening_note",
+        "source_artifact",
+    }
 
 
 def test_common_command_style_descriptor_is_static() -> None:
@@ -93,16 +107,18 @@ def test_common_command_style_descriptor_is_static() -> None:
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
-    assert style["runtime_status"] == (
-        "internal only; per-family runtime execution is explicitly documented"
+    assert "StudyCard ingest path is runtime-real" in style["runtime_status"]
+    assert style["public_exposure"] == (
+        "public ingest study path only; all other reserved families remain non-public"
     )
-    assert style["public_exposure"] == "reserved but not part of the stable public CLI"
     assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
-    assert payload_style["raw_cli_argument_layer"].startswith("deferred")
+    assert "outside the frozen payload contract" in payload_style["raw_cli_argument_layer"]
     assert payload_boundary["gateway_consumes_argparse_objects"] is False
     assert payload_boundary["gateway_consumes_full_card_payloads_only"] is True
     assert payload_boundary["patch_payloads_supported"] is False
     assert runtime_boundary["source_of_truth_doc"] == "docs/ingest_studycard_runtime.md"
+    assert "public `ingest study` exists" in runtime_boundary["public_cli_exposure"]
+    assert "public StudyCard CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "StudyCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard ingest" in runtime_boundary["still_skeleton_only"]
     assert result_style["output_type"] == "CommandExecutionResult"
@@ -120,7 +136,12 @@ def test_command_family_modules_export_static_metadata() -> None:
         assert descriptor["owning_module"].endswith(f".{family}")
         assert descriptor["parser_builder"] == "build_parser"
         assert descriptor["handler"] == f"handle_{family}_command"
-        assert descriptor["public_exposure"] == "reserved internal; not public CLI"
+        if family == "ingest":
+            assert descriptor["public_exposure"] == (
+                "public `ingest study` only; DatasetCard and ClaimCard stay non-public"
+            )
+        else:
+            assert descriptor["public_exposure"] == "reserved internal; not public CLI"
         assert isinstance(module.list_expected_gateway_dependencies(), tuple)
         assert isinstance(module.describe_payload_contracts(), tuple)
         assert isinstance(module.list_deferred_capabilities(), tuple)
@@ -149,7 +170,7 @@ def test_command_handlers_raise_precise_placeholders() -> None:
         run.handle_run_command(object())
 
 
-def test_public_cli_help_does_not_expose_reserved_command_families() -> None:
+def test_public_cli_help_exposes_only_ingest_family_beyond_scaffold_commands() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "macro_veritas", "--help"],
         check=False,
@@ -162,7 +183,7 @@ def test_public_cli_help_does_not_expose_reserved_command_families() -> None:
     assert "status" in result.stdout
     assert "show-config" in result.stdout
     assert "init-layout" in result.stdout
-    assert "ingest" not in result.stdout
+    assert "ingest" in result.stdout
     assert "bind" not in result.stdout
     assert "extract" not in result.stdout
     assert "audit" not in result.stdout

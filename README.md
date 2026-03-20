@@ -13,7 +13,7 @@ This repository is in the initialization / MVP documentation freeze stage. No sc
 - Repository name: `macro-veritas`
 - Implemented now:
   - lightweight Python package scaffold
-  - minimal CLI commands for status, config inspection, and layout initialization
+  - minimal CLI commands for status, config inspection, layout initialization, and create-only `StudyCard` ingest
   - docs describing scope, constraints, and intended architecture
   - committed project config with explicit external data root
 - Not implemented now:
@@ -78,9 +78,12 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `status`
   - `show-config`
   - `init-layout`
-- The scaffold does not claim any scientific capability beyond configuration and filesystem layout management.
+  - `ingest study`
+- The only public domain command now implemented is create-only `StudyCard` ingest.
+- The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, and narrow registry-card creation.
 - CellVoyager code is not integrated into the current MacroVeritas package or CLI surface.
 
 ## Next Milestone
 
-The next milestone is to define the first concrete registry object contracts and add a narrow ingestion and audit path for claim, study, and evidence records without introducing scientific inference logic.
+The next milestone is to extend the registry surface carefully beyond the first
+public `StudyCard` ingest path without introducing scientific inference logic.

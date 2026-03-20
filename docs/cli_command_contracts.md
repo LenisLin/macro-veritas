@@ -15,12 +15,12 @@ MacroVeritas.
 
 This document now describes a mixed internal implementation state.
 
-- It does not mean these commands are public yet.
-- It does not imply broad file IO, serializer behavior, or public CLI
+- One narrow public exception now exists: `ingest study`.
+- It does not imply broad file IO, serializer behavior, or broad public CLI
   execution.
 - It does not imply implemented flags, options, or handler logic.
-- One narrow exception now exists: internal `StudyCard` ingest execution is
-  implemented behind the reserved `ingest` family.
+- The implemented public path is still backed by the same narrow internal
+  `StudyCard` ingest bridge.
 
 ## Command Families
 
@@ -41,12 +41,16 @@ This document now describes a mixed internal implementation state.
 - Expected dependency boundary: registry governance intake descriptors,
   card-contract docs, payload-contract docs, the StudyCard ingest bridge doc,
   and registry gateway create-planning/create contracts
-- Runtime status now: internal `StudyCard` path is implemented through
-  `plan_create_study_card(...)` followed by `create_study_card(...)`
-- Still deferred inside `ingest`: public CLI exposure, DatasetCard ingest
-  runtime, ClaimCard ingest runtime, and public flag design
-- Non-goals in this milestone: no public CLI registration, no DatasetCard or
-  ClaimCard ingest execution, no scientific logic, no evidence grading
+- Public path now: `macro_veritas ingest study` is a thin adapter over the
+  same `StudyCard` bridge
+- Runtime status now: public `StudyCard` create-only ingest is implemented
+  through normalized command input, `plan_create_study_card(...)`, and
+  `create_study_card(...)`
+- Still deferred inside `ingest`: DatasetCard ingest runtime, ClaimCard ingest
+  runtime, DatasetCard/ClaimCard public exposure, and StudyCard update or
+  patch semantics
+- Non-goals in this milestone: no DatasetCard or ClaimCard public ingest, no
+  StudyCard update/patch ingest, no scientific logic, no evidence grading
 
 ### `bind`
 
@@ -172,28 +176,33 @@ The frozen internal command style is conservative:
 - static payload-touchpoint descriptors that point to
   [`docs/payload_contracts.md`](payload_contracts.md)
 - runtime execution exists only for the internal StudyCard ingest bridge;
-  other command families remain descriptor/skeleton-only
+  the public `ingest study` path is a thin adapter over that bridge; other
+  command families remain descriptor/skeleton-only
 - file IO is allowed only through the registry gateway for explicitly
   documented internal runtime paths
 - no silent side effects
 
 Interpretation:
 
-- `build_parser(...)` is an internal skeleton hook only.
-- `handle_ingest_command(...)` now has a narrow internal StudyCard runtime path.
+- `build_parser(...)` remains an internal skeleton hook.
+- `handle_ingest_command(...)` retains the narrow internal StudyCard runtime
+  path.
+- The public CLI now adapts parsed `ingest study` flags into a typed mapping
+  and then into normalized StudyCard ingest input before payload preparation.
 - Other `handle_<family>_command(...)` functions remain internal placeholders.
-- Raw `argparse` objects remain outside the gateway contract and must be
-  normalized before payload preparation.
-- Option and flag design remains deferred.
+- Raw `argparse` objects remain outside the gateway contract.
+- Broader option and flag design remains deferred.
 - No family gets a deep subpackage tree in this milestone.
 
 ## Public Exposure Rule
 
-These command families are reserved and skeletonized, but they are not yet part
-of the stable public CLI surface.
+These command families are reserved and skeletonized, with one narrow public
+exception.
 
 - `python -m macro_veritas status` remains public.
 - `python -m macro_veritas show-config` remains public.
 - `python -m macro_veritas init-layout` remains public.
-- The reserved internal command families must not change current help text or
-  public CLI behavior in this milestone.
+- `python -m macro_veritas ingest study` is now public for create-only
+  `StudyCard` ingest.
+- `DatasetCard` and `ClaimCard` ingest remain non-public.
+- `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain non-public.

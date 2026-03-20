@@ -1,14 +1,14 @@
-"""Internal `ingest` command-family bridge for the first StudyCard runtime path.
+"""`ingest` command-family bridge for the first public StudyCard runtime path.
 
 Owning domain: Registry Department / 户部 intake boundary.
 Implemented now:
+- thin public CLI adapter support for `ingest study`
 - internal StudyCard ingest input normalization
 - StudyCard payload preparation against the frozen payload contract
 - StudyCard gateway planning + runtime create execution
 - command-layer success/failure result translation
 
 Deferred:
-- public CLI wiring
 - DatasetCard ingest runtime
 - ClaimCard ingest runtime
 """
@@ -36,6 +36,7 @@ from macro_veritas.shared.types import (
     CommandFamilyName,
     CommandPayloadDescriptor,
     DescriptorSequence,
+    StudyCardCLIInput,
     StudyCardIngestInput,
     StudyCardPayload,
     StudyCardStatus,
@@ -47,10 +48,11 @@ _OPERATION_NAME = "ingest"
 _OWNING_MODULE = "macro_veritas.commands.ingest"
 _OWNING_DOMAIN = "Registry Department / 户部"
 _PURPOSE = (
-    "Execute the first internal StudyCard ingest bridge while keeping "
+    "Execute the first public StudyCard ingest bridge while keeping "
     "DatasetCard and ClaimCard ingest non-runtime and non-public."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
+    "public StudyCard CLI adapter input",
     "internal StudyCard ingest input",
     "target card-family label",
     "full-card StudyCardPayload prepared from normalized intake input",
@@ -112,16 +114,16 @@ _PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
     ),
 )
 _DEFERRED_CAPABILITIES: DescriptorSequence = (
-    "public CLI exposure",
-    "public parser flag design",
     "DatasetCard ingest runtime",
     "ClaimCard ingest runtime",
+    "DatasetCard or ClaimCard public ingest exposure",
+    "StudyCard update or patch ingest semantics",
     "identifier allocation beyond caller-provided canonical IDs",
 )
 _NON_GOALS: DescriptorSequence = (
-    "public CLI registration",
-    "DatasetCard ingest execution",
-    "ClaimCard ingest execution",
+    "DatasetCard public ingest",
+    "ClaimCard public ingest",
+    "StudyCard update or patch ingest",
     "scientific logic",
     "evidence grading",
     "CellVoyager integration",
@@ -145,7 +147,7 @@ def family_name() -> CommandFamilyName:
 
 
 def describe_command_family() -> CommandDescriptor:
-    """Return static metadata for the internal `ingest` family."""
+    """Return static metadata for the `ingest` family."""
 
     return build_command_descriptor(
         family_name=_FAMILY_NAME,
@@ -156,6 +158,7 @@ def describe_command_family() -> CommandDescriptor:
         primary_outputs=_PRIMARY_OUTPUTS,
         dependency_contracts=_DEPENDENCY_CONTRACTS,
         non_goals=_NON_GOALS,
+        public_exposure="public `ingest study` only; DatasetCard and ClaimCard stay non-public",
     )
 
 
@@ -219,6 +222,25 @@ def normalize_studycard_ingest_input(
     return normalized
 
 
+def normalize_public_studycard_cli_input(
+    command_input: StudyCardCLIInput,
+) -> StudyCardIngestInput:
+    """Convert the public CLI StudyCard mapping into normalized ingest input."""
+
+    return normalize_studycard_ingest_input(
+        study_id=command_input["study_id"],
+        citation_handle=command_input["citation_handle"],
+        tumor_type=command_input["tumor_type"],
+        therapy_scope=command_input["therapy_scope"],
+        relevance_scope=command_input["relevance_scope"],
+        screening_decision=command_input["screening_decision"],
+        status=command_input["status"],
+        created_from=command_input["created_from"],
+        screening_note=command_input.get("screening_note"),
+        source_artifact=command_input.get("source_artifact"),
+    )
+
+
 def prepare_studycard_ingest_payload(command_input: StudyCardIngestInput) -> StudyCardPayload:
     """Prepare one `StudyCardPayload` from normalized internal ingest input."""
 
@@ -273,39 +295,17 @@ def translate_gateway_error(exc: Exception) -> tuple[CommandErrorCategory, str]:
     )
 
 
-def execute_studycard_ingest(
-    *,
-    study_id: str,
-    citation_handle: str,
-    tumor_type: str | Sequence[str],
-    therapy_scope: str | Sequence[str],
-    relevance_scope: str | Sequence[str],
-    screening_decision: StudyScreeningDecision,
-    status: StudyCardStatus,
-    created_from: str,
-    screening_note: str | None = None,
-    source_artifact: str | None = None,
+def execute_studycard_ingest_input(
+    command_input: StudyCardIngestInput,
 ) -> CommandExecutionResult:
-    """Execute the internal StudyCard ingest bridge through the real gateway path."""
+    """Execute StudyCard ingest from normalized internal command input."""
 
-    target_id = study_id if isinstance(study_id, str) else None
+    target_id = command_input.get("study_id")
     try:
-        command_input = normalize_studycard_ingest_input(
-            study_id=study_id,
-            citation_handle=citation_handle,
-            tumor_type=tumor_type,
-            therapy_scope=therapy_scope,
-            relevance_scope=relevance_scope,
-            screening_decision=screening_decision,
-            status=status,
-            created_from=created_from,
-            screening_note=screening_note,
-            source_artifact=source_artifact,
-        )
         payload = prepare_studycard_ingest_payload(command_input)
         plan_create_study_card(payload)
         created = create_study_card(payload)
-    except ValueError as exc:
+    except (KeyError, TypeError, ValueError) as exc:
         return _build_invalid_payload_result(target_id=target_id, message=str(exc))
     except RegistryError as exc:
         error_category, message = translate_gateway_error(exc)
@@ -336,8 +336,42 @@ def execute_studycard_ingest(
     )
 
 
+def execute_studycard_ingest(
+    *,
+    study_id: str,
+    citation_handle: str,
+    tumor_type: str | Sequence[str],
+    therapy_scope: str | Sequence[str],
+    relevance_scope: str | Sequence[str],
+    screening_decision: StudyScreeningDecision,
+    status: StudyCardStatus,
+    created_from: str,
+    screening_note: str | None = None,
+    source_artifact: str | None = None,
+) -> CommandExecutionResult:
+    """Execute the internal StudyCard ingest bridge through the real gateway path."""
+
+    target_id = study_id if isinstance(study_id, str) else None
+    try:
+        normalized_input = normalize_studycard_ingest_input(
+            study_id=study_id,
+            citation_handle=citation_handle,
+            tumor_type=tumor_type,
+            therapy_scope=therapy_scope,
+            relevance_scope=relevance_scope,
+            screening_decision=screening_decision,
+            status=status,
+            created_from=created_from,
+            screening_note=screening_note,
+            source_artifact=source_artifact,
+        )
+    except ValueError as exc:
+        return _build_invalid_payload_result(target_id=target_id, message=str(exc))
+    return execute_studycard_ingest_input(normalized_input)
+
+
 def handle_ingest_command(args: object) -> CommandExecutionResult:
-    """Handle internal `ingest` dispatch without exposing any public CLI surface."""
+    """Handle mapping-based internal `ingest` dispatch for StudyCard only."""
 
     if not isinstance(args, Mapping):
         return _build_invalid_payload_result(
@@ -501,11 +535,13 @@ __all__ = [
     "build_parser",
     "describe_command_family",
     "describe_payload_contracts",
+    "execute_studycard_ingest_input",
     "execute_studycard_ingest",
     "family_name",
     "handle_ingest_command",
     "list_deferred_capabilities",
     "list_expected_gateway_dependencies",
+    "normalize_public_studycard_cli_input",
     "normalize_studycard_ingest_input",
     "prepare_studycard_ingest_payload",
     "translate_gateway_error",

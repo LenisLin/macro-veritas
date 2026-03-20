@@ -4,6 +4,9 @@
 - chore(init): convert AVCP template into MacroVeritas scaffold
 - docs(mvp): establish the MVP documentation freeze across governance, architecture, registry/state/audit, and CLI contract docs; project remains docs-first with no scientific system implemented and CellVoyager reference-only
 
+## v0.6.0 - 2026-03-20
+- release: public StudyCard ingest command exposed; CLI-to-bridge path is now real for StudyCard create-only ingest; DatasetCard and ClaimCard ingest remain non-public; release version chosen: v0.6.0
+
 ## v0.5.0 - 2026-03-20
 - release: internal StudyCard ingest bridge implemented; StudyCard command-layer payload normalization and result/error translation added; public CLI unchanged; DatasetCard and ClaimCard ingest remain skeleton-only; release version chosen: v0.5.0
 

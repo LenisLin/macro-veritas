@@ -1,11 +1,11 @@
-# Internal StudyCard Ingest Runtime
+# StudyCard Ingest Runtime
 
 ## Purpose
 
-This document is the source of truth for the first internal command execution
-bridge in MacroVeritas.
+This document is the source of truth for the first real StudyCard ingest
+runtime path in MacroVeritas.
 
-- It defines the narrow internal-only runtime path now implemented for
+- It defines the narrow implemented runtime path now used by public
   `StudyCard` ingest.
 - It fixes the boundary between command-facing input normalization and the
   frozen `StudyCardPayload` gateway contract.
@@ -16,7 +16,12 @@ bridge in MacroVeritas.
 
 ## Implemented Now
 
-The following path is now real and internal:
+The following path is now real:
+
+- `macro_veritas.cli` exposes `ingest study` as a thin public CLI adapter.
+- The public CLI adapter converts parsed args into a small typed CLI mapping.
+- `macro_veritas.commands.ingest.normalize_public_studycard_cli_input(...)`
+  converts that typed CLI mapping into normalized StudyCard ingest input.
 
 - `macro_veritas.commands.ingest.normalize_studycard_ingest_input(...)`
   normalizes command-facing StudyCard ingest values into a small internal
@@ -30,12 +35,12 @@ The following path is now real and internal:
   path.
 - The actual write remains owned by `macro_veritas.registry.gateway`.
 
-This implementation is internal only.
+Public surface in this milestone:
 
-- No new public CLI command is registered.
-- `python -m macro_veritas --help` remains unchanged.
-- `python -m macro_veritas status` and `python -m macro_veritas show-config`
-  remain the public CLI surface relevant to this milestone.
+- `python -m macro_veritas ingest study ...` is now public.
+- `python -m macro_veritas status`, `show-config`, and `init-layout` remain
+  public and unchanged.
+- No other `ingest` path is public.
 
 ## Still Skeleton-Only
 
@@ -44,12 +49,13 @@ The following remain deferred and non-runtime:
 - `DatasetCard` ingest command execution
 - `ClaimCard` ingest command execution
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` runtime execution
-- any public `ingest` CLI exposure
+- `StudyCard` update or patch ingest semantics
+- any public `DatasetCard` or `ClaimCard` ingest exposure
 
 ## Command-To-Payload Normalization Boundary
 
-The internal StudyCard ingest bridge currently consumes a small command-facing
-input shape:
+The StudyCard ingest bridge currently consumes a small command-facing input
+shape:
 
 - required: `study_id`, `citation_handle`, `tumor_type`, `therapy_scope`,
   `relevance_scope`, `screening_decision`, `status`, `created_from`
@@ -70,15 +76,18 @@ No raw `argparse.Namespace` object is part of this boundary.
 
 ## Command-To-Gateway Call Boundary
 
-The internal StudyCard ingest execution order is fixed as:
+The StudyCard ingest execution order is fixed as:
 
-1. normalize command-facing StudyCard ingest input
-2. prepare one full-card `StudyCardPayload`
-3. call `plan_create_study_card(payload)`
-4. call `create_study_card(payload)` if planning succeeds
+1. parse explicit CLI flags
+2. adapt those flags into a typed StudyCard CLI mapping
+3. normalize command-facing StudyCard ingest input
+4. prepare one full-card `StudyCardPayload`
+5. call `plan_create_study_card(payload)`
+6. call `create_study_card(payload)` if planning succeeds
 
 Interpretation rules:
 
+- The public CLI does not pass raw `argparse.Namespace` into command logic.
 - The command layer does not write files directly.
 - The command layer does not bypass the gateway.
 - The command layer does not alter the gateway contract.
@@ -114,9 +123,10 @@ contract.
 
 This milestone does not add or imply:
 
-- public `ingest` CLI registration
 - DatasetCard ingest runtime
 - ClaimCard ingest runtime
+- DatasetCard or ClaimCard public ingest
+- StudyCard update or patch ingest
 - bind/extract/audit/review/run/grade runtime execution
 - scientific logic
 - evidence grading

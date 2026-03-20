@@ -3,9 +3,10 @@
 This module freezes the common style and metadata shape used by
 `macro_veritas.commands.*`.
 
-It does not dispatch public CLI commands or register parsers. It does provide a
-small internal result envelope for the first real StudyCard ingest bridge while
-keeping the rest of the command families internal-only.
+It does not dispatch broad public CLI command families or register parsers. It
+does provide a small result envelope and formatting helper for the first real
+StudyCard ingest bridge while keeping the rest of the command families
+internal-only.
 Boundary docs: `docs/cli_command_contracts.md`, `docs/payload_contracts.md`,
 `docs/module_map.md`, `docs/ingest_studycard_runtime.md`, and
 `docs/api_specs.md`.
@@ -28,17 +29,25 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
     "module_layout": "one module per reserved command family beneath macro_veritas.commands",
     "parser_builder_shape": "build_parser(subparsers_or_parser: object) -> None",
     "handler_shape": "handle_<family>_command(args: object) -> object",
-    "runtime_status": "internal only; per-family runtime execution is explicitly documented",
-    "public_exposure": "reserved but not part of the stable public CLI",
+    "runtime_status": (
+        "mixed; the StudyCard ingest path is runtime-real and all other "
+        "per-family execution remains explicitly documented"
+    ),
+    "public_exposure": (
+        "public ingest study path only; all other reserved families remain non-public"
+    ),
     "file_io": "allowed only through the registry gateway for explicitly documented internal paths",
     "silent_side_effects": "forbidden",
 }
 _COMMAND_PAYLOAD_CONTRACT_STYLE: dict[str, object] = {
     "source_of_truth_doc": "docs/payload_contracts.md",
-    "raw_cli_argument_layer": "deferred and intentionally outside the frozen payload contract",
+    "raw_cli_argument_layer": (
+        "implemented at the CLI boundary but intentionally outside the frozen "
+        "payload contract"
+    ),
     "command_normalized_input_layer": (
-        "future handlers normalize raw CLI input into small internal command "
-        "inputs before preparing gateway payloads"
+        "handlers normalize raw CLI input into small internal command inputs "
+        "before preparing gateway payloads"
     ),
     "gateway_payload_layer": (
         "handlers prepare full-card StudyCardPayload / DatasetCardPayload / "
@@ -58,8 +67,12 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
 }
 _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
     "source_of_truth_doc": "docs/ingest_studycard_runtime.md",
-    "public_cli_exposure": "unchanged; no public ingest command is registered",
+    "public_cli_exposure": (
+        "public `ingest study` exists as a thin adapter over the internal "
+        "StudyCard ingest bridge"
+    ),
     "runtime_real_now": (
+        "public StudyCard CLI adapter",
         "StudyCard-only command-normalized ingest input",
         "StudyCard payload preparation",
         "StudyCard plan_create gateway call",
@@ -130,8 +143,9 @@ def build_command_descriptor(
     primary_outputs: DescriptorSequence,
     dependency_contracts: DescriptorSequence,
     non_goals: DescriptorSequence,
+    public_exposure: str = "reserved internal; not public CLI",
 ) -> CommandDescriptor:
-    """Build a static descriptor for one reserved internal command family."""
+    """Build a static descriptor for one reserved command family."""
 
     return {
         "family_name": family_name,
@@ -143,7 +157,7 @@ def build_command_descriptor(
         "dependency_contracts": dependency_contracts,
         "parser_builder": "build_parser",
         "handler": f"handle_{family_name}_command",
-        "public_exposure": "reserved internal; not public CLI",
+        "public_exposure": public_exposure,
         "non_goals": non_goals,
     }
 
@@ -207,6 +221,25 @@ def build_command_result(
     return result
 
 
+def format_command_result_for_cli(
+    result: CommandExecutionResult,
+    *,
+    command_path: str,
+) -> str:
+    """Format one command result as a single user-facing CLI line."""
+
+    if result["ok"]:
+        target_id = result["target_id"]
+        if target_id is None:
+            return f"{command_path}: ok"
+        return f"{command_path}: created {result['card_family']} {target_id}"
+
+    return (
+        f"{command_path} failed [{result['error_category']}]: "
+        f"{result['message']}"
+    )
+
+
 __all__ = [
     "build_command_descriptor",
     "build_command_result",
@@ -217,4 +250,5 @@ __all__ = [
     "describe_command_result_style",
     "describe_command_runtime_boundary",
     "describe_gateway_payload_boundary",
+    "format_command_result_for_cli",
 ]

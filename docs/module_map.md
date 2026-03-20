@@ -25,7 +25,7 @@ The current freeze still preserves the existing lightweight runtime base:
 | Current Path | Current Role | Preserve Rule |
 | --- | --- | --- |
 | `src/macro_veritas/config.py` | Resolved project configuration and layout-path helper | Keep as the current runtime configuration base. |
-| `src/macro_veritas/cli.py` | Current lightweight `argparse` CLI scaffold | Keep current implemented commands and entry flow intact. |
+| `src/macro_veritas/cli.py` | Current lightweight `argparse` CLI scaffold plus the first public `ingest study` adapter | Keep existing public commands intact while exposing only the narrow StudyCard ingest path. |
 | `src/macro_veritas/__main__.py` | Module execution entrypoint | Preserve `python -m macro_veritas` support. |
 | repo-root `macro_veritas/` bootstrap package | Checkout-time bootstrap namespace | Preserve unless the invocation model intentionally changes later. |
 | current `status` / `show-config` / `init-layout` CLI scaffold | Honest implemented interface | Treat as stable implemented fact while governance descriptors grow around it. |
@@ -92,8 +92,8 @@ public CLI scaffold and above future gateway/governance execution.
 
 | Code Path | Current Role | Explicit Boundary |
 | --- | --- | --- |
-| `src/macro_veritas/commands/common.py` | Hold shared command-contract style descriptors, runtime-boundary descriptors, narrow internal command-result helpers, and lightweight command metadata helpers | No public CLI registration, no standalone dispatch engine, no bypass around the registry gateway |
-| `src/macro_veritas/commands/ingest.py` | Internal `ingest` family module with the first real StudyCard execution bridge | Real internal StudyCard-only normalization, payload preparation, plan/create gateway calls, and command result translation; DatasetCard/ClaimCard ingest and public CLI exposure remain deferred |
+| `src/macro_veritas/commands/common.py` | Hold shared command-contract style descriptors, runtime-boundary descriptors, narrow command-result helpers, and lightweight command metadata helpers | No standalone dispatch engine, no bypass around the registry gateway, no broad public command framework |
+| `src/macro_veritas/commands/ingest.py` | `ingest` family module with the first real StudyCard execution bridge beneath the public CLI adapter | Real StudyCard-only normalization, payload preparation, plan/create gateway calls, and command result translation; DatasetCard/ClaimCard ingest remain deferred and non-public |
 | `src/macro_veritas/commands/bind.py` | Internal skeleton for the reserved `bind` family | Parser-builder + handler contract only; no filesystem checks, no public exposure |
 | `src/macro_veritas/commands/extract.py` | Internal skeleton for the reserved `extract` family | Parser-builder + handler contract only; no parsing engine, no public exposure |
 | `src/macro_veritas/commands/audit.py` | Internal skeleton for the reserved `audit` family | Parser-builder + handler contract only; no audit engine, no public exposure |
@@ -101,10 +101,10 @@ public CLI scaffold and above future gateway/governance execution.
 | `src/macro_veritas/commands/run.py` | Internal skeleton for the reserved `run` family | Parser-builder + handler contract only; no scientific execution, no public exposure |
 | `src/macro_veritas/commands/grade.py` | Internal skeleton for the reserved `grade` family | Parser-builder + handler contract only; no evidence grading logic, no public exposure |
 
-Except for `ingest`, which now contains the first internal StudyCard execution
-bridge, each command-family module contains only parser-builder and handler
-contracts plus static descriptors. No family gets a deep subpackage tree in
-this round.
+Except for `ingest`, which now contains the first real StudyCard execution
+bridge used by the public `ingest study` adapter, each command-family module
+contains only parser-builder and handler contracts plus static descriptors. No
+family gets a deep subpackage tree in this round.
 
 ## Current Package Shape
 
@@ -178,17 +178,18 @@ src/macro_veritas/
 - `docs/datasetcard_runtime.md` is the source of truth for the implemented DatasetCard runtime slice.
 - `docs/claimcard_runtime.md` is the source of truth for the implemented ClaimCard runtime slice.
 - `docs/cli_command_contracts.md` is the source of truth for reserved internal command-family contracts.
-- `docs/ingest_studycard_runtime.md` is the source of truth for the implemented internal StudyCard ingest command bridge.
+- `docs/ingest_studycard_runtime.md` is the source of truth for the implemented StudyCard ingest runtime path.
+- `docs/public_ingest_studycard_cli.md` is the source of truth for the public `ingest study` CLI surface.
 - `macro_veritas.registry.gateway` is the sole internal boundary for registry card retrieval and persistence.
-- `macro_veritas.commands` is the internal command-family layer between the current public CLI scaffold and gateway/governance operations.
+- `macro_veritas.commands` is the command-family layer between the current public CLI surface and gateway/governance operations.
 - `macro_veritas.shared.types` is the code home of the minimal first-slice payload and DTO TypedDicts.
 - `macro_veritas.shared.naming` and `macro_veritas.registry.layout` remain static naming/path helper layers only.
 - Higher layers must consume gateway contracts rather than raw filesystem semantics.
 - Higher command layers must normalize raw parser input before preparing gateway payloads.
 - Higher command layers must consume gateway/governance contracts rather than raw filesystem semantics.
 - The StudyCard, DatasetCard, and ClaimCard runtime slices implement narrow registry IO.
-- The first real command execution path is internal StudyCard ingest only.
+- The first real public command execution path is StudyCard ingest only.
 - CLI and governance code must not do raw path traversal or raw file access for registry cards.
 - Prosecution remains distinct from routine review and should not be folded into `macro_veritas.governance.departments.review`.
-- Reserved command families may be aligned to governance domains in docs and internal skeletons, but current public CLI behavior does not change.
+- Reserved command families may be aligned to governance domains in docs and internal skeletons, but the only public domain command added in this round is `ingest study`.
 - This round must not add FastAPI, SQL, notebook-centric workflow, evidence grading logic, or CellVoyager integration.

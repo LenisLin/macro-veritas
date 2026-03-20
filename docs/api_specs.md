@@ -13,12 +13,11 @@ MacroVeritas v0.1 does not expose a web API.
 The current CLI can be reached through the installed console script or via `python -m macro_veritas` from the repository checkout. This document uses command family names as interface labels and does not claim that future groups already exist.
 
 `docs/cli_command_contracts.md` is the source of truth for the reserved
-internal command-family contracts. Those reserved families are not yet part of
-the stable public CLI surface.
+command-family contracts and the current public-vs-internal split.
 
-## Implemented CLI Commands
+## Stable Public CLI Commands
 
-The following commands exist in the current scaffold.
+The following commands are the current stable public CLI surface.
 
 ### `macro_veritas status`
 
@@ -38,11 +37,19 @@ The following commands exist in the current scaffold.
 - Expected effect: creates only missing top-level scaffold directories; with `--dry-run`, reports planned creations without writing.
 - What it should not do: delete or overwrite existing content, populate registry cards, infer scientific metadata, or run analysis logic.
 
+### `macro_veritas ingest study`
+
+- Purpose: create one canonical `StudyCard` from explicit CLI fields.
+- Expected effect: converts explicit CLI flags into normalized StudyCard ingest input, prepares one `StudyCardPayload`, calls StudyCard create planning, calls StudyCard create execution, and writes one canonical YAML file through the registry gateway.
+- What it should not do: update an existing `StudyCard`, ingest `DatasetCard` or `ClaimCard`, infer scientific content, or bypass the gateway.
+- Source of truth: [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md)
+
 ## Reserved Internal Command Families
 
-The following names are reserved for internal skeletonization and future command
-family work. They are not yet public CLI commands, do not currently define
-flags or options, and should not be treated as exposed runtime behavior.
+The following names remain reserved for broader future command-family work.
+
+- Only the narrow `ingest study` path is public now.
+- All other command families and subpaths remain internal or deferred.
 
 Their internal command-family contract is frozen in
 [`docs/cli_command_contracts.md`](cli_command_contracts.md). Governance
@@ -50,7 +57,7 @@ alignment remains documentation-only and is not an implementation claim.
 
 | CLI Group | Intended Purpose | Current Status | Internal Skeleton Module | Governance Domain Alignment |
 | --- | --- | --- | --- | --- |
-| `ingest` | Add initial study, dataset, or claim records into the planned registry. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
+| `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for `StudyCard` create-only at `ingest study`; DatasetCard and ClaimCard ingest remain non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
 | `bind` | Associate registry records with concrete raw, processed, or run-facing artifact locations. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.bind` | Registry Department / 户部 |
 | `extract` | Capture structured claim or metadata fragments from curated sources into project records. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.extract` | Registry Department / 户部 |
 | `audit` | Record routine review outcomes such as `pass`, `return`, or `escalate`. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.audit` | Review Department / 刑部 |

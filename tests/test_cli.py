@@ -64,6 +64,22 @@ def test_python_module_help_succeeds() -> None:
     assert result.returncode == 0, result.stderr
     assert "MacroVeritas scaffold CLI" in result.stdout
     assert "init-layout" in result.stdout
+    assert "ingest" in result.stdout
+
+
+def test_ingest_help_shows_public_study_subcommand_only() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "macro_veritas", "ingest", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "study" in result.stdout
+    assert "dataset" not in result.stdout
+    assert "claim" not in result.stdout
 
 
 def test_init_layout_creates_placeholder_directories(tmp_path: Path) -> None:
