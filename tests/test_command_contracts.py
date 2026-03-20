@@ -58,22 +58,55 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "public_exposure",
         "non_goals",
     )
+    assert shared_types.CommandExecutionResult.__required_keys__ == {
+        "ok",
+        "operation",
+        "card_family",
+        "target_id",
+        "message",
+    }
+    assert shared_types.CommandExecutionResult.__optional_keys__ == {
+        "error_category",
+    }
+    assert shared_types.StudyCardIngestInput.__required_keys__ == {
+        "study_id",
+        "citation_handle",
+        "tumor_types",
+        "therapy_scopes",
+        "relevance_scopes",
+        "screening_decision",
+        "status",
+        "created_from",
+    }
+    assert shared_types.StudyCardIngestInput.__optional_keys__ == {
+        "screening_note",
+        "source_artifact",
+    }
 
 
 def test_common_command_style_descriptor_is_static() -> None:
     style = common.describe_command_contract_style()
     payload_style = common.describe_command_payload_contract_style()
     payload_boundary = common.describe_gateway_payload_boundary()
+    runtime_boundary = common.describe_command_runtime_boundary()
+    result_style = common.describe_command_result_style()
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
-    assert style["runtime_status"] == "internal skeleton only"
+    assert style["runtime_status"] == (
+        "internal only; per-family runtime execution is explicitly documented"
+    )
     assert style["public_exposure"] == "reserved but not part of the stable public CLI"
     assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
     assert payload_style["raw_cli_argument_layer"].startswith("deferred")
     assert payload_boundary["gateway_consumes_argparse_objects"] is False
     assert payload_boundary["gateway_consumes_full_card_payloads_only"] is True
     assert payload_boundary["patch_payloads_supported"] is False
+    assert runtime_boundary["source_of_truth_doc"] == "docs/ingest_studycard_runtime.md"
+    assert "StudyCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
+    assert "DatasetCard ingest" in runtime_boundary["still_skeleton_only"]
+    assert result_style["output_type"] == "CommandExecutionResult"
+    assert result_style["failure_field"] == "error_category"
 
 
 def test_command_family_modules_export_static_metadata() -> None:
@@ -87,7 +120,7 @@ def test_command_family_modules_export_static_metadata() -> None:
         assert descriptor["owning_module"].endswith(f".{family}")
         assert descriptor["parser_builder"] == "build_parser"
         assert descriptor["handler"] == f"handle_{family}_command"
-        assert descriptor["public_exposure"] == "reserved internal skeleton; not public CLI"
+        assert descriptor["public_exposure"] == "reserved internal; not public CLI"
         assert isinstance(module.list_expected_gateway_dependencies(), tuple)
         assert isinstance(module.describe_payload_contracts(), tuple)
         assert isinstance(module.list_deferred_capabilities(), tuple)
@@ -101,8 +134,16 @@ def test_command_family_modules_export_static_metadata() -> None:
 
 
 def test_command_handlers_raise_precise_placeholders() -> None:
-    with pytest.raises(NotImplementedError, match="`ingest` family is reserved"):
-        ingest.handle_ingest_command(object())
+    ingest_result = ingest.handle_ingest_command(object())
+
+    assert ingest_result == {
+        "ok": False,
+        "operation": "ingest",
+        "card_family": "StudyCard",
+        "target_id": None,
+        "message": "StudyCard ingest input is invalid: handle_ingest_command expects a mapping-based internal input.",
+        "error_category": "invalid_payload",
+    }
 
     with pytest.raises(NotImplementedError, match="`run` family is reserved"):
         run.handle_run_command(object())

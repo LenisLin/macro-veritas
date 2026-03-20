@@ -92,3 +92,55 @@ def test_init_layout_creates_placeholder_directories(tmp_path: Path) -> None:
     assert (data_root / "reports").is_dir()
     assert (data_root / "raw").is_dir()
     assert (data_root / "processed").is_dir()
+
+
+def test_status_command_still_runs_without_public_ingest_changes(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    data_root = tmp_path / "macro_data"
+    _write_config(config_path, data_root)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "macro_veritas",
+            "--config",
+            str(config_path),
+            "status",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "MacroVeritas scaffold status" in result.stdout
+    assert "stage: Initialization / scaffold" in result.stdout
+
+
+def test_show_config_command_still_runs_without_public_ingest_changes(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    data_root = tmp_path / "macro_data"
+    _write_config(config_path, data_root)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "macro_veritas",
+            "--config",
+            str(config_path),
+            "show-config",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert '"project_name": "MacroVeritas"' in result.stdout
+    assert '"registry_dir"' in result.stdout

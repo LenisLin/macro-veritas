@@ -13,11 +13,14 @@ MacroVeritas.
 - Concrete gateway-facing payload families are frozen separately in
   [`docs/payload_contracts.md`](payload_contracts.md).
 
-This document does not imply implemented runtime behavior.
+This document now describes a mixed internal implementation state.
 
 - It does not mean these commands are public yet.
-- It does not imply file IO, serializer behavior, or gateway execution.
+- It does not imply broad file IO, serializer behavior, or public CLI
+  execution.
 - It does not imply implemented flags, options, or handler logic.
+- One narrow exception now exists: internal `StudyCard` ingest execution is
+  implemented behind the reserved `ingest` family.
 
 ## Command Families
 
@@ -25,20 +28,25 @@ This document does not imply implemented runtime behavior.
 
 - Owning module: `macro_veritas.commands.ingest`
 - Owning domain: Registry Department / 户部, intake boundary
-- Purpose: stage the intake of `StudyCard`, `DatasetCard`, or `ClaimCard`
-  material into the registry boundary
+- Purpose: execute the first internal `StudyCard` ingest bridge while keeping
+  `DatasetCard` and `ClaimCard` ingest non-runtime
 - Payload contract source: [`docs/payload_contracts.md`](payload_contracts.md)
 - MVP payload families touched: `StudyCardPayload`, `DatasetCardPayload`,
   `ClaimCardPayload`
-- Expected primary inputs: future command-normalized intake input, target
-  card-family label, full-card payload for create planning, provenance note
-- Expected primary outputs: future gateway create-plan request and a CLI-facing
-  intake summary
+- Expected primary inputs: internal StudyCard ingest input, target card-family
+  label, full-card StudyCard payload prepared from normalized intake input, and
+  provenance note
+- Expected primary outputs: StudyCard gateway create-plan request, StudyCard
+  gateway create execution, and an internal command result mapping
 - Expected dependency boundary: registry governance intake descriptors,
-  card-contract docs, payload-contract docs, registry gateway create-planning
-  contracts
-- Non-goals in this milestone: no identifier allocation, no gateway execution,
-  no registry writes, no flag design freeze
+  card-contract docs, payload-contract docs, the StudyCard ingest bridge doc,
+  and registry gateway create-planning/create contracts
+- Runtime status now: internal `StudyCard` path is implemented through
+  `plan_create_study_card(...)` followed by `create_study_card(...)`
+- Still deferred inside `ingest`: public CLI exposure, DatasetCard ingest
+  runtime, ClaimCard ingest runtime, and public flag design
+- Non-goals in this milestone: no public CLI registration, no DatasetCard or
+  ClaimCard ingest execution, no scientific logic, no evidence grading
 
 ### `bind`
 
@@ -163,14 +171,17 @@ The frozen internal command style is conservative:
 - static descriptor helpers for family metadata and dependency declarations
 - static payload-touchpoint descriptors that point to
   [`docs/payload_contracts.md`](payload_contracts.md)
-- no runtime execution yet
-- no file IO
+- runtime execution exists only for the internal StudyCard ingest bridge;
+  other command families remain descriptor/skeleton-only
+- file IO is allowed only through the registry gateway for explicitly
+  documented internal runtime paths
 - no silent side effects
 
 Interpretation:
 
 - `build_parser(...)` is an internal skeleton hook only.
-- `handle_<family>_command(...)` is an internal placeholder only.
+- `handle_ingest_command(...)` now has a narrow internal StudyCard runtime path.
+- Other `handle_<family>_command(...)` functions remain internal placeholders.
 - Raw `argparse` objects remain outside the gateway contract and must be
   normalized before payload preparation.
 - Option and flag design remains deferred.

@@ -32,6 +32,9 @@ This document now describes a mixed implementation state.
 - `ClaimCard` create/update and planning enforce referenced `StudyCard`
   existence and referenced `DatasetCard` existence when `dataset_ids` is
   present.
+- An internal StudyCard ingest bridge now consumes the unchanged StudyCard
+  gateway contract by calling `plan_create_study_card(...)` and then
+  `create_study_card(...)`.
 
 ## Access Result Contract
 
@@ -72,6 +75,8 @@ Interpretation notes:
 - `create_study_card`, `update_study_card`, `create_dataset_card`,
   `update_dataset_card`, `create_claim_card`, and `update_claim_card` are
   separate execution helpers that return the bare stored payload on success.
+- The internal StudyCard ingest bridge uses this exact split: plan first, then
+  create.
 
 ## Error Semantics
 
@@ -141,6 +146,8 @@ Planning interpretation:
   [`docs/payload_contracts.md`](payload_contracts.md).
 - For `StudyCard`, the plan functions are separate from the runtime execution
   helpers and still do not write storage.
+- The internal StudyCard ingest command bridge depends on that separation and
+  does not change the gateway result or error contract.
 - For `DatasetCard`, the plan functions are separate from the runtime execution
   helpers, still do not write storage, and do perform the direct parent
   `StudyCard` existence check.

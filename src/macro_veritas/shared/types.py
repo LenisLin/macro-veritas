@@ -75,6 +75,12 @@ CommandPayloadUsage = Literal[
     "prepare_create_or_update",
     "read_only",
 ]
+CommandErrorCategory = Literal[
+    "duplicate_target",
+    "invalid_payload",
+    "unsupported_operation",
+    "registry_failure",
+]
 
 DepartmentName = Literal[
     "personnel",
@@ -128,6 +134,26 @@ class StudyCardPayload(_StudyCardPayloadRequired, total=False):
 
     screening_note: str
     source_artifact_locator: str
+
+
+class _StudyCardIngestInputRequired(TypedDict):
+    """Required keys for the internal StudyCard ingest command input."""
+
+    study_id: str
+    citation_handle: str
+    tumor_types: Sequence[str]
+    therapy_scopes: Sequence[str]
+    relevance_scopes: Sequence[str]
+    screening_decision: StudyScreeningDecision
+    status: StudyCardStatus
+    created_from: str
+
+
+class StudyCardIngestInput(_StudyCardIngestInputRequired, total=False):
+    """Normalized internal StudyCard ingest input before payload preparation."""
+
+    screening_note: str
+    source_artifact: str
 
 
 class _DatasetCardPayloadRequired(TypedDict):
@@ -262,6 +288,22 @@ class CommandDescriptor(TypedDict):
     non_goals: DescriptorSequence
 
 
+class _CommandExecutionResultRequired(TypedDict):
+    """Required fields for a narrow internal command execution outcome."""
+
+    ok: bool
+    operation: str
+    card_family: CardFamilyName
+    target_id: str | None
+    message: str
+
+
+class CommandExecutionResult(_CommandExecutionResultRequired, total=False):
+    """Internal command-layer success/failure envelope for runtime bridges."""
+
+    error_category: CommandErrorCategory
+
+
 __all__ = [
     "AHeaderLaneName",
     "AuditOutcomeName",
@@ -274,6 +316,8 @@ __all__ = [
     "ClaimCardStatus",
     "ClaimReviewReadiness",
     "CommandDescriptor",
+    "CommandErrorCategory",
+    "CommandExecutionResult",
     "CommandFamilyName",
     "CommandPayloadDescriptor",
     "CommandPayloadUsage",
@@ -303,6 +347,7 @@ __all__ = [
     "RelationshipPointerMap",
     "ReservedCLIFamilyName",
     "ResponsibilityMap",
+    "StudyCardIngestInput",
     "StudyCardPayload",
     "StudyScreeningDecision",
     "StudyCardStatus",

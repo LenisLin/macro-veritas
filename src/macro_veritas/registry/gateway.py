@@ -19,6 +19,8 @@ Implemented now:
   checks for `ClaimCard` create and update
 - domain-level translation of lower-level StudyCard/DatasetCard/ClaimCard
   filesystem/YAML failures
+- internal StudyCard ingest bridge support through `plan_create_study_card`
+  plus `create_study_card`
 
 Non-goals:
 - no CLI wiring
@@ -424,6 +426,12 @@ def describe_registry_gateway_role() -> dict[str, object]:
             "+ tuple listings + explicit mutation-plan descriptor + "
             "StudyCard/DatasetCard/ClaimCard runtime create/update helpers + domain exceptions"
         ),
+        "internal_command_bridges": {
+            "StudyCard_ingest": (
+                "macro_veritas.commands.ingest.execute_studycard_ingest -> "
+                "plan_create_study_card -> create_study_card"
+            ),
+        },
     }
 
 

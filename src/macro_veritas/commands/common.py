@@ -1,11 +1,14 @@
-"""Shared helpers for internal command-family skeleton modules.
+"""Shared helpers for internal command-family modules.
 
 This module freezes the common style and metadata shape used by
 `macro_veritas.commands.*`.
 
-It does not dispatch commands, register parsers, or execute runtime behavior.
+It does not dispatch public CLI commands or register parsers. It does provide a
+small internal result envelope for the first real StudyCard ingest bridge while
+keeping the rest of the command families internal-only.
 Boundary docs: `docs/cli_command_contracts.md`, `docs/payload_contracts.md`,
-`docs/module_map.md`, and `docs/api_specs.md`.
+`docs/module_map.md`, `docs/ingest_studycard_runtime.md`, and
+`docs/api_specs.md`.
 """
 
 from __future__ import annotations
@@ -13,6 +16,8 @@ from __future__ import annotations
 from macro_veritas.shared.types import (
     CardFamilyName,
     CommandDescriptor,
+    CommandErrorCategory,
+    CommandExecutionResult,
     CommandFamilyName,
     CommandPayloadDescriptor,
     CommandPayloadUsage,
@@ -23,10 +28,10 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
     "module_layout": "one module per reserved command family beneath macro_veritas.commands",
     "parser_builder_shape": "build_parser(subparsers_or_parser: object) -> None",
     "handler_shape": "handle_<family>_command(args: object) -> object",
-    "runtime_status": "internal skeleton only",
+    "runtime_status": "internal only; per-family runtime execution is explicitly documented",
     "public_exposure": "reserved but not part of the stable public CLI",
-    "file_io": "forbidden in this milestone",
-    "silent_side_effects": "forbidden in this milestone",
+    "file_io": "allowed only through the registry gateway for explicitly documented internal paths",
+    "silent_side_effects": "forbidden",
 }
 _COMMAND_PAYLOAD_CONTRACT_STYLE: dict[str, object] = {
     "source_of_truth_doc": "docs/payload_contracts.md",
@@ -51,6 +56,38 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
     "patch_payloads_supported": False,
     "read_result_shape": "bare card mapping shaped like the frozen card contract",
 }
+_COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
+    "source_of_truth_doc": "docs/ingest_studycard_runtime.md",
+    "public_cli_exposure": "unchanged; no public ingest command is registered",
+    "runtime_real_now": (
+        "StudyCard-only command-normalized ingest input",
+        "StudyCard payload preparation",
+        "StudyCard plan_create gateway call",
+        "StudyCard create gateway call",
+        "command-layer success/failure result translation",
+    ),
+    "still_skeleton_only": (
+        "DatasetCard ingest",
+        "ClaimCard ingest",
+        "bind",
+        "extract",
+        "audit",
+        "review",
+        "run",
+        "grade",
+    ),
+}
+_COMMAND_RESULT_STYLE: dict[str, object] = {
+    "output_type": "CommandExecutionResult",
+    "required_fields": ("ok", "operation", "card_family", "target_id", "message"),
+    "failure_field": "error_category",
+    "supported_error_categories": (
+        "duplicate_target",
+        "invalid_payload",
+        "unsupported_operation",
+        "registry_failure",
+    ),
+}
 
 
 def describe_command_contract_style() -> dict[str, object]:
@@ -69,6 +106,18 @@ def describe_gateway_payload_boundary() -> dict[str, str | bool]:
     """Describe the frozen command-to-gateway payload boundary."""
 
     return _GATEWAY_PAYLOAD_BOUNDARY
+
+
+def describe_command_runtime_boundary() -> dict[str, object]:
+    """Describe the implemented-vs-deferred runtime boundary for commands."""
+
+    return _COMMAND_RUNTIME_BOUNDARY
+
+
+def describe_command_result_style() -> dict[str, object]:
+    """Describe the narrow internal command execution result envelope."""
+
+    return _COMMAND_RESULT_STYLE
 
 
 def build_command_descriptor(
@@ -94,7 +143,7 @@ def build_command_descriptor(
         "dependency_contracts": dependency_contracts,
         "parser_builder": "build_parser",
         "handler": f"handle_{family_name}_command",
-        "public_exposure": "reserved internal skeleton; not public CLI",
+        "public_exposure": "reserved internal; not public CLI",
         "non_goals": non_goals,
     }
 
@@ -127,14 +176,45 @@ def command_handler_not_implemented(family_name: CommandFamilyName) -> NotImplem
         f"handle_{family_name}_command is an internal command placeholder only. "
         f"The `{family_name}` family is reserved but not part of the public CLI, "
         "and no runtime execution is implemented."
-    )
+        )
+
+
+def build_command_result(
+    *,
+    ok: bool,
+    operation: str,
+    card_family: CardFamilyName,
+    target_id: str | None,
+    message: str,
+    error_category: CommandErrorCategory | None = None,
+) -> CommandExecutionResult:
+    """Build the narrow internal command result mapping used by runtime bridges."""
+
+    if ok and error_category is not None:
+        raise ValueError("Successful command results must not include an error_category.")
+    if not ok and error_category is None:
+        raise ValueError("Failed command results must include an error_category.")
+
+    result: CommandExecutionResult = {
+        "ok": ok,
+        "operation": operation,
+        "card_family": card_family,
+        "target_id": target_id,
+        "message": message,
+    }
+    if error_category is not None:
+        result["error_category"] = error_category
+    return result
 
 
 __all__ = [
     "build_command_descriptor",
+    "build_command_result",
     "build_command_payload_descriptor",
     "command_handler_not_implemented",
     "describe_command_contract_style",
     "describe_command_payload_contract_style",
+    "describe_command_result_style",
+    "describe_command_runtime_boundary",
     "describe_gateway_payload_boundary",
 ]

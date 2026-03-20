@@ -19,7 +19,7 @@ The relevant boundary layers are intentionally distinct:
 | Layer | Meaning | Freeze Status In This Milestone |
 | --- | --- | --- |
 | raw CLI argument layer | future `argparse` flags, options, and raw parsed objects | deferred |
-| command-normalized input layer | future internal command-family input after raw CLI parsing has been normalized into small family-specific values | frozen only at the boundary-rule level: command handlers normalize raw input before preparing the payloads below |
+| command-normalized input layer | internal command-family input after raw CLI parsing or equivalent caller input has been normalized into small family-specific values | frozen at the boundary-rule level, with one real path now implemented for internal StudyCard ingest |
 | gateway payload / DTO layer | full-card payload mappings accepted by gateway create/update planning and bare card mappings returned by gateway reads | frozen here |
 | stored card representation layer | canonical stored `StudyCard` / `DatasetCard` / `ClaimCard` field contract | frozen in [`docs/card_contracts.md`](card_contracts.md) |
 
@@ -66,6 +66,14 @@ Expected value-shape notes:
   `pending`, `include`, `exclude`.
 - `status` stays within the first-slice lifecycle vocabulary frozen in
   [`docs/card_contracts.md`](card_contracts.md).
+- The internal StudyCard ingest bridge now prepares this payload from the
+  command-facing keys `study_id`, `citation_handle`, `tumor_type`,
+  `therapy_scope`, `relevance_scope`, `screening_decision`, `status`,
+  `created_from`, optional `screening_note`, and optional `source_artifact`.
+- That bridge maps `tumor_type` / `therapy_scope` / `relevance_scope` to
+  `tumor_scope_tags` / `therapy_scope_tags` / `relevance_scope_tags`, maps
+  `created_from` to `created_from_note`, and maps `source_artifact` to
+  `source_artifact_locator`.
 
 ### `DatasetCard` create/update payload
 
@@ -146,7 +154,9 @@ This document does not freeze raw CLI flags. It does freeze what command
 handlers are conceptually responsible for at the boundary:
 
 - `ingest` prepares full-card create payloads for `StudyCard`,
-  `DatasetCard`, or `ClaimCard`.
+  `DatasetCard`, or `ClaimCard`, and the internal StudyCard path now executes
+  that payload through `plan_create_study_card(...)` followed by
+  `create_study_card(...)`.
 - `bind` may read a current card and then prepare a full-card replacement
   payload for update planning.
 - `extract` may prepare a new or replacement `ClaimCardPayload` and may also
