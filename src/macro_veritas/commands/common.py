@@ -1,15 +1,14 @@
 """Shared helpers for internal command-family modules.
 
 This module freezes the common style and metadata shape used by
-`macro_veritas.commands.*`.
+macro_veritas.commands.*.
 
 It does not dispatch broad public CLI command families or register parsers. It
-does provide a small result envelope and formatting helper for the first real
-StudyCard ingest bridge while keeping the rest of the command families
-internal-only.
-Boundary docs: `docs/cli_command_contracts.md`, `docs/payload_contracts.md`,
-`docs/module_map.md`, `docs/ingest_studycard_runtime.md`, and
-`docs/api_specs.md`.
+does provide a small result envelope and formatting helper for the real
+StudyCard and DatasetCard ingest bridges while keeping the rest of the command
+families internal-only.
+Boundary docs: docs/cli_command_contracts.md, docs/payload_contracts.md,
+docs/module_map.md, docs/datasetcard_runtime.md, and docs/api_specs.md.
 """
 
 from __future__ import annotations
@@ -30,11 +29,11 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
     "parser_builder_shape": "build_parser(subparsers_or_parser: object) -> None",
     "handler_shape": "handle_<family>_command(args: object) -> object",
     "runtime_status": (
-        "mixed; the StudyCard ingest path is runtime-real and all other "
+        "mixed; the StudyCard and DatasetCard ingest paths are runtime-real and all other "
         "per-family execution remains explicitly documented"
     ),
     "public_exposure": (
-        "public ingest study path only; all other reserved families remain non-public"
+        "public ingest study and ingest dataset paths only; all other reserved families remain non-public"
     ),
     "file_io": "allowed only through the registry gateway for explicitly documented internal paths",
     "silent_side_effects": "forbidden",
@@ -66,21 +65,24 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
     "read_result_shape": "bare card mapping shaped like the frozen card contract",
 }
 _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
-    "source_of_truth_doc": "docs/ingest_studycard_runtime.md",
+    "source_of_truth_doc": "docs/cli_command_contracts.md",
     "public_cli_exposure": (
-        "public `ingest study` exists as a thin adapter over the internal "
-        "StudyCard ingest bridge"
+        "public ingest study and ingest dataset exist as thin adapters over the internal ingest bridge"
     ),
     "runtime_real_now": (
         "public StudyCard CLI adapter",
-        "StudyCard-only command-normalized ingest input",
+        "public DatasetCard CLI adapter",
+        "StudyCard command-normalized ingest input",
+        "DatasetCard command-normalized ingest input",
         "StudyCard payload preparation",
+        "DatasetCard payload preparation",
         "StudyCard plan_create gateway call",
+        "DatasetCard plan_create gateway call",
         "StudyCard create gateway call",
+        "DatasetCard create gateway call",
         "command-layer success/failure result translation",
     ),
     "still_skeleton_only": (
-        "DatasetCard ingest",
         "ClaimCard ingest",
         "bind",
         "extract",
@@ -96,6 +98,7 @@ _COMMAND_RESULT_STYLE: dict[str, object] = {
     "failure_field": "error_category",
     "supported_error_categories": (
         "duplicate_target",
+        "missing_reference",
         "invalid_payload",
         "unsupported_operation",
         "registry_failure",
@@ -188,9 +191,9 @@ def command_handler_not_implemented(family_name: CommandFamilyName) -> NotImplem
 
     return NotImplementedError(
         f"handle_{family_name}_command is an internal command placeholder only. "
-        f"The `{family_name}` family is reserved but not part of the public CLI, "
+        f"The {family_name} family is reserved but not part of the public CLI, "
         "and no runtime execution is implemented."
-        )
+    )
 
 
 def build_command_result(

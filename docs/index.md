@@ -2,7 +2,10 @@
 
 ## Purpose
 
-This index is the navigation layer for the current MacroVeritas MVP documentation set. It is intended to help a new contributor or a new model session find the frozen position first, then the design-intent documents that describe the next implementation boundary.
+This index is the navigation layer for the current MacroVeritas MVP
+documentation set. It is intended to help a new contributor or a new model
+session find the frozen position first, then the design-intent documents that
+still matter for the next implementation boundary.
 
 ## Start Here
 
@@ -24,14 +27,15 @@ Recommended first-pass reading order:
 14. [`docs/registry_io_boundary.md`](registry_io_boundary.md) for the frozen future internal access boundary, integrity rule, mutation-safety rule, and registry error surface.
 15. [`docs/gateway_contracts.md`](gateway_contracts.md) for the frozen gateway result, error, and mutation-plan communication contract.
 16. [`docs/studycard_runtime.md`](studycard_runtime.md) for the real file-backed StudyCard runtime slice.
-17. [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) for the real file-backed DatasetCard runtime slice.
+17. [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) for the real file-backed DatasetCard runtime slice and the thin public CLI entry point.
 18. [`docs/claimcard_runtime.md`](claimcard_runtime.md) for the real file-backed ClaimCard runtime slice.
 19. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real StudyCard ingest runtime path.
 20. [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md) for the first public domain command surface.
-21. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
+21. [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md) for the second public domain command surface.
 22. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
-23. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and skeleton-module responsibilities.
-24. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
+23. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and module responsibilities.
+24. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
+25. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
 
 ## Status Labels
 
@@ -53,37 +57,39 @@ These documents define the current frozen position.
 These documents mix frozen-position context with design-intent detail.
 
 - [`docs/architecture.md`](architecture.md): explains the current repository shape, component boundaries, and filesystem-oriented direction. Defines current frozen position.
-- [`docs/governance_spec.md`](governance_spec.md): freezes A-header lanes, department offices, planned governance function names, and prosecution boundaries. Design intent / future-detail, but now the function-level source of truth.
-- [`docs/module_map.md`](module_map.md): bridges governance labels to conservative package and module paths for the current skeletonization round. Design intent / future-detail.
+- [`docs/governance_spec.md`](governance_spec.md): freezes A-header lanes, department offices, planned governance function names, and prosecution boundaries. Design intent / future-detail.
+- [`docs/module_map.md`](module_map.md): bridges governance labels to conservative package and module paths for the current implementation state. Design intent / future-detail.
 - [`docs/registry_model.md`](registry_model.md): maps the MVP object families and their planned persistence forms. Design intent / future-detail.
 - [`docs/state_machine.md`](state_machine.md): defines minimal object lifecycle states for the MVP registry layer. Design intent / future-detail.
-- [`docs/registry_layout.md`](registry_layout.md): freezes the first-slice on-disk registry topology, naming, and cross-reference conventions without implying IO. Defines current frozen position for this slice.
-- [`docs/payload_contracts.md`](payload_contracts.md): freezes the first-slice command-normalized-to-gateway payload and DTO boundary without implying parser or runtime implementation. Defines current frozen position for this slice.
-- [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes the internal registry access boundary, integrity-enforcement point, mutation-safety rule, and error surface while distinguishing the implemented StudyCard, DatasetCard, and ClaimCard slices from deferred future work. Defines current frozen position for this slice.
-- [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the gateway-facing result shapes, error semantics, mutation-plan output contract, and full-replace update rule while documenting the current mixed implementation state. Defines current frozen position for this slice.
-- [`docs/studycard_runtime.md`](studycard_runtime.md): defines the implemented StudyCard runtime slice, including canonical path usage, YAML storage, atomic writes, and error translation. Defines current implemented position for this slice.
-- [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): defines the implemented DatasetCard runtime slice, including canonical path usage, YAML storage, gateway-level StudyCard reference checks, atomic writes, and error translation. Defines current implemented position for this slice.
-- [`docs/claimcard_runtime.md`](claimcard_runtime.md): defines the implemented ClaimCard runtime slice, including canonical path usage, YAML storage, gateway-level StudyCard and optional DatasetCard reference checks, atomic writes, and error translation. Defines current implemented position for this slice.
-- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the command-family contracts, family ownership, dependency boundaries, and skeleton style while distinguishing the one public `ingest study` path from the still-internal families. Defines current frozen position for this slice.
-- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): defines the first real StudyCard ingest runtime path beneath the public CLI adapter. Defines current implemented position for this slice.
-- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): defines the first public domain command surface for create-only `StudyCard` ingest. Defines current implemented position for this slice.
+- [`docs/registry_layout.md`](registry_layout.md): freezes the first-slice on-disk registry topology, naming, and cross-reference conventions. Defines current frozen position for this slice.
+- [`docs/payload_contracts.md`](payload_contracts.md): freezes the first-slice command-normalized-to-gateway payload and DTO boundary. Defines current frozen position for this slice.
+- [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes the internal registry access boundary, integrity-enforcement point, mutation-safety rule, and error surface. Defines current frozen position for this slice.
+- [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the gateway-facing result shapes, error semantics, mutation-plan output contract, and full-replace update rule. Defines current frozen position for this slice.
+- [`docs/studycard_runtime.md`](studycard_runtime.md): records the implemented StudyCard runtime slice. Defines current implemented position for this slice.
+- [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records the implemented DatasetCard runtime slice plus the thin public DatasetCard CLI path. Defines current implemented position for this slice.
+- [`docs/claimcard_runtime.md`](claimcard_runtime.md): records the implemented ClaimCard runtime slice. Defines current implemented position for this slice.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the command-family contracts while distinguishing the public `ingest study` and `ingest dataset` paths from the still-internal families. Defines current frozen position for this slice.
+- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records the StudyCard ingest runtime beneath the public CLI adapter. Defines current implemented position for this slice.
+- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` surface. Defines current implemented position for this slice.
+- [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md): records the exact public `ingest dataset` surface. Defines current implemented position for this slice.
 
 ## Contracts And Audit
 
 These documents describe the public CLI surface and the next layer of object and review contracts.
 
-- [`docs/card_contracts.md`](card_contracts.md): freezes the first field-level card contracts for `StudyCard`, `DatasetCard`, and `ClaimCard`. Defines current frozen position for this slice.
-- [`docs/payload_contracts.md`](payload_contracts.md): freezes the exact first-slice payload/DTO shapes exchanged between internal command handlers and future gateway operations. Defines current frozen position for this slice.
-- [`docs/registry_layout.md`](registry_layout.md): freezes where those first-slice cards conceptually live on disk and how their IDs map to canonical file paths. Defines current frozen position for this slice.
-- [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes who will own future registry access, where direct-reference checks belong, and what mutation-safety/error rules will apply. Defines current frozen position for this slice.
-- [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the precise language upper layers should consume from the gateway: success shapes, domain errors, mutation-plan outputs, and the full-replace rule. Defines current frozen position for this slice.
-- [`docs/studycard_runtime.md`](studycard_runtime.md): records exactly what StudyCard registry behavior is runtime-real now and what remains deferred. Defines current implemented position for this slice.
-- [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records exactly what DatasetCard registry behavior is runtime-real now and what remains deferred. Defines current implemented position for this slice.
-- [`docs/claimcard_runtime.md`](claimcard_runtime.md): records exactly what ClaimCard registry behavior is runtime-real now and what remains deferred. Defines current implemented position for this slice.
-- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records exactly what StudyCard ingest runtime behavior is real now and what remains deferred. Defines current implemented position for this slice.
-- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` command shape, create-only behavior, and user-facing success/failure expectations. Defines current implemented position for this slice.
-- [`docs/api_specs.md`](api_specs.md): documents the current CLI contract and clearly states that there is no web API in v0.1. Defines current implemented CLI surface and the reserved-not-public command boundary.
-- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the internal command-family contracts for `ingest`, `bind`, `extract`, `audit`, `review`, `run`, and `grade`. Defines current frozen position for this slice.
+- [`docs/card_contracts.md`](card_contracts.md): freezes the first field-level card contracts for `StudyCard`, `DatasetCard`, and `ClaimCard`.
+- [`docs/payload_contracts.md`](payload_contracts.md): freezes the exact first-slice payload/DTO shapes exchanged between internal command handlers and gateway operations.
+- [`docs/registry_layout.md`](registry_layout.md): freezes where those first-slice cards conceptually live on disk and how their IDs map to canonical file paths.
+- [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes who owns registry access, where direct-reference checks belong, and what mutation-safety/error rules apply.
+- [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the precise language upper layers should consume from the gateway: success shapes, domain errors, mutation-plan outputs, and the full-replace rule.
+- [`docs/studycard_runtime.md`](studycard_runtime.md): records exactly what StudyCard registry behavior is runtime-real now.
+- [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records exactly what DatasetCard registry behavior is runtime-real now, including the public create-only CLI entry point.
+- [`docs/claimcard_runtime.md`](claimcard_runtime.md): records exactly what ClaimCard registry behavior is runtime-real now.
+- [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records exactly what StudyCard ingest runtime behavior is real now.
+- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` command shape, create-only behavior, and user-facing expectations.
+- [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md): records the exact public `ingest dataset` command shape, create-only behavior, parent-StudyCard requirement, and user-facing expectations.
+- [`docs/api_specs.md`](api_specs.md): documents the current CLI contract and clearly states that there is no web API in v0.1.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the internal command-family contracts for `ingest`, `bind`, `extract`, `audit`, `review`, `run`, and `grade`.
 - [`docs/data_contracts.md`](data_contracts.md): summarizes the minimum contract categories for planned object families and points to the first frozen card slice. Design intent / future-detail.
 - [`docs/audit_policy.md`](audit_policy.md): defines the lightweight MVP audit posture, trigger points, and outcomes without implying an implemented audit engine. Design intent / future-detail.
 
@@ -96,4 +102,11 @@ These documents support repository discipline rather than end-user functionality
 
 ## Practical Reading Rule
 
-If a question is about what is allowed now, read `state`, `constraints`, and `decisions` first. If a question is about how the next MVP layer is supposed to be organized, then read `architecture`, `governance_spec`, `module_map`, `registry_model`, `state_machine`, `card_contracts`, `payload_contracts`, `registry_layout`, `registry_io_boundary`, `gateway_contracts`, `studycard_runtime`, `datasetcard_runtime`, `claimcard_runtime`, `ingest_studycard_runtime`, `data_contracts`, `api_specs`, `cli_command_contracts`, and `audit_policy`.
+If a question is about what is allowed now, read `state`, `constraints`, and
+`decisions` first. If a question is about how the next MVP layer is organized,
+then read `architecture`, `module_map`, `registry_model`, `state_machine`,
+`card_contracts`, `payload_contracts`, `registry_layout`,
+`registry_io_boundary`, `gateway_contracts`, `studycard_runtime`,
+`datasetcard_runtime`, `claimcard_runtime`, `ingest_studycard_runtime`,
+`public_ingest_studycard_cli`, `public_ingest_datasetcard_cli`, `api_specs`,
+`cli_command_contracts`, and `audit_policy`.

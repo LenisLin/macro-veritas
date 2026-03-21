@@ -9,9 +9,9 @@ They do not define scientific schemas, validators, persistence models, or
 broad serializer behavior. The implemented StudyCard, DatasetCard, and
 ClaimCard runtime slices reuse these payload shapes directly.
 Boundary docs:
-`docs/governance_spec.md`, `docs/module_map.md`, `docs/card_contracts.md`,
-`docs/payload_contracts.md`, `docs/gateway_contracts.md`,
-`docs/cli_command_contracts.md`, and `docs/constraints.md`.
+docs/governance_spec.md, docs/module_map.md, docs/card_contracts.md,
+docs/payload_contracts.md, docs/gateway_contracts.md,
+docs/cli_command_contracts.md, and docs/constraints.md.
 """
 
 from __future__ import annotations
@@ -77,6 +77,7 @@ CommandPayloadUsage = Literal[
 ]
 CommandErrorCategory = Literal[
     "duplicate_target",
+    "missing_reference",
     "invalid_payload",
     "unsupported_operation",
     "registry_failure",
@@ -117,7 +118,7 @@ RelationshipPointerMap: TypeAlias = dict[str, tuple[str, ...]]
 
 
 class _StudyCardPayloadRequired(TypedDict):
-    """Required keys for a first-slice `StudyCard` gateway payload."""
+    """Required keys for a first-slice StudyCard gateway payload."""
 
     study_id: str
     citation_handle: str
@@ -130,7 +131,7 @@ class _StudyCardPayloadRequired(TypedDict):
 
 
 class StudyCardPayload(_StudyCardPayloadRequired, total=False):
-    """Full-card `StudyCard` payload used by command-to-gateway boundaries."""
+    """Full-card StudyCard payload used by command-to-gateway boundaries."""
 
     screening_note: str
     source_artifact_locator: str
@@ -157,7 +158,7 @@ class StudyCardIngestInput(_StudyCardIngestInputRequired, total=False):
 
 
 class _StudyCardCLIInputRequired(TypedDict):
-    """Required fields for the public `ingest study` CLI adapter boundary."""
+    """Required fields for the public ingest study CLI adapter boundary."""
 
     study_id: str
     citation_handle: str
@@ -177,7 +178,7 @@ class StudyCardCLIInput(_StudyCardCLIInputRequired, total=False):
 
 
 class _DatasetCardPayloadRequired(TypedDict):
-    """Required keys for a first-slice `DatasetCard` gateway payload."""
+    """Required keys for a first-slice DatasetCard gateway payload."""
 
     dataset_id: str
     study_id: str
@@ -191,7 +192,51 @@ class _DatasetCardPayloadRequired(TypedDict):
 
 
 class DatasetCardPayload(_DatasetCardPayloadRequired, total=False):
-    """Full-card `DatasetCard` payload used by command-to-gateway boundaries."""
+    """Full-card DatasetCard payload used by command-to-gateway boundaries."""
+
+    accession_id: str
+    artifact_locator: str
+    availability_note: str
+
+
+class _DatasetCardIngestInputRequired(TypedDict):
+    """Required keys for the internal DatasetCard ingest command input."""
+
+    dataset_id: str
+    study_id: str
+    source_locator: str
+    availability_status: DatasetAvailabilityStatus
+    modality_scopes: Sequence[str]
+    cohort_summary: str
+    platform_summary: str
+    status: DatasetCardStatus
+    locator_confidence_note: str
+
+
+class DatasetCardIngestInput(_DatasetCardIngestInputRequired, total=False):
+    """Normalized internal DatasetCard ingest input before payload preparation."""
+
+    accession_id: str
+    artifact_locator: str
+    availability_note: str
+
+
+class _DatasetCardCLIInputRequired(TypedDict):
+    """Required fields for the public ingest dataset CLI adapter boundary."""
+
+    dataset_id: str
+    study_id: str
+    source_locator: str
+    availability_status: DatasetAvailabilityStatus
+    modality_scope: Sequence[str]
+    cohort_summary: str
+    platform_summary: str
+    status: DatasetCardStatus
+    locator_confidence_note: str
+
+
+class DatasetCardCLIInput(_DatasetCardCLIInputRequired, total=False):
+    """Typed mapping built from parsed CLI args before internal normalization."""
 
     accession_id: str
     artifact_locator: str
@@ -199,7 +244,7 @@ class DatasetCardPayload(_DatasetCardPayloadRequired, total=False):
 
 
 class _ClaimCardPayloadRequired(TypedDict):
-    """Required keys for a first-slice `ClaimCard` gateway payload."""
+    """Required keys for a first-slice ClaimCard gateway payload."""
 
     claim_id: str
     study_id: str
@@ -212,7 +257,7 @@ class _ClaimCardPayloadRequired(TypedDict):
 
 
 class ClaimCardPayload(_ClaimCardPayloadRequired, total=False):
-    """Full-card `ClaimCard` payload used by command-to-gateway boundaries."""
+    """Full-card ClaimCard payload used by command-to-gateway boundaries."""
 
     dataset_ids: Sequence[str]
     claim_summary_handle: str
@@ -343,6 +388,8 @@ __all__ = [
     "CommandPayloadUsage",
     "ContractCategoryName",
     "DatasetAvailabilityStatus",
+    "DatasetCardCLIInput",
+    "DatasetCardIngestInput",
     "DatasetCardPayload",
     "DatasetCardStatus",
     "DepartmentName",
@@ -367,8 +414,8 @@ __all__ = [
     "RelationshipPointerMap",
     "ReservedCLIFamilyName",
     "ResponsibilityMap",
-    "StudyCardIngestInput",
     "StudyCardCLIInput",
+    "StudyCardIngestInput",
     "StudyCardPayload",
     "StudyScreeningDecision",
     "StudyCardStatus",

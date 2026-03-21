@@ -37,6 +37,13 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "prepare_create_or_update",
         "read_only",
     )
+    assert get_args(shared_types.CommandErrorCategory) == (
+        "duplicate_target",
+        "missing_reference",
+        "invalid_payload",
+        "unsupported_operation",
+        "registry_failure",
+    )
     assert tuple(shared_types.CommandPayloadDescriptor.__annotations__.keys()) == (
         "card_family",
         "payload_type",
@@ -96,6 +103,38 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "screening_note",
         "source_artifact",
     }
+    assert shared_types.DatasetCardIngestInput.__required_keys__ == {
+        "dataset_id",
+        "study_id",
+        "source_locator",
+        "availability_status",
+        "modality_scopes",
+        "cohort_summary",
+        "platform_summary",
+        "status",
+        "locator_confidence_note",
+    }
+    assert shared_types.DatasetCardIngestInput.__optional_keys__ == {
+        "accession_id",
+        "artifact_locator",
+        "availability_note",
+    }
+    assert shared_types.DatasetCardCLIInput.__required_keys__ == {
+        "dataset_id",
+        "study_id",
+        "source_locator",
+        "availability_status",
+        "modality_scope",
+        "cohort_summary",
+        "platform_summary",
+        "status",
+        "locator_confidence_note",
+    }
+    assert shared_types.DatasetCardCLIInput.__optional_keys__ == {
+        "accession_id",
+        "artifact_locator",
+        "availability_note",
+    }
 
 
 def test_common_command_style_descriptor_is_static() -> None:
@@ -107,22 +146,25 @@ def test_common_command_style_descriptor_is_static() -> None:
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
-    assert "StudyCard ingest path is runtime-real" in style["runtime_status"]
+    assert "StudyCard and DatasetCard ingest paths are runtime-real" in style["runtime_status"]
     assert style["public_exposure"] == (
-        "public ingest study path only; all other reserved families remain non-public"
+        "public ingest study and ingest dataset paths only; all other reserved families remain non-public"
     )
     assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
     assert "outside the frozen payload contract" in payload_style["raw_cli_argument_layer"]
     assert payload_boundary["gateway_consumes_argparse_objects"] is False
     assert payload_boundary["gateway_consumes_full_card_payloads_only"] is True
     assert payload_boundary["patch_payloads_supported"] is False
-    assert runtime_boundary["source_of_truth_doc"] == "docs/ingest_studycard_runtime.md"
-    assert "public `ingest study` exists" in runtime_boundary["public_cli_exposure"]
+    assert runtime_boundary["source_of_truth_doc"] == "docs/cli_command_contracts.md"
+    assert "ingest study" in runtime_boundary["public_cli_exposure"]
+    assert "ingest dataset" in runtime_boundary["public_cli_exposure"]
     assert "public StudyCard CLI adapter" in runtime_boundary["runtime_real_now"]
-    assert "StudyCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
-    assert "DatasetCard ingest" in runtime_boundary["still_skeleton_only"]
+    assert "public DatasetCard CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "DatasetCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
+    assert "ClaimCard ingest" in runtime_boundary["still_skeleton_only"]
     assert result_style["output_type"] == "CommandExecutionResult"
     assert result_style["failure_field"] == "error_category"
+    assert "missing_reference" in result_style["supported_error_categories"]
 
 
 def test_command_family_modules_export_static_metadata() -> None:
@@ -138,7 +180,7 @@ def test_command_family_modules_export_static_metadata() -> None:
         assert descriptor["handler"] == f"handle_{family}_command"
         if family == "ingest":
             assert descriptor["public_exposure"] == (
-                "public `ingest study` only; DatasetCard and ClaimCard stay non-public"
+                "public `ingest study` and `ingest dataset` only; ClaimCard stays non-public"
             )
         else:
             assert descriptor["public_exposure"] == "reserved internal; not public CLI"
@@ -166,7 +208,7 @@ def test_command_handlers_raise_precise_placeholders() -> None:
         "error_category": "invalid_payload",
     }
 
-    with pytest.raises(NotImplementedError, match="`run` family is reserved"):
+    with pytest.raises(NotImplementedError, match="run family is reserved"):
         run.handle_run_command(object())
 
 

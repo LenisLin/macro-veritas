@@ -1,16 +1,19 @@
-"""`ingest` command-family bridge for the first public StudyCard runtime path.
+"""`ingest` command-family bridge for the narrow public StudyCard and DatasetCard paths.
 
 Owning domain: Registry Department / 户部 intake boundary.
 Implemented now:
 - thin public CLI adapter support for `ingest study`
+- thin public CLI adapter support for `ingest dataset`
 - internal StudyCard ingest input normalization
-- StudyCard payload preparation against the frozen payload contract
-- StudyCard gateway planning + runtime create execution
+- internal DatasetCard ingest input normalization
+- StudyCard and DatasetCard payload preparation against the frozen payload contract
+- StudyCard and DatasetCard gateway planning + runtime create execution
 - command-layer success/failure result translation
 
 Deferred:
-- DatasetCard ingest runtime
 - ClaimCard ingest runtime
+- ClaimCard public ingest exposure
+- StudyCard or DatasetCard update/patch ingest semantics
 """
 
 from __future__ import annotations
@@ -23,11 +26,17 @@ from macro_veritas.commands.common import (
     build_command_result,
 )
 from macro_veritas.registry.errors import (
+    BrokenReferenceError,
     CardAlreadyExistsError,
     RegistryError,
     UnsupportedRegistryOperationError,
 )
-from macro_veritas.registry.gateway import create_study_card, plan_create_study_card
+from macro_veritas.registry.gateway import (
+    create_dataset_card,
+    create_study_card,
+    plan_create_dataset_card,
+    plan_create_study_card,
+)
 from macro_veritas.shared.types import (
     CardFamilyName,
     CommandDescriptor,
@@ -35,6 +44,11 @@ from macro_veritas.shared.types import (
     CommandExecutionResult,
     CommandFamilyName,
     CommandPayloadDescriptor,
+    DatasetAvailabilityStatus,
+    DatasetCardCLIInput,
+    DatasetCardIngestInput,
+    DatasetCardPayload,
+    DatasetCardStatus,
     DescriptorSequence,
     StudyCardCLIInput,
     StudyCardIngestInput,
@@ -48,19 +62,19 @@ _OPERATION_NAME = "ingest"
 _OWNING_MODULE = "macro_veritas.commands.ingest"
 _OWNING_DOMAIN = "Registry Department / 户部"
 _PURPOSE = (
-    "Execute the first public StudyCard ingest bridge while keeping "
-    "DatasetCard and ClaimCard ingest non-runtime and non-public."
+    "Execute the narrow public StudyCard and DatasetCard ingest bridges while "
+    "keeping ClaimCard ingest non-public and update semantics deferred."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
     "public StudyCard CLI adapter input",
-    "internal StudyCard ingest input",
+    "public DatasetCard CLI adapter input",
+    "internal StudyCard or DatasetCard ingest input",
     "target card-family label",
-    "full-card StudyCardPayload prepared from normalized intake input",
-    "provenance note",
+    "full-card StudyCardPayload or DatasetCardPayload prepared from normalized intake input",
 )
 _PRIMARY_OUTPUTS: DescriptorSequence = (
-    "StudyCard create-plan request prepared from the normalized payload",
-    "StudyCard runtime create execution through the registry gateway",
+    "StudyCard or DatasetCard create-plan request prepared from the normalized payload",
+    "StudyCard or DatasetCard runtime create execution through the registry gateway",
     "internal command execution result mapping",
 )
 _DEPENDENCY_CONTRACTS: DescriptorSequence = (
@@ -68,7 +82,9 @@ _DEPENDENCY_CONTRACTS: DescriptorSequence = (
     "docs/card_contracts.md",
     "docs/registry_io_boundary.md",
     "docs/gateway_contracts.md",
+    "docs/cli_command_contracts.md",
     "docs/ingest_studycard_runtime.md",
+    "docs/datasetcard_runtime.md",
     "macro_veritas.governance.departments.registry",
     "macro_veritas.registry.gateway",
 )
@@ -76,6 +92,7 @@ _EXPECTED_GATEWAY_DEPENDENCIES: DescriptorSequence = (
     "plan_create_study_card",
     "create_study_card",
     "plan_create_dataset_card",
+    "create_dataset_card",
     "plan_create_claim_card",
 )
 _PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
@@ -95,10 +112,10 @@ _PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
         payload_type="DatasetCardPayload",
         usage="prepare_create",
         gateway_reads=(),
-        gateway_mutations=("plan_create_dataset_card",),
+        gateway_mutations=("plan_create_dataset_card", "create_dataset_card"),
         notes=(
-            "DatasetCard ingest remains skeleton-only in this milestone.",
-            "Create planning accepts a full-card payload only.",
+            "Internal DatasetCard ingest normalizes command-facing input before preparing a DatasetCardPayload.",
+            "The bridge calls plan_create_dataset_card before create_dataset_card.",
         ),
     ),
     build_command_payload_descriptor(
@@ -114,16 +131,16 @@ _PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
     ),
 )
 _DEFERRED_CAPABILITIES: DescriptorSequence = (
-    "DatasetCard ingest runtime",
     "ClaimCard ingest runtime",
-    "DatasetCard or ClaimCard public ingest exposure",
+    "ClaimCard public ingest exposure",
     "StudyCard update or patch ingest semantics",
+    "DatasetCard update or patch ingest semantics",
     "identifier allocation beyond caller-provided canonical IDs",
 )
 _NON_GOALS: DescriptorSequence = (
-    "DatasetCard public ingest",
     "ClaimCard public ingest",
     "StudyCard update or patch ingest",
+    "DatasetCard update or patch ingest",
     "scientific logic",
     "evidence grading",
     "CellVoyager integration",
@@ -158,7 +175,7 @@ def describe_command_family() -> CommandDescriptor:
         primary_outputs=_PRIMARY_OUTPUTS,
         dependency_contracts=_DEPENDENCY_CONTRACTS,
         non_goals=_NON_GOALS,
-        public_exposure="public `ingest study` only; DatasetCard and ClaimCard stay non-public",
+        public_exposure="public `ingest study` and `ingest dataset` only; ClaimCard stays non-public",
     )
 
 
@@ -222,6 +239,70 @@ def normalize_studycard_ingest_input(
     return normalized
 
 
+def normalize_datasetcard_ingest_input(
+    *,
+    dataset_id: str,
+    study_id: str,
+    status: DatasetCardStatus,
+    modality_scope: str | Sequence[str],
+    platform_summary: str,
+    cohort_summary: str,
+    locator_confidence_note: str,
+    source_locator: str,
+    availability_status: DatasetAvailabilityStatus,
+    accession_id: str | None = None,
+    availability_note: str | None = None,
+    artifact_locator: str | None = None,
+) -> DatasetCardIngestInput:
+    """Normalize command-facing DatasetCard ingest input into a small internal mapping."""
+
+    normalized: DatasetCardIngestInput = {
+        "dataset_id": _require_command_string(dataset_id, field_name="dataset_id"),
+        "study_id": _require_command_string(study_id, field_name="study_id"),
+        "status": _require_command_string(status, field_name="status"),
+        "modality_scopes": _normalize_scope_input(
+            modality_scope,
+            field_name="modality_scope",
+        ),
+        "platform_summary": _require_command_string(
+            platform_summary,
+            field_name="platform_summary",
+        ),
+        "cohort_summary": _require_command_string(
+            cohort_summary,
+            field_name="cohort_summary",
+        ),
+        "locator_confidence_note": _require_command_string(
+            locator_confidence_note,
+            field_name="locator_confidence_note",
+        ),
+        "source_locator": _require_command_string(
+            source_locator,
+            field_name="source_locator",
+        ),
+        "availability_status": _require_command_string(
+            availability_status,
+            field_name="availability_status",
+        ),
+    }
+    if accession_id is not None:
+        normalized["accession_id"] = _require_command_string(
+            accession_id,
+            field_name="accession_id",
+        )
+    if availability_note is not None:
+        normalized["availability_note"] = _require_command_string(
+            availability_note,
+            field_name="availability_note",
+        )
+    if artifact_locator is not None:
+        normalized["artifact_locator"] = _require_command_string(
+            artifact_locator,
+            field_name="artifact_locator",
+        )
+    return normalized
+
+
 def normalize_public_studycard_cli_input(
     command_input: StudyCardCLIInput,
 ) -> StudyCardIngestInput:
@@ -238,6 +319,27 @@ def normalize_public_studycard_cli_input(
         created_from=command_input["created_from"],
         screening_note=command_input.get("screening_note"),
         source_artifact=command_input.get("source_artifact"),
+    )
+
+
+def normalize_public_datasetcard_cli_input(
+    command_input: DatasetCardCLIInput,
+) -> DatasetCardIngestInput:
+    """Convert the public CLI DatasetCard mapping into normalized ingest input."""
+
+    return normalize_datasetcard_ingest_input(
+        dataset_id=command_input["dataset_id"],
+        study_id=command_input["study_id"],
+        status=command_input["status"],
+        modality_scope=command_input["modality_scope"],
+        platform_summary=command_input["platform_summary"],
+        cohort_summary=command_input["cohort_summary"],
+        locator_confidence_note=command_input["locator_confidence_note"],
+        source_locator=command_input["source_locator"],
+        availability_status=command_input["availability_status"],
+        accession_id=command_input.get("accession_id"),
+        availability_note=command_input.get("availability_note"),
+        artifact_locator=command_input.get("artifact_locator"),
     )
 
 
@@ -261,38 +363,47 @@ def prepare_studycard_ingest_payload(command_input: StudyCardIngestInput) -> Stu
     return payload
 
 
-def translate_gateway_error(exc: Exception) -> tuple[CommandErrorCategory, str]:
+def prepare_datasetcard_ingest_payload(
+    command_input: DatasetCardIngestInput,
+) -> DatasetCardPayload:
+    """Prepare one `DatasetCardPayload` from normalized internal ingest input."""
+
+    payload: DatasetCardPayload = {
+        "dataset_id": command_input["dataset_id"],
+        "study_id": command_input["study_id"],
+        "source_locator": command_input["source_locator"],
+        "availability_status": command_input["availability_status"],
+        "modality_scope_tags": list(command_input["modality_scopes"]),
+        "cohort_summary": command_input["cohort_summary"],
+        "platform_summary": command_input["platform_summary"],
+        "status": command_input["status"],
+        "locator_confidence_note": command_input["locator_confidence_note"],
+    }
+    if "accession_id" in command_input:
+        payload["accession_id"] = command_input["accession_id"]
+    if "artifact_locator" in command_input:
+        payload["artifact_locator"] = command_input["artifact_locator"]
+    if "availability_note" in command_input:
+        payload["availability_note"] = command_input["availability_note"]
+    return payload
+
+
+def translate_gateway_error(
+    exc: Exception,
+    *,
+    card_family: CardFamilyName,
+    parent_study_id: str | None = None,
+) -> tuple[CommandErrorCategory, str]:
     """Translate gateway/domain failures into the narrow command result semantics."""
 
-    if isinstance(exc, CardAlreadyExistsError):
-        return (
-            "duplicate_target",
-            "StudyCard ingest did not write because the canonical StudyCard already exists.",
+    if card_family == "StudyCard":
+        return _translate_studycard_gateway_error(exc)
+    if card_family == "DatasetCard":
+        return _translate_datasetcard_gateway_error(
+            exc,
+            parent_study_id=parent_study_id,
         )
-    if isinstance(exc, UnsupportedRegistryOperationError):
-        return (
-            "unsupported_operation",
-            "StudyCard ingest rejected an unsupported registry operation or identifier.",
-        )
-    if isinstance(exc, RegistryError):
-        if _looks_like_unsafe_study_id_error(exc):
-            return (
-                "unsupported_operation",
-                "StudyCard ingest rejected an unsafe canonical study identifier.",
-            )
-        if _looks_like_invalid_payload_error(exc):
-            return (
-                "invalid_payload",
-                f"StudyCard ingest rejected invalid StudyCard data: {exc}",
-            )
-        return (
-            "registry_failure",
-            "StudyCard ingest failed at the registry gateway boundary.",
-        )
-    return (
-        "registry_failure",
-        "StudyCard ingest failed before the registry gateway could complete.",
-    )
+    raise ValueError(f"Unsupported card_family for gateway-error translation: {card_family!r}.")
 
 
 def execute_studycard_ingest_input(
@@ -306,9 +417,13 @@ def execute_studycard_ingest_input(
         plan_create_study_card(payload)
         created = create_study_card(payload)
     except (KeyError, TypeError, ValueError) as exc:
-        return _build_invalid_payload_result(target_id=target_id, message=str(exc))
+        return _build_invalid_payload_result(
+            card_family="StudyCard",
+            target_id=target_id,
+            message=str(exc),
+        )
     except RegistryError as exc:
-        error_category, message = translate_gateway_error(exc)
+        error_category, message = translate_gateway_error(exc, card_family="StudyCard")
         return build_command_result(
             ok=False,
             operation=_OPERATION_NAME,
@@ -318,13 +433,9 @@ def execute_studycard_ingest_input(
             error_category=error_category,
         )
     except Exception:
-        return build_command_result(
-            ok=False,
-            operation=_OPERATION_NAME,
+        return _build_unexpected_bridge_failure(
             card_family="StudyCard",
             target_id=target_id,
-            message="StudyCard ingest failed unexpectedly inside the internal command bridge.",
-            error_category="registry_failure",
         )
 
     return build_command_result(
@@ -333,6 +444,52 @@ def execute_studycard_ingest_input(
         card_family="StudyCard",
         target_id=created["study_id"],
         message="StudyCard ingest created the canonical StudyCard record.",
+    )
+
+
+def execute_datasetcard_ingest_input(
+    command_input: DatasetCardIngestInput,
+) -> CommandExecutionResult:
+    """Execute DatasetCard ingest from normalized internal command input."""
+
+    target_id = command_input.get("dataset_id")
+    parent_study_id = command_input.get("study_id")
+    try:
+        payload = prepare_datasetcard_ingest_payload(command_input)
+        plan_create_dataset_card(payload)
+        created = create_dataset_card(payload)
+    except (KeyError, TypeError, ValueError) as exc:
+        return _build_invalid_payload_result(
+            card_family="DatasetCard",
+            target_id=target_id,
+            message=str(exc),
+        )
+    except RegistryError as exc:
+        error_category, message = translate_gateway_error(
+            exc,
+            card_family="DatasetCard",
+            parent_study_id=parent_study_id,
+        )
+        return build_command_result(
+            ok=False,
+            operation=_OPERATION_NAME,
+            card_family="DatasetCard",
+            target_id=target_id,
+            message=message,
+            error_category=error_category,
+        )
+    except Exception:
+        return _build_unexpected_bridge_failure(
+            card_family="DatasetCard",
+            target_id=target_id,
+        )
+
+    return build_command_result(
+        ok=True,
+        operation=_OPERATION_NAME,
+        card_family="DatasetCard",
+        target_id=created["dataset_id"],
+        message="DatasetCard ingest created the canonical DatasetCard record.",
     )
 
 
@@ -366,15 +523,62 @@ def execute_studycard_ingest(
             source_artifact=source_artifact,
         )
     except ValueError as exc:
-        return _build_invalid_payload_result(target_id=target_id, message=str(exc))
+        return _build_invalid_payload_result(
+            card_family="StudyCard",
+            target_id=target_id,
+            message=str(exc),
+        )
     return execute_studycard_ingest_input(normalized_input)
 
 
+def execute_datasetcard_ingest(
+    *,
+    dataset_id: str,
+    study_id: str,
+    status: DatasetCardStatus,
+    modality_scope: str | Sequence[str],
+    platform_summary: str,
+    cohort_summary: str,
+    locator_confidence_note: str,
+    source_locator: str,
+    availability_status: DatasetAvailabilityStatus,
+    accession_id: str | None = None,
+    availability_note: str | None = None,
+    artifact_locator: str | None = None,
+) -> CommandExecutionResult:
+    """Execute the internal DatasetCard ingest bridge through the real gateway path."""
+
+    target_id = dataset_id if isinstance(dataset_id, str) else None
+    try:
+        normalized_input = normalize_datasetcard_ingest_input(
+            dataset_id=dataset_id,
+            study_id=study_id,
+            status=status,
+            modality_scope=modality_scope,
+            platform_summary=platform_summary,
+            cohort_summary=cohort_summary,
+            locator_confidence_note=locator_confidence_note,
+            source_locator=source_locator,
+            availability_status=availability_status,
+            accession_id=accession_id,
+            availability_note=availability_note,
+            artifact_locator=artifact_locator,
+        )
+    except ValueError as exc:
+        return _build_invalid_payload_result(
+            card_family="DatasetCard",
+            target_id=target_id,
+            message=str(exc),
+        )
+    return execute_datasetcard_ingest_input(normalized_input)
+
+
 def handle_ingest_command(args: object) -> CommandExecutionResult:
-    """Handle mapping-based internal `ingest` dispatch for StudyCard only."""
+    """Handle mapping-based internal `ingest` dispatch for StudyCard and DatasetCard."""
 
     if not isinstance(args, Mapping):
         return _build_invalid_payload_result(
+            card_family="StudyCard",
             target_id=None,
             message="handle_ingest_command expects a mapping-based internal input.",
         )
@@ -393,32 +597,60 @@ def handle_ingest_command(args: object) -> CommandExecutionResult:
             message=f"Unsupported internal ingest card family: {raw_card_family!r}.",
             error_category="unsupported_operation",
         )
-    target_id = args.get("study_id") if isinstance(args.get("study_id"), str) else None
-    if card_family != "StudyCard":
-        return build_command_result(
-            ok=False,
-            operation=_OPERATION_NAME,
-            card_family=card_family,
-            target_id=target_id,
-            message=f"Internal ingest runtime is implemented only for StudyCard, not {card_family}.",
-            error_category="unsupported_operation",
-        )
 
-    try:
-        return execute_studycard_ingest(
-            study_id=_require_mapping_value(args, "study_id"),
-            citation_handle=_require_mapping_value(args, "citation_handle"),
-            tumor_type=_require_mapping_scope_value(args, "tumor_type"),
-            therapy_scope=_require_mapping_scope_value(args, "therapy_scope"),
-            relevance_scope=_require_mapping_scope_value(args, "relevance_scope"),
-            screening_decision=_require_mapping_value(args, "screening_decision"),
-            status=_require_mapping_value(args, "status"),
-            created_from=_require_mapping_value(args, "created_from"),
-            screening_note=_optional_mapping_string(args, "screening_note"),
-            source_artifact=_optional_mapping_string(args, "source_artifact"),
-        )
-    except ValueError as exc:
-        return _build_invalid_payload_result(target_id=target_id, message=str(exc))
+    target_id = _mapping_target_id(args, card_family)
+    if card_family == "StudyCard":
+        try:
+            return execute_studycard_ingest(
+                study_id=_require_mapping_value(args, "study_id"),
+                citation_handle=_require_mapping_value(args, "citation_handle"),
+                tumor_type=_require_mapping_scope_value(args, "tumor_type"),
+                therapy_scope=_require_mapping_scope_value(args, "therapy_scope"),
+                relevance_scope=_require_mapping_scope_value(args, "relevance_scope"),
+                screening_decision=_require_mapping_value(args, "screening_decision"),
+                status=_require_mapping_value(args, "status"),
+                created_from=_require_mapping_value(args, "created_from"),
+                screening_note=_optional_mapping_string(args, "screening_note"),
+                source_artifact=_optional_mapping_string(args, "source_artifact"),
+            )
+        except ValueError as exc:
+            return _build_invalid_payload_result(
+                card_family="StudyCard",
+                target_id=target_id,
+                message=str(exc),
+            )
+
+    if card_family == "DatasetCard":
+        try:
+            return execute_datasetcard_ingest(
+                dataset_id=_require_mapping_value(args, "dataset_id"),
+                study_id=_require_mapping_value(args, "study_id"),
+                status=_require_mapping_value(args, "status"),
+                modality_scope=_require_mapping_scope_value(args, "modality_scope"),
+                platform_summary=_require_mapping_value(args, "platform_summary"),
+                cohort_summary=_require_mapping_value(args, "cohort_summary"),
+                locator_confidence_note=_require_mapping_value(args, "locator_confidence_note"),
+                source_locator=_require_mapping_value(args, "source_locator"),
+                availability_status=_require_mapping_value(args, "availability_status"),
+                accession_id=_optional_mapping_string(args, "accession_id"),
+                availability_note=_optional_mapping_string(args, "availability_note"),
+                artifact_locator=_optional_mapping_string(args, "artifact_locator"),
+            )
+        except ValueError as exc:
+            return _build_invalid_payload_result(
+                card_family="DatasetCard",
+                target_id=target_id,
+                message=str(exc),
+            )
+
+    return build_command_result(
+        ok=False,
+        operation=_OPERATION_NAME,
+        card_family=card_family,
+        target_id=target_id,
+        message=f"Internal ingest runtime is implemented only for StudyCard and DatasetCard, not {card_family}.",
+        error_category="unsupported_operation",
+    )
 
 
 def list_expected_gateway_dependencies() -> DescriptorSequence:
@@ -434,23 +666,114 @@ def describe_payload_contracts() -> tuple[CommandPayloadDescriptor, ...]:
 
 
 def list_deferred_capabilities() -> DescriptorSequence:
-    """List deferred `ingest` capabilities beyond the StudyCard bridge."""
+    """List deferred `ingest` capabilities beyond the public Study/Dataset bridges."""
 
     return _DEFERRED_CAPABILITIES
 
 
 def _build_invalid_payload_result(
     *,
+    card_family: CardFamilyName,
     target_id: str | None,
     message: str,
 ) -> CommandExecutionResult:
     return build_command_result(
         ok=False,
         operation=_OPERATION_NAME,
-        card_family="StudyCard",
+        card_family=card_family,
         target_id=target_id,
-        message=f"StudyCard ingest input is invalid: {message}",
+        message=f"{card_family} ingest input is invalid: {message}",
         error_category="invalid_payload",
+    )
+
+
+def _build_unexpected_bridge_failure(
+    *,
+    card_family: CardFamilyName,
+    target_id: str | None,
+) -> CommandExecutionResult:
+    return build_command_result(
+        ok=False,
+        operation=_OPERATION_NAME,
+        card_family=card_family,
+        target_id=target_id,
+        message=f"{card_family} ingest failed unexpectedly inside the internal command bridge.",
+        error_category="registry_failure",
+    )
+
+
+def _translate_studycard_gateway_error(
+    exc: Exception,
+) -> tuple[CommandErrorCategory, str]:
+    if isinstance(exc, CardAlreadyExistsError):
+        return (
+            "duplicate_target",
+            "StudyCard ingest did not write because the canonical StudyCard already exists.",
+        )
+    if isinstance(exc, UnsupportedRegistryOperationError):
+        return (
+            "unsupported_operation",
+            "StudyCard ingest rejected an unsupported registry operation or identifier.",
+        )
+    if isinstance(exc, RegistryError):
+        if _looks_like_unsafe_study_id_error(exc):
+            return (
+                "unsupported_operation",
+                "StudyCard ingest rejected an unsafe canonical study identifier.",
+            )
+        if _looks_like_invalid_study_payload_error(exc):
+            return (
+                "invalid_payload",
+                f"StudyCard ingest rejected invalid StudyCard data: {exc}",
+            )
+        return (
+            "registry_failure",
+            "StudyCard ingest failed at the registry gateway boundary.",
+        )
+    return (
+        "registry_failure",
+        "StudyCard ingest failed before the registry gateway could complete.",
+    )
+
+
+def _translate_datasetcard_gateway_error(
+    exc: Exception,
+    *,
+    parent_study_id: str | None,
+) -> tuple[CommandErrorCategory, str]:
+    if isinstance(exc, CardAlreadyExistsError):
+        return (
+            "duplicate_target",
+            "DatasetCard ingest did not write because the canonical DatasetCard already exists.",
+        )
+    if isinstance(exc, BrokenReferenceError):
+        if parent_study_id is None:
+            return (
+                "missing_reference",
+                "DatasetCard ingest requires the parent StudyCard to exist before create.",
+            )
+        return (
+            "missing_reference",
+            f"DatasetCard ingest requires the parent StudyCard '{parent_study_id}' to exist before create.",
+        )
+    if isinstance(exc, UnsupportedRegistryOperationError):
+        return (
+            "unsupported_operation",
+            "DatasetCard ingest rejected an unsupported registry operation or identifier.",
+        )
+    if isinstance(exc, RegistryError):
+        if _looks_like_invalid_dataset_payload_error(exc):
+            return (
+                "invalid_payload",
+                f"DatasetCard ingest rejected invalid DatasetCard data: {exc}",
+            )
+        return (
+            "registry_failure",
+            "DatasetCard ingest failed at the registry gateway boundary.",
+        )
+    return (
+        "registry_failure",
+        "DatasetCard ingest failed before the registry gateway could complete.",
     )
 
 
@@ -461,7 +784,7 @@ def _looks_like_unsafe_study_id_error(exc: RegistryError) -> bool:
     return any(fragment in message for fragment in _UNSAFE_STUDY_ID_MESSAGE_FRAGMENTS)
 
 
-def _looks_like_invalid_payload_error(exc: RegistryError) -> bool:
+def _looks_like_invalid_study_payload_error(exc: RegistryError) -> bool:
     message = str(exc)
     if "filesystem access" in message or "runtime translation" in message:
         return False
@@ -471,6 +794,31 @@ def _looks_like_invalid_payload_error(exc: RegistryError) -> bool:
         or "missing required fields" in message
         or "unexpected fields" in message
     )
+
+
+def _looks_like_invalid_dataset_payload_error(exc: RegistryError) -> bool:
+    message = str(exc)
+    if "filesystem access" in message or "runtime translation" in message:
+        return False
+    return (
+        message.startswith("DatasetCard field '")
+        or message.startswith("DatasetCard payload ")
+        or "missing required fields" in message
+        or "unexpected fields" in message
+    )
+
+
+def _mapping_target_id(
+    args: Mapping[str, object],
+    card_family: CardFamilyName,
+) -> str | None:
+    field_name = {
+        "StudyCard": "study_id",
+        "DatasetCard": "dataset_id",
+        "ClaimCard": "claim_id",
+    }[card_family]
+    value = args.get(field_name)
+    return value if isinstance(value, str) else None
 
 
 def _require_command_string(value: object, *, field_name: str) -> str:
@@ -535,14 +883,19 @@ __all__ = [
     "build_parser",
     "describe_command_family",
     "describe_payload_contracts",
-    "execute_studycard_ingest_input",
+    "execute_datasetcard_ingest",
+    "execute_datasetcard_ingest_input",
     "execute_studycard_ingest",
+    "execute_studycard_ingest_input",
     "family_name",
     "handle_ingest_command",
     "list_deferred_capabilities",
     "list_expected_gateway_dependencies",
+    "normalize_datasetcard_ingest_input",
+    "normalize_public_datasetcard_cli_input",
     "normalize_public_studycard_cli_input",
     "normalize_studycard_ingest_input",
+    "prepare_datasetcard_ingest_payload",
     "prepare_studycard_ingest_payload",
     "translate_gateway_error",
 ]

@@ -2,23 +2,25 @@
 
 ## Purpose
 
-This document is the source of truth for the second narrow runtime slice in
-MacroVeritas:
+This document is the source of truth for the narrow DatasetCard runtime slice in
+MacroVeritas.
 
 - file-backed registry gateway behavior for `DatasetCard`
 - conservative YAML serialization and deserialization for one DatasetCard per file
 - single-card atomic write behavior for DatasetCard create and update
 - gateway-level `StudyCard` referential-integrity enforcement for DatasetCard
   create and update
+- thin public CLI exposure for create-only `ingest dataset`
 - gateway translation of lower-level DatasetCard runtime failures into registry
   domain errors
 
-This milestone stays intentionally narrow. It makes DatasetCard registry IO
-runtime-real without widening the public CLI.
+This milestone stays intentionally narrow. It makes DatasetCard registry IO and
+create-only public CLI ingest runtime-real without widening the public CLI any
+further.
 
 ## Runtime-Real Now
 
-The following gateway behavior is now runtime-real for `DatasetCard`:
+The following gateway behavior is runtime-real for `DatasetCard`:
 
 - `get_dataset_card(dataset_id)`
 - `dataset_card_exists(dataset_id)`
@@ -26,8 +28,8 @@ The following gateway behavior is now runtime-real for `DatasetCard`:
 - `create_dataset_card(card)`
 - `update_dataset_card(card)`
 
-Planning-only behavior that now returns real mutation descriptors without
-writing storage:
+Planning-only behavior that returns real mutation descriptors without writing
+storage:
 
 - `plan_create_dataset_card(card)`
 - `plan_update_dataset_card(card)`
@@ -40,6 +42,27 @@ Interpretation:
   writes through the gateway only.
 - `plan_create_dataset_card` and `plan_update_dataset_card` validate input and
   return planning descriptors without writing files.
+
+## Public CLI Entry Point
+
+The public DatasetCard entry point is now real and intentionally thin:
+
+1. `macro_veritas.cli` exposes `ingest dataset`
+2. the CLI adapter converts parsed args into a small typed DatasetCard CLI mapping
+3. `macro_veritas.commands.ingest.normalize_public_datasetcard_cli_input(...)`
+   converts that mapping into normalized DatasetCard ingest input
+4. `macro_veritas.commands.ingest.prepare_datasetcard_ingest_payload(...)`
+   prepares one full-card `DatasetCardPayload`
+5. `macro_veritas.commands.ingest.execute_datasetcard_ingest_input(...)` calls
+   `plan_create_dataset_card(...)` and then `create_dataset_card(...)`
+6. the actual write remains owned by `macro_veritas.registry.gateway`
+
+Scope limits:
+
+- the public path is create-only
+- public DatasetCard update or patch semantics do not exist
+- ClaimCard public ingest does not exist
+- raw `argparse.Namespace` objects are not part of the command-to-gateway boundary
 
 ## Referential Integrity Rule
 
@@ -56,17 +79,12 @@ Current implementation notes:
 
 - the existence check happens at the gateway boundary, not in CLI code and not
   in the lower DatasetCard serializer/runtime helper
-- missing parent `StudyCard` is translated to `BrokenReferenceError`
+- missing parent `StudyCard` is translated to `BrokenReferenceError` at the
+  gateway boundary
+- the public CLI and command bridge translate that domain failure into a clean
+  command-level `missing_reference` result
 - the same direct check is also applied by `plan_create_dataset_card` and
   `plan_update_dataset_card`, but those functions still do not write storage
-
-## Boundary Notes
-
-- ClaimCard runtime now exists separately and is defined in
-  [`docs/claimcard_runtime.md`](claimcard_runtime.md).
-- Canonical DatasetCard files now also serve as reference targets for ClaimCard
-  gateway integrity checks when `ClaimCard.dataset_ids` is present.
-- Public CLI wiring for DatasetCard create or update remains absent.
 
 ## Canonical DatasetCard Path Rule
 
@@ -133,14 +151,23 @@ Implemented translations:
   `UnsupportedRegistryOperationError`
 - other filesystem failures -> `RegistryError`
 
+Public command-bridge translations for `ingest dataset`:
+
+- duplicate create -> `duplicate_target`
+- missing parent StudyCard -> `missing_reference`
+- invalid DatasetCard data -> `invalid_payload`
+- unsupported operation/identifier -> `unsupported_operation`
+- other gateway/domain failures -> `registry_failure`
+
 ## Non-Goals
 
 This milestone does not add:
 
+- ClaimCard public ingest
+- DatasetCard public update or patch commands
 - scientific logic
 - evidence grading
 - multi-card transactions
 - reverse indexes or manifests
-- public CLI create/update commands
 - FastAPI, SQL, notebook workflow, plugin discovery, or orchestration runtime
 - CellVoyager integration

@@ -67,7 +67,7 @@ def test_python_module_help_succeeds() -> None:
     assert "ingest" in result.stdout
 
 
-def test_ingest_help_shows_public_study_subcommand_only() -> None:
+def test_ingest_help_shows_public_study_and_dataset_subcommands_only() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "macro_veritas", "ingest", "--help"],
         check=False,
@@ -78,7 +78,7 @@ def test_ingest_help_shows_public_study_subcommand_only() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "study" in result.stdout
-    assert "dataset" not in result.stdout
+    assert "dataset" in result.stdout
     assert "claim" not in result.stdout
 
 

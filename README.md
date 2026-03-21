@@ -4,7 +4,7 @@
 
 MacroVeritas is a docs-first, CLI-first Python project scaffold for a future claim-centered evidence grading and data-level verification system focused on melanoma, immune checkpoint inhibition, and macrophage literature.
 
-This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, registry business logic, or analysis pipeline is implemented yet.
+This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, or analysis pipeline is implemented yet. The implemented registry logic remains narrow and create-oriented.
 
 ## Current Status
 
@@ -13,13 +13,13 @@ This repository is in the initialization / MVP documentation freeze stage. No sc
 - Repository name: `macro-veritas`
 - Implemented now:
   - lightweight Python package scaffold
-  - minimal CLI commands for status, config inspection, layout initialization, and create-only `StudyCard` ingest
+  - minimal CLI commands for status, config inspection, layout initialization, and create-only `StudyCard` / `DatasetCard` ingest
   - docs describing scope, constraints, and intended architecture
   - committed project config with explicit external data root
 - Not implemented now:
   - scientific pipelines
   - claim extraction
-  - real claim, study, dataset, or evidence registry logic
+  - broad ClaimCard or evidence-registry workflow logic
   - evidence grading rules
   - audit engine behavior
   - multi-agent orchestration
@@ -79,11 +79,13 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `show-config`
   - `init-layout`
   - `ingest study`
-- The only public domain command now implemented is create-only `StudyCard` ingest.
+  - `ingest dataset`
+- Two real public domain commands are now implemented: create-only `StudyCard` ingest and create-only `DatasetCard` ingest.
 - The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, and narrow registry-card creation.
 - CellVoyager code is not integrated into the current MacroVeritas package or CLI surface.
 
 ## Next Milestone
 
-The next milestone is to extend the registry surface carefully beyond the first
-public `StudyCard` ingest path without introducing scientific inference logic.
+The next milestone is to extend the registry surface carefully beyond the current
+public `StudyCard` and `DatasetCard` ingest paths without introducing scientific
+inference logic.

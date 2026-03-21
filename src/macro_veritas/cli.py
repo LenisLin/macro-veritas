@@ -8,11 +8,20 @@ from pathlib import Path
 import sys
 from typing import Iterable, Iterator
 
-from .commands.common import format_command_result_for_cli
 from .commands import ingest as ingest_command
+from .commands.common import format_command_result_for_cli
 from .config import load_project_config
-from .registry.study import allowed_screening_decisions, allowed_statuses
-from .shared.types import CommandExecutionResult, StudyCardCLIInput
+from .registry.dataset import (
+    allowed_availability_statuses as allowed_dataset_availability_statuses,
+)
+from .registry.dataset import allowed_statuses as allowed_dataset_statuses
+from .registry.study import allowed_screening_decisions
+from .registry.study import allowed_statuses as allowed_study_statuses
+from .shared.types import (
+    CommandExecutionResult,
+    DatasetCardCLIInput,
+    StudyCardCLIInput,
+)
 
 SCAFFOLD_STAGE = "Initialization / scaffold"
 
@@ -51,7 +60,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     ingest_parser = subparsers.add_parser(
         "ingest",
-        help="Create registry records through the first public ingest path",
+        help="Create registry records through the public ingest paths",
     )
     ingest_subparsers = ingest_parser.add_subparsers(
         dest="ingest_command",
@@ -63,6 +72,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _configure_study_ingest_parser(study_parser)
     study_parser.set_defaults(handler=_run_ingest_study)
+
+    dataset_parser = ingest_subparsers.add_parser(
+        "dataset",
+        help="Create one DatasetCard from explicit CLI fields",
+    )
+    _configure_dataset_ingest_parser(dataset_parser)
+    dataset_parser.set_defaults(handler=_run_ingest_dataset)
 
     return parser
 
@@ -114,7 +130,7 @@ def _configure_study_ingest_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--status",
         required=True,
-        choices=allowed_statuses(),
+        choices=allowed_study_statuses(),
         help="StudyCard lifecycle status",
     )
     parser.add_argument(
@@ -134,6 +150,68 @@ def _configure_study_ingest_parser(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _configure_dataset_ingest_parser(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--dataset-id", required=True, help="Canonical DatasetCard identifier")
+    parser.add_argument(
+        "--study-id",
+        required=True,
+        help="Canonical parent StudyCard identifier",
+    )
+    parser.add_argument(
+        "--status",
+        required=True,
+        choices=allowed_dataset_statuses(),
+        help="DatasetCard lifecycle status",
+    )
+    parser.add_argument(
+        "--modality-scope",
+        action="append",
+        required=True,
+        help="Repeatable modality scope tag",
+    )
+    parser.add_argument(
+        "--platform-summary",
+        required=True,
+        help="Minimal human-readable platform or assay summary",
+    )
+    parser.add_argument(
+        "--cohort-summary",
+        required=True,
+        help="Minimal human-readable cohort summary",
+    )
+    parser.add_argument(
+        "--locator-confidence-note",
+        required=True,
+        help="Short provenance note explaining why the locator is trusted",
+    )
+    parser.add_argument(
+        "--source-locator",
+        required=True,
+        help="Primary accession, URL, or supplement locator for the dataset",
+    )
+    parser.add_argument(
+        "--availability-status",
+        required=True,
+        choices=allowed_dataset_availability_statuses(),
+        help="Dataset access label",
+    )
+    parser.add_argument(
+        "--accession-id",
+        default=None,
+        help="Optional separate accession identifier",
+    )
+    parser.add_argument(
+        "--availability-note",
+        default=None,
+        help="Optional access-condition note",
+    )
+    parser.add_argument(
+        "--artifact-locator",
+        default=None,
+        help="Optional bound artifact locator",
+    )
+
+
 def _build_studycard_cli_input(args: argparse.Namespace) -> StudyCardCLIInput:
     cli_input: StudyCardCLIInput = {
         "study_id": args.study_id,
@@ -149,6 +227,27 @@ def _build_studycard_cli_input(args: argparse.Namespace) -> StudyCardCLIInput:
         cli_input["screening_note"] = args.screening_note
     if args.source_artifact is not None:
         cli_input["source_artifact"] = args.source_artifact
+    return cli_input
+
+
+def _build_datasetcard_cli_input(args: argparse.Namespace) -> DatasetCardCLIInput:
+    cli_input: DatasetCardCLIInput = {
+        "dataset_id": args.dataset_id,
+        "study_id": args.study_id,
+        "status": args.status,
+        "modality_scope": list(args.modality_scope),
+        "platform_summary": args.platform_summary,
+        "cohort_summary": args.cohort_summary,
+        "locator_confidence_note": args.locator_confidence_note,
+        "source_locator": args.source_locator,
+        "availability_status": args.availability_status,
+    }
+    if args.accession_id is not None:
+        cli_input["accession_id"] = args.accession_id
+    if args.availability_note is not None:
+        cli_input["availability_note"] = args.availability_note
+    if args.artifact_locator is not None:
+        cli_input["artifact_locator"] = args.artifact_locator
     return cli_input
 
 
@@ -236,6 +335,22 @@ def _run_ingest_study(args: argparse.Namespace) -> int:
         return 1
 
     return _emit_command_result(result, command_path="ingest study")
+
+
+def _run_ingest_dataset(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_datasetcard_cli_input(args)
+        normalized_input = ingest_command.normalize_public_datasetcard_cli_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = ingest_command.execute_datasetcard_ingest_input(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"ingest dataset failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="ingest dataset")
 
 
 def main(argv: list[str] | None = None) -> int:
