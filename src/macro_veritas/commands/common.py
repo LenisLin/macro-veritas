@@ -29,11 +29,11 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
     "parser_builder_shape": "build_parser(subparsers_or_parser: object) -> None",
     "handler_shape": "handle_<family>_command(args: object) -> object",
     "runtime_status": (
-        "mixed; the StudyCard, DatasetCard, and ClaimCard ingest/show paths are runtime-real "
-        "and all other per-family execution remains explicitly documented"
+        "mixed; the StudyCard, DatasetCard, and ClaimCard ingest/show/list paths are "
+        "runtime-real and all other per-family execution remains explicitly documented"
     ),
     "public_exposure": (
-        "public ingest study, ingest dataset, ingest claim, show study, show dataset, and show claim paths only; all other reserved families remain non-public"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, show claim, list studies, list datasets, and list claims paths only; all other reserved families remain non-public"
     ),
     "file_io": "allowed only through the registry gateway for explicitly documented internal paths",
     "silent_side_effects": "forbidden",
@@ -67,7 +67,7 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
 _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
     "source_of_truth_doc": "docs/cli_command_contracts.md",
     "public_cli_exposure": (
-        "public ingest study, ingest dataset, ingest claim, show study, show dataset, and show claim exist as thin adapters over the internal ingest/show bridges"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, show claim, list studies, list datasets, and list claims exist as thin adapters over the internal ingest/show/list bridges"
     ),
     "runtime_real_now": (
         "public StudyCard CLI adapter",
@@ -76,6 +76,9 @@ _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
         "public StudyCard show CLI adapter",
         "public DatasetCard show CLI adapter",
         "public ClaimCard show CLI adapter",
+        "public StudyCard list CLI adapter",
+        "public DatasetCard list CLI adapter",
+        "public ClaimCard list CLI adapter",
         "StudyCard command-normalized ingest input",
         "DatasetCard command-normalized ingest input",
         "ClaimCard command-normalized ingest input",
@@ -91,6 +94,9 @@ _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
         "StudyCard get-by-id gateway call",
         "DatasetCard get-by-id gateway call",
         "ClaimCard get-by-id gateway call",
+        "StudyCard list-by-family gateway call",
+        "DatasetCard list-by-family gateway call",
+        "ClaimCard list-by-family gateway call",
         "command-layer success/failure result translation",
     ),
     "still_skeleton_only": (

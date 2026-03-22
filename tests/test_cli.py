@@ -66,6 +66,7 @@ def test_python_module_help_succeeds() -> None:
     assert "init-layout" in result.stdout
     assert "ingest" in result.stdout
     assert "show" in result.stdout
+    assert "list" in result.stdout
 
 
 def test_ingest_help_shows_public_study_dataset_and_claim_subcommands_only() -> None:
@@ -101,6 +102,23 @@ def test_show_help_shows_public_study_dataset_and_claim_subcommands_only() -> No
     assert "bind" not in result.stdout
     assert "extract" not in result.stdout
 
+
+
+def test_list_help_shows_public_studies_datasets_and_claims_subcommands_only() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "macro_veritas", "list", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "studies" in result.stdout
+    assert "datasets" in result.stdout
+    assert "claims" in result.stdout
+    assert "bind" not in result.stdout
+    assert "extract" not in result.stdout
 
 def test_init_layout_creates_placeholder_directories(tmp_path: Path) -> None:
     config_path = tmp_path / "project.yaml"

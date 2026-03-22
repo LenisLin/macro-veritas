@@ -116,7 +116,40 @@ The following commands are the current stable public CLI surface.
 - Source of truth:
   [`docs/public_show_cli.md`](public_show_cli.md)
 
-There is still no public list/search/update/delete capability for any card
+### `macro_veritas list studies`
+
+- Purpose: discover existing `StudyCard` identifiers through compact summaries.
+- Expected effect: converts the public collection command into a narrow
+  family-level input mapping, calls `list_study_cards`, and prints a JSON array
+  of compact study summaries.
+- What it should not do: return full raw StudyCard payloads, search, filter,
+  expand related records, or bypass the gateway.
+- Source of truth:
+  [`docs/public_list_cli.md`](public_list_cli.md)
+
+### `macro_veritas list datasets`
+
+- Purpose: discover existing `DatasetCard` identifiers through compact summaries.
+- Expected effect: converts the public collection command into a narrow
+  family-level input mapping, calls `list_dataset_cards`, and prints a JSON
+  array of compact dataset summaries.
+- What it should not do: return full raw DatasetCard payloads, search, filter,
+  expand related records, or bypass the gateway.
+- Source of truth:
+  [`docs/public_list_cli.md`](public_list_cli.md)
+
+### `macro_veritas list claims`
+
+- Purpose: discover existing `ClaimCard` identifiers through compact summaries.
+- Expected effect: converts the public collection command into a narrow
+  family-level input mapping, calls `list_claim_cards`, and prints a JSON array
+  of compact claim summaries.
+- What it should not do: return full raw ClaimCard payloads, search, filter,
+  expand related records, or bypass the gateway.
+- Source of truth:
+  [`docs/public_list_cli.md`](public_list_cli.md)
+
+There is still no public search/filter/update/delete capability for any card
 family.
 
 ## Command Families
@@ -127,6 +160,7 @@ The following command-family names are recognized in the current codebase.
 | --- | --- | --- | --- | --- |
 | `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for create-only `StudyCard` at `ingest study`, create-only `DatasetCard` at `ingest dataset`, and create-only `ClaimCard` at `ingest claim`; update semantics remain non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
 | `show` | Read one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `show study`, by-id `DatasetCard` at `show dataset`, and by-id `ClaimCard` at `show claim`; list/search/update/delete semantics remain non-public. | `macro_veritas.commands.show` | Registry Department / 户部 |
+| `list` | Discover existing study, dataset, or claim identifiers by family. | Public for compact `StudyCard` summaries at `list studies`, compact `DatasetCard` summaries at `list datasets`, and compact `ClaimCard` summaries at `list claims`; search/filter/update/delete semantics remain non-public. | `macro_veritas.commands.listing` | Registry Department / 户部 |
 | `bind` | Associate registry records with concrete raw, processed, or run-facing artifact locations. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.bind` | Registry Department / 户部 |
 | `extract` | Capture structured claim or metadata fragments from curated sources into project records. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.extract` | Registry Department / 户部 |
 | `audit` | Record routine review outcomes such as `pass`, `return`, or `escalate`. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.audit` | Review Department / 刑部 |

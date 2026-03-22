@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Phase: Initialization / first public read CLI exposure
+- Phase: Initialization / first public discovery CLI exposure
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -17,7 +17,8 @@
   new model sessions.
 - A minimal public CLI exists with `status`, `show-config`, `init-layout`,
   `ingest study`, `ingest dataset`, `ingest claim`, `show study`,
-  `show dataset`, and `show claim`.
+  `show dataset`, `show claim`, `list studies`, `list datasets`, and
+  `list claims`.
 - A committed project config defines the current external data root and
   placeholder layout paths.
 - The registry gateway implements real file-backed `StudyCard` read, exists,
@@ -32,15 +33,25 @@
 - The internal command layer implements a real StudyCard show-by-id bridge.
 - The internal command layer implements a real DatasetCard show-by-id bridge.
 - The internal command layer implements a real ClaimCard show-by-id bridge.
+- The internal command layer implements a real StudyCard family-list bridge.
+- The internal command layer implements a real DatasetCard family-list bridge.
+- The internal command layer implements a real ClaimCard family-list bridge.
 - The public CLI exposes the create triangle for `StudyCard`, `DatasetCard`,
   and `ClaimCard` through `ingest study`, `ingest dataset`, and `ingest claim`.
 - The public CLI exposes show-by-id for all three core cards through
   `show study`, `show dataset`, and `show claim`.
+- The public CLI exposes family-level discovery for all three core cards
+  through `list studies`, `list datasets`, and `list claims`.
 - The public show path adapts explicit CLI flags into narrow by-id input,
   calls `get_study_card` / `get_dataset_card` / `get_claim_card`, and returns
   stable JSON to stdout on success.
+- The public list path adapts plural collection commands into narrow
+  family-level input, calls `list_study_cards` / `list_dataset_cards` /
+  `list_claim_cards`, and returns compact summary JSON arrays to stdout on
+  success.
 - Missing `StudyCard`, `DatasetCard`, and `ClaimCard` reads are translated into
   clean command-level failures.
+- Registry list failures are translated into clean command-level failures.
 - DatasetCard create/update enforce parent StudyCard existence at the gateway
   boundary.
 - ClaimCard create/update enforce parent StudyCard existence and optional
@@ -50,8 +61,8 @@
 - StudyCard, DatasetCard, and ClaimCard single-card writes use a temp-file plus
   replace atomic write flow.
 - Internal tests cover the StudyCard, DatasetCard, and ClaimCard runtime slices.
-- Internal tests cover the public ingest and public show CLI paths for the
-  three core card families.
+- Internal tests cover the public ingest, public show, and public list CLI
+  paths for the three core card families.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain skeleton-only.
 - AVCP-derived governance assets remain in place as internal process
   scaffolding.
@@ -67,9 +78,10 @@
 
 ## Explicitly Deferred
 
-- public list/search/filter for StudyCard, DatasetCard, or ClaimCard
-- public update/delete for StudyCard, DatasetCard, or ClaimCard
+- public search or filter for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- public update/delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
 - relationship expansion or reverse lookups in public reads
+- pagination or query semantics for public discovery
 - StudyCard update or patch ingest
 - DatasetCard update or patch ingest
 - ClaimCard update or patch ingest
@@ -93,4 +105,4 @@
 
 - Extend runtime only where contracts remain narrow and honest, without
   introducing scientific inference logic and without implying public
-  list/search/update/delete before those contracts are intentionally designed.
+  search/filter/update/delete before those contracts are intentionally designed.

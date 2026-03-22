@@ -8,7 +8,7 @@ from typing import get_args
 
 import pytest
 
-from macro_veritas.commands import audit, bind, common, extract, grade, ingest, review, run, show
+from macro_veritas.commands import audit, bind, common, extract, grade, ingest, listing, review, run, show
 from macro_veritas.shared import types as shared_types
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
@@ -25,6 +25,7 @@ def test_shared_command_contract_types_are_frozen() -> None:
     assert get_args(shared_types.CommandFamilyName) == (
         "ingest",
         "show",
+        "list",
         "bind",
         "extract",
         "audit",
@@ -171,6 +172,24 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "target_id",
     }
     assert shared_types.ShowCLIInput.__optional_keys__ == set()
+    assert shared_types.ListCLIInput.__required_keys__ == {"card_family"}
+    assert shared_types.ListCLIInput.__optional_keys__ == set()
+    assert shared_types.StudyCardSummary.__required_keys__ == {
+        "study_id",
+        "status",
+        "citation_handle",
+    }
+    assert shared_types.DatasetCardSummary.__required_keys__ == {
+        "dataset_id",
+        "study_id",
+        "status",
+    }
+    assert shared_types.ClaimCardSummary.__required_keys__ == {
+        "claim_id",
+        "study_id",
+        "status",
+        "claim_type",
+    }
 
 
 def test_common_command_style_descriptor_is_static() -> None:
@@ -182,9 +201,9 @@ def test_common_command_style_descriptor_is_static() -> None:
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
-    assert "StudyCard, DatasetCard, and ClaimCard ingest/show paths are runtime-real" in style["runtime_status"]
+    assert "StudyCard, DatasetCard, and ClaimCard ingest/show/list paths are runtime-real" in style["runtime_status"]
     assert style["public_exposure"] == (
-        "public ingest study, ingest dataset, ingest claim, show study, show dataset, and show claim paths only; all other reserved families remain non-public"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, show claim, list studies, list datasets, and list claims paths only; all other reserved families remain non-public"
     )
     assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
     assert "outside the frozen payload contract" in payload_style["raw_cli_argument_layer"]
@@ -198,17 +217,26 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "show study" in runtime_boundary["public_cli_exposure"]
     assert "show dataset" in runtime_boundary["public_cli_exposure"]
     assert "show claim" in runtime_boundary["public_cli_exposure"]
+    assert "list studies" in runtime_boundary["public_cli_exposure"]
+    assert "list datasets" in runtime_boundary["public_cli_exposure"]
+    assert "list claims" in runtime_boundary["public_cli_exposure"]
     assert "public StudyCard CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public ClaimCard CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public StudyCard show CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard show CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public ClaimCard show CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public StudyCard list CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public DatasetCard list CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public ClaimCard list CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
     assert "StudyCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
+    assert "StudyCard list-by-family gateway call" in runtime_boundary["runtime_real_now"]
+    assert "DatasetCard list-by-family gateway call" in runtime_boundary["runtime_real_now"]
+    assert "ClaimCard list-by-family gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard ingest" not in runtime_boundary["still_skeleton_only"]
     assert result_style["output_type"] == "CommandExecutionResult"
     assert result_style["failure_field"] == "error_category"
@@ -216,14 +244,17 @@ def test_common_command_style_descriptor_is_static() -> None:
 
 
 def test_command_family_modules_export_static_metadata() -> None:
-    modules = [ingest, show, bind, extract, audit, review, run, grade]
+    modules = [ingest, show, listing, bind, extract, audit, review, run, grade]
 
     for module in modules:
         family = module.family_name()
         descriptor = module.describe_command_family()
 
         assert descriptor["family_name"] == family
-        assert descriptor["owning_module"].endswith(f".{family}")
+        if family == "list":
+            assert descriptor["owning_module"].endswith(".listing")
+        else:
+            assert descriptor["owning_module"].endswith(f".{family}")
         assert descriptor["parser_builder"] == "build_parser"
         assert descriptor["handler"] == f"handle_{family}_command"
         if family == "ingest":
@@ -233,6 +264,10 @@ def test_command_family_modules_export_static_metadata() -> None:
         elif family == "show":
             assert descriptor["public_exposure"] == (
                 "public `show study`, `show dataset`, and `show claim` only; list/search/update/delete semantics stay non-public"
+            )
+        elif family == "list":
+            assert descriptor["public_exposure"] == (
+                "public `list studies`, `list datasets`, and `list claims` only; search/filter/update/delete semantics stay non-public"
             )
         else:
             assert descriptor["public_exposure"] == "reserved internal; not public CLI"
@@ -250,6 +285,7 @@ def test_command_family_modules_export_static_metadata() -> None:
 
 def test_command_handlers_raise_precise_placeholders() -> None:
     ingest_result = ingest.handle_ingest_command(object())
+    list_result = listing.handle_list_command(object())
 
     assert ingest_result == {
         "ok": False,
@@ -259,12 +295,20 @@ def test_command_handlers_raise_precise_placeholders() -> None:
         "message": "StudyCard ingest input is invalid: handle_ingest_command expects a mapping-based internal input.",
         "error_category": "invalid_payload",
     }
+    assert list_result == {
+        "ok": False,
+        "operation": "list",
+        "card_family": "StudyCard",
+        "target_id": None,
+        "message": "StudyCard list input is invalid: handle_list_command expects a mapping-based internal input.",
+        "error_category": "invalid_payload",
+    }
 
     with pytest.raises(NotImplementedError, match="run family is reserved"):
         run.handle_run_command(object())
 
 
-def test_public_cli_help_exposes_only_ingest_and_show_families_beyond_scaffold_commands() -> None:
+def test_public_cli_help_exposes_only_ingest_show_and_list_families_beyond_scaffold_commands() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "macro_veritas", "--help"],
         check=False,
@@ -279,6 +323,7 @@ def test_public_cli_help_exposes_only_ingest_and_show_families_beyond_scaffold_c
     assert "init-layout" in result.stdout
     assert "ingest" in result.stdout
     assert "show" in result.stdout
+    assert "list" in result.stdout
     assert "bind" not in result.stdout
     assert "extract" not in result.stdout
     assert "audit" not in result.stdout

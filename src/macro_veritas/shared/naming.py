@@ -16,6 +16,7 @@ from .types import ObjectFamilyName, ReservedCLIFamilyName
 _RESERVED_CLI_FAMILIES: tuple[ReservedCLIFamilyName, ...] = (
     "ingest",
     "show",
+    "list",
     "bind",
     "extract",
     "audit",

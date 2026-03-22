@@ -177,6 +177,7 @@ _OWNED_OBJECT_FAMILIES: tuple[ObjectFamilyName, ...] = (
 _EXPECTED_CLI_FAMILIES: tuple[ReservedCLIFamilyName, ...] = (
     "ingest",
     "show",
+    "list",
     "bind",
     "extract",
 )

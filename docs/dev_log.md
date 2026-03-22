@@ -4,6 +4,9 @@
 - chore(init): convert AVCP template into MacroVeritas scaffold
 - docs(mvp): establish the MVP documentation freeze across governance, architecture, registry/state/audit, and CLI contract docs; project remains docs-first with no scientific system implemented and CellVoyager reference-only
 
+## v0.9.0 - 2026-03-22
+- release: public list discovery CLI exposed for StudyCard, DatasetCard, and ClaimCard through flat family listing; public ingest triangle and show-by-id already exist; no public search/filter/update/delete; release version chosen: v0.9.0
+
 ## v0.8.0 - 2026-03-22
 - release: public show-by-id CLI exposed for StudyCard, DatasetCard, and ClaimCard; public ingest triangle already available; public read capability is by id only; no public list/search/update/delete; release version chosen: v0.8.0
 

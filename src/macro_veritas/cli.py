@@ -9,6 +9,7 @@ import sys
 from typing import Iterable, Iterator
 
 from .commands import ingest as ingest_command
+from .commands import listing as listing_command
 from .commands import show as show_command
 from .commands.common import format_command_result_for_cli
 from .config import load_project_config
@@ -26,6 +27,7 @@ from .shared.types import (
     ClaimCardCLIInput,
     CommandExecutionResult,
     DatasetCardCLIInput,
+    ListCLIInput,
     ShowCLIInput,
     StudyCardCLIInput,
 )
@@ -134,6 +136,32 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Canonical ClaimCard identifier",
     )
     show_claim_parser.set_defaults(handler=_run_show_claim)
+
+    list_parser = subparsers.add_parser(
+        "list",
+        help="List compact registry summaries for discovery",
+    )
+    list_subparsers = list_parser.add_subparsers(
+        dest="list_command",
+        required=True,
+    )
+    list_studies_parser = list_subparsers.add_parser(
+        "studies",
+        help="List compact StudyCard summaries",
+    )
+    list_studies_parser.set_defaults(handler=_run_list_studies)
+
+    list_datasets_parser = list_subparsers.add_parser(
+        "datasets",
+        help="List compact DatasetCard summaries",
+    )
+    list_datasets_parser.set_defaults(handler=_run_list_datasets)
+
+    list_claims_parser = list_subparsers.add_parser(
+        "claims",
+        help="List compact ClaimCard summaries",
+    )
+    list_claims_parser.set_defaults(handler=_run_list_claims)
 
     return parser
 
@@ -380,6 +408,10 @@ def _build_show_cli_input(*, card_family: str, target_id: str) -> ShowCLIInput:
     return {"card_family": card_family, "target_id": target_id}
 
 
+def _build_list_cli_input(*, card_family: str) -> ListCLIInput:
+    return {"card_family": card_family}
+
+
 @contextmanager
 def _configured_runtime_environment(config_path: str | None) -> Iterator[None]:
     config = load_project_config(config_path)
@@ -557,6 +589,63 @@ def _run_show_claim(args: argparse.Namespace) -> int:
     if error is not None:
         return _emit_command_result(error, command_path="show claim")
     return _emit_json_document(card)
+
+
+def _run_list_studies(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_list_cli_input(card_family="StudyCard")
+        normalized_input = listing_command.normalize_list_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            summaries, error = listing_command.execute_list_studies(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"list studies failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if error is not None:
+        return _emit_command_result(error, command_path="list studies")
+    return _emit_json_document(summaries)
+
+
+
+def _run_list_datasets(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_list_cli_input(card_family="DatasetCard")
+        normalized_input = listing_command.normalize_list_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            summaries, error = listing_command.execute_list_datasets(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"list datasets failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if error is not None:
+        return _emit_command_result(error, command_path="list datasets")
+    return _emit_json_document(summaries)
+
+
+
+def _run_list_claims(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_list_cli_input(card_family="ClaimCard")
+        normalized_input = listing_command.normalize_list_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            summaries, error = listing_command.execute_list_claims(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"list claims failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if error is not None:
+        return _emit_command_result(error, command_path="list claims")
+    return _emit_json_document(summaries)
+
 
 
 def main(argv: list[str] | None = None) -> int:

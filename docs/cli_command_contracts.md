@@ -15,10 +15,11 @@ MacroVeritas.
 
 This document now describes a mixed implementation state.
 
-- Six narrow public exceptions now exist: `ingest study`, `ingest dataset`,
-  `ingest claim`, `show study`, `show dataset`, and `show claim`.
-- Those public paths are thin adapters over the same narrow internal ingest and
-  show bridge modules.
+- Nine narrow public exceptions now exist: `ingest study`, `ingest dataset`,
+  `ingest claim`, `show study`, `show dataset`, `show claim`, `list studies`,
+  `list datasets`, and `list claims`.
+- Those public paths are thin adapters over the same narrow internal ingest,
+  show, and list bridge modules.
 - The rest of the command families remain reserved and non-public.
 
 ## Command Families
@@ -99,6 +100,44 @@ This document now describes a mixed implementation state.
   relationship expansion, reverse lookups, and any update/delete semantics
 - Non-goals in this milestone: no list/search/filter, no relationship
   expansion, no update/delete, no scientific logic, and no evidence grading
+
+### `list`
+
+- Owning module: `macro_veritas.commands.listing`
+- Owning domain: Registry Department / 户部, discovery boundary
+- Purpose: execute the current StudyCard, DatasetCard, and ClaimCard
+  family-level discovery bridges while keeping search/filter/update/delete
+  semantics deferred
+- Payload contract source: [`docs/payload_contracts.md`](payload_contracts.md)
+- MVP payload families touched: read-only `StudyCardPayload`,
+  `DatasetCardPayload`, and `ClaimCardPayload`
+- Expected primary inputs: internal family-level StudyCard, DatasetCard, or
+  ClaimCard input carrying the target card-family label only
+- Expected primary outputs: StudyCard, DatasetCard, or ClaimCard gateway
+  list-by-family request plus either compact summary output or a narrow
+  command failure result
+- Expected dependency boundary: registry governance discovery descriptors,
+  card-contract docs, gateway-contract docs, and registry gateway list-by-family
+  contracts
+- Public paths now:
+  - `macro_veritas list studies` is a thin adapter over the StudyCard bridge
+  - `macro_veritas list datasets` is a thin adapter over the DatasetCard bridge
+  - `macro_veritas list claims` is a thin adapter over the ClaimCard bridge
+- Runtime status now:
+  - public StudyCard family listing is implemented through normalized command
+    input and `list_study_cards(...)`
+  - public DatasetCard family listing is implemented through normalized command
+    input and `list_dataset_cards(...)`
+  - public ClaimCard family listing is implemented through normalized command
+    input and `list_claim_cards(...)`
+  - success output is a stable JSON array of compact summary entries rather than
+    raw card payloads
+  - registry list failures are translated to clean command-level failures
+- Still deferred inside `list`: search behavior, filtering, pagination,
+  relationship expansion, reverse lookups, and any update/delete semantics
+- Non-goals in this milestone: no show expansion, no search/filter/query, no
+  relationship expansion, no update/delete, no scientific logic, and no
+  evidence grading
 
 ### `bind`
 
@@ -197,7 +236,8 @@ The frozen internal command style is conservative:
 - static payload-touchpoint descriptors that point to
   [`docs/payload_contracts.md`](payload_contracts.md)
 - runtime execution exists only for the StudyCard, DatasetCard, and ClaimCard
-  ingest bridges plus the StudyCard, DatasetCard, and ClaimCard by-id show
+  ingest bridges, the StudyCard, DatasetCard, and ClaimCard by-id show
+  bridges, and the StudyCard, DatasetCard, and ClaimCard family-level list
   bridges; other command families remain descriptor/skeleton-only
 - file IO is allowed only through the registry gateway for explicitly
   documented runtime paths
@@ -208,14 +248,17 @@ The frozen internal command style is conservative:
 Interpretation:
 
 - the public CLI adapts parsed `ingest study`, `ingest dataset`, `ingest claim`,
-  `show study`, `show dataset`, and `show claim` flags into typed mappings and
-  then into normalized internal inputs before calling the gateway
+  `show study`, `show dataset`, `show claim`, `list studies`, `list datasets`,
+  and `list claims` commands into typed mappings and then into normalized
+  internal inputs before calling the gateway
 - the command layer does not write files directly
 - the command layer does not bypass the gateway
 - `handle_ingest_command(...)` accepts mapping-based internal input and
   supports StudyCard, DatasetCard, and ClaimCard
 - `handle_show_command(...)` accepts mapping-based internal input and supports
   StudyCard, DatasetCard, and ClaimCard by-id reads
+- `handle_list_command(...)` accepts mapping-based internal input and supports
+  StudyCard, DatasetCard, and ClaimCard family-level discovery reads
 - broader option and flag design remains deferred
 
 ## Public Exposure Rule
@@ -236,4 +279,7 @@ exceptions.
 - `python -m macro_veritas show dataset` is public for by-id `DatasetCard`
   read.
 - `python -m macro_veritas show claim` is public for by-id `ClaimCard` read.
+- `python -m macro_veritas list studies` is public for compact `StudyCard` discovery.
+- `python -m macro_veritas list datasets` is public for compact `DatasetCard` discovery.
+- `python -m macro_veritas list claims` is public for compact `ClaimCard` discovery.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain non-public.

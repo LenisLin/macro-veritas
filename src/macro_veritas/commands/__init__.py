@@ -1,7 +1,7 @@
 """Internal command-family skeleton modules for MacroVeritas.
 
-This package holds the narrow real `ingest` and `show` bridges plus the
-remaining reserved parser-builder and handler skeletons for future command
+This package holds the narrow real `ingest`, `show`, and `list` bridges plus
+the remaining reserved parser-builder and handler skeletons for future command
 families.
 
 It does not register commands, execute gateway operations, or perform file IO
@@ -17,6 +17,7 @@ __all__ = [
     "extract",
     "grade",
     "ingest",
+    "listing",
     "show",
     "review",
     "run",

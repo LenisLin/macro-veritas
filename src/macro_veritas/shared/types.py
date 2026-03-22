@@ -53,6 +53,7 @@ ClaimReviewReadiness = Literal["needs_scope", "reviewable", "execution_candidate
 CommandFamilyName = Literal[
     "ingest",
     "show",
+    "list",
     "bind",
     "extract",
     "audit",
@@ -64,6 +65,7 @@ CommandFamilyName = Literal[
 ReservedCLIFamilyName = Literal[
     "ingest",
     "show",
+    "list",
     "bind",
     "extract",
     "audit",
@@ -312,6 +314,41 @@ class ShowCLIInput(TypedDict):
     target_id: str
 
 
+class ListCLIInput(TypedDict):
+    """Typed mapping built from parsed CLI args for public family-level list commands."""
+
+    card_family: CardFamilyName
+
+
+class StudyCardSummary(TypedDict):
+    """Compact public discovery summary for one `StudyCard`."""
+
+    study_id: str
+    status: StudyCardStatus
+    citation_handle: str
+
+
+class DatasetCardSummary(TypedDict):
+    """Compact public discovery summary for one `DatasetCard`."""
+
+    dataset_id: str
+    study_id: str
+    status: DatasetCardStatus
+
+
+class ClaimCardSummary(TypedDict):
+    """Compact public discovery summary for one `ClaimCard`."""
+
+    claim_id: str
+    study_id: str
+    status: ClaimCardStatus
+    claim_type: str
+
+
+ListSummaryEntry: TypeAlias = StudyCardSummary | DatasetCardSummary | ClaimCardSummary
+ListSummaryResult: TypeAlias = tuple[ListSummaryEntry, ...]
+
+
 GatewayCardPayload: TypeAlias = (
     StudyCardPayload | DatasetCardPayload | ClaimCardPayload
 )
@@ -455,6 +492,9 @@ __all__ = [
     "GatewayResultDescriptor",
     "GovernanceDescriptor",
     "InterfaceDescriptor",
+    "ListCLIInput",
+    "ListSummaryEntry",
+    "ListSummaryResult",
     "MutationExecutionState",
     "MutationInputRequirement",
     "MutationOperationKind",
@@ -465,10 +505,13 @@ __all__ = [
     "RelationshipPointerMap",
     "ReservedCLIFamilyName",
     "ResponsibilityMap",
+    "StudyCardSummary",
     "ShowCLIInput",
     "StudyCardCLIInput",
     "StudyCardIngestInput",
     "StudyCardPayload",
     "StudyScreeningDecision",
     "StudyCardStatus",
+    "DatasetCardSummary",
+    "ClaimCardSummary",
 ]
