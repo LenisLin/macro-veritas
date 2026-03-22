@@ -1,19 +1,18 @@
-"""`ingest` command-family bridge for the narrow public StudyCard and DatasetCard paths.
+"""`ingest` command-family bridge for the narrow public StudyCard, DatasetCard, and ClaimCard paths.
 
 Owning domain: Registry Department / 户部 intake boundary.
 Implemented now:
 - thin public CLI adapter support for `ingest study`
 - thin public CLI adapter support for `ingest dataset`
-- internal StudyCard ingest input normalization
-- internal DatasetCard ingest input normalization
-- StudyCard and DatasetCard payload preparation against the frozen payload contract
-- StudyCard and DatasetCard gateway planning + runtime create execution
+- thin public CLI adapter support for `ingest claim`
+- internal StudyCard, DatasetCard, and ClaimCard ingest input normalization
+- StudyCard, DatasetCard, and ClaimCard payload preparation against the frozen payload contract
+- StudyCard, DatasetCard, and ClaimCard gateway planning + runtime create execution
 - command-layer success/failure result translation
 
 Deferred:
-- ClaimCard ingest runtime
-- ClaimCard public ingest exposure
-- StudyCard or DatasetCard update/patch ingest semantics
+- StudyCard, DatasetCard, or ClaimCard update/patch ingest semantics
+- broader ingest expansion beyond the narrow public create-only paths
 """
 
 from __future__ import annotations
@@ -32,13 +31,20 @@ from macro_veritas.registry.errors import (
     UnsupportedRegistryOperationError,
 )
 from macro_veritas.registry.gateway import (
+    create_claim_card,
     create_dataset_card,
     create_study_card,
+    plan_create_claim_card,
     plan_create_dataset_card,
     plan_create_study_card,
 )
 from macro_veritas.shared.types import (
     CardFamilyName,
+    ClaimCardCLIInput,
+    ClaimCardIngestInput,
+    ClaimCardPayload,
+    ClaimCardStatus,
+    ClaimReviewReadiness,
     CommandDescriptor,
     CommandErrorCategory,
     CommandExecutionResult,
@@ -62,19 +68,20 @@ _OPERATION_NAME = "ingest"
 _OWNING_MODULE = "macro_veritas.commands.ingest"
 _OWNING_DOMAIN = "Registry Department / 户部"
 _PURPOSE = (
-    "Execute the narrow public StudyCard and DatasetCard ingest bridges while "
-    "keeping ClaimCard ingest non-public and update semantics deferred."
+    "Execute the narrow public StudyCard, DatasetCard, and ClaimCard ingest bridges "
+    "while keeping update semantics deferred."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
     "public StudyCard CLI adapter input",
     "public DatasetCard CLI adapter input",
-    "internal StudyCard or DatasetCard ingest input",
+    "public ClaimCard CLI adapter input",
+    "internal StudyCard, DatasetCard, or ClaimCard ingest input",
     "target card-family label",
-    "full-card StudyCardPayload or DatasetCardPayload prepared from normalized intake input",
+    "full-card StudyCardPayload, DatasetCardPayload, or ClaimCardPayload prepared from normalized intake input",
 )
 _PRIMARY_OUTPUTS: DescriptorSequence = (
-    "StudyCard or DatasetCard create-plan request prepared from the normalized payload",
-    "StudyCard or DatasetCard runtime create execution through the registry gateway",
+    "StudyCard, DatasetCard, or ClaimCard create-plan request prepared from the normalized payload",
+    "StudyCard, DatasetCard, or ClaimCard runtime create execution through the registry gateway",
     "internal command execution result mapping",
 )
 _DEPENDENCY_CONTRACTS: DescriptorSequence = (
@@ -85,6 +92,8 @@ _DEPENDENCY_CONTRACTS: DescriptorSequence = (
     "docs/cli_command_contracts.md",
     "docs/ingest_studycard_runtime.md",
     "docs/datasetcard_runtime.md",
+    "docs/claimcard_runtime.md",
+    "docs/public_ingest_claimcard_cli.md",
     "macro_veritas.governance.departments.registry",
     "macro_veritas.registry.gateway",
 )
@@ -94,6 +103,7 @@ _EXPECTED_GATEWAY_DEPENDENCIES: DescriptorSequence = (
     "plan_create_dataset_card",
     "create_dataset_card",
     "plan_create_claim_card",
+    "create_claim_card",
 )
 _PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
     build_command_payload_descriptor(
@@ -123,24 +133,24 @@ _PAYLOAD_CONTRACTS: tuple[CommandPayloadDescriptor, ...] = (
         payload_type="ClaimCardPayload",
         usage="prepare_create",
         gateway_reads=(),
-        gateway_mutations=("plan_create_claim_card",),
+        gateway_mutations=("plan_create_claim_card", "create_claim_card"),
         notes=(
-            "ClaimCard ingest remains skeleton-only in this milestone.",
-            "Create planning accepts a full-card payload only.",
+            "Internal ClaimCard ingest normalizes command-facing input before preparing a ClaimCardPayload.",
+            "The bridge calls plan_create_claim_card before create_claim_card.",
         ),
     ),
 )
 _DEFERRED_CAPABILITIES: DescriptorSequence = (
-    "ClaimCard ingest runtime",
-    "ClaimCard public ingest exposure",
     "StudyCard update or patch ingest semantics",
     "DatasetCard update or patch ingest semantics",
+    "ClaimCard update or patch ingest semantics",
     "identifier allocation beyond caller-provided canonical IDs",
+    "broader ingest surfaces such as file-driven batch input",
 )
 _NON_GOALS: DescriptorSequence = (
-    "ClaimCard public ingest",
     "StudyCard update or patch ingest",
     "DatasetCard update or patch ingest",
+    "ClaimCard update or patch ingest",
     "scientific logic",
     "evidence grading",
     "CellVoyager integration",
@@ -175,7 +185,7 @@ def describe_command_family() -> CommandDescriptor:
         primary_outputs=_PRIMARY_OUTPUTS,
         dependency_contracts=_DEPENDENCY_CONTRACTS,
         non_goals=_NON_GOALS,
-        public_exposure="public `ingest study` and `ingest dataset` only; ClaimCard stays non-public",
+        public_exposure="public `ingest study`, `ingest dataset`, and `ingest claim` only; update semantics stay non-public",
     )
 
 
@@ -303,6 +313,53 @@ def normalize_datasetcard_ingest_input(
     return normalized
 
 
+def normalize_claimcard_ingest_input(
+    *,
+    claim_id: str,
+    study_id: str,
+    claim_text: str,
+    claim_type: str,
+    provenance_pointer: str,
+    status: ClaimCardStatus,
+    review_readiness: ClaimReviewReadiness,
+    created_from: str,
+    dataset_ids: str | Sequence[str] | None = None,
+    claim_summary_handle: str | None = None,
+) -> ClaimCardIngestInput:
+    """Normalize command-facing ClaimCard ingest input into a small internal mapping."""
+
+    normalized: ClaimCardIngestInput = {
+        "claim_id": _require_command_string(claim_id, field_name="claim_id"),
+        "study_id": _require_command_string(study_id, field_name="study_id"),
+        "claim_text": _require_command_string(claim_text, field_name="claim_text"),
+        "claim_type": _require_command_string(claim_type, field_name="claim_type"),
+        "provenance_pointer": _require_command_string(
+            provenance_pointer,
+            field_name="provenance_pointer",
+        ),
+        "status": _require_command_string(status, field_name="status"),
+        "review_readiness": _require_command_string(
+            review_readiness,
+            field_name="review_readiness",
+        ),
+        "created_from": _require_command_string(
+            created_from,
+            field_name="created_from",
+        ),
+    }
+    if dataset_ids is not None:
+        normalized["dataset_ids"] = _normalize_scope_input(
+            dataset_ids,
+            field_name="dataset_ids",
+        )
+    if claim_summary_handle is not None:
+        normalized["claim_summary_handle"] = _require_command_string(
+            claim_summary_handle,
+            field_name="claim_summary_handle",
+        )
+    return normalized
+
+
 def normalize_public_studycard_cli_input(
     command_input: StudyCardCLIInput,
 ) -> StudyCardIngestInput:
@@ -340,6 +397,25 @@ def normalize_public_datasetcard_cli_input(
         accession_id=command_input.get("accession_id"),
         availability_note=command_input.get("availability_note"),
         artifact_locator=command_input.get("artifact_locator"),
+    )
+
+
+def normalize_public_claimcard_cli_input(
+    command_input: ClaimCardCLIInput,
+) -> ClaimCardIngestInput:
+    """Convert the public CLI ClaimCard mapping into normalized ingest input."""
+
+    return normalize_claimcard_ingest_input(
+        claim_id=command_input["claim_id"],
+        study_id=command_input["study_id"],
+        claim_text=command_input["claim_text"],
+        claim_type=command_input["claim_type"],
+        provenance_pointer=command_input["provenance_pointer"],
+        status=command_input["status"],
+        review_readiness=command_input["review_readiness"],
+        created_from=command_input["created_from"],
+        dataset_ids=command_input.get("dataset_ids"),
+        claim_summary_handle=command_input.get("claim_summary_handle"),
     )
 
 
@@ -388,11 +464,32 @@ def prepare_datasetcard_ingest_payload(
     return payload
 
 
+def prepare_claimcard_ingest_payload(command_input: ClaimCardIngestInput) -> ClaimCardPayload:
+    """Prepare one `ClaimCardPayload` from normalized internal ingest input."""
+
+    payload: ClaimCardPayload = {
+        "claim_id": command_input["claim_id"],
+        "study_id": command_input["study_id"],
+        "claim_text": command_input["claim_text"],
+        "claim_type": command_input["claim_type"],
+        "provenance_pointer": command_input["provenance_pointer"],
+        "status": command_input["status"],
+        "review_readiness": command_input["review_readiness"],
+        "created_from_note": command_input["created_from"],
+    }
+    if "dataset_ids" in command_input:
+        payload["dataset_ids"] = list(command_input["dataset_ids"])
+    if "claim_summary_handle" in command_input:
+        payload["claim_summary_handle"] = command_input["claim_summary_handle"]
+    return payload
+
+
 def translate_gateway_error(
     exc: Exception,
     *,
     card_family: CardFamilyName,
     parent_study_id: str | None = None,
+    referenced_dataset_ids: Sequence[str] | None = None,
 ) -> tuple[CommandErrorCategory, str]:
     """Translate gateway/domain failures into the narrow command result semantics."""
 
@@ -402,6 +499,12 @@ def translate_gateway_error(
         return _translate_datasetcard_gateway_error(
             exc,
             parent_study_id=parent_study_id,
+        )
+    if card_family == "ClaimCard":
+        return _translate_claimcard_gateway_error(
+            exc,
+            parent_study_id=parent_study_id,
+            referenced_dataset_ids=referenced_dataset_ids,
         )
     raise ValueError(f"Unsupported card_family for gateway-error translation: {card_family!r}.")
 
@@ -493,6 +596,54 @@ def execute_datasetcard_ingest_input(
     )
 
 
+def execute_claimcard_ingest_input(
+    command_input: ClaimCardIngestInput,
+) -> CommandExecutionResult:
+    """Execute ClaimCard ingest from normalized internal command input."""
+
+    target_id = command_input.get("claim_id")
+    parent_study_id = command_input.get("study_id")
+    referenced_dataset_ids = command_input.get("dataset_ids")
+    try:
+        payload = prepare_claimcard_ingest_payload(command_input)
+        plan_create_claim_card(payload)
+        created = create_claim_card(payload)
+    except (KeyError, TypeError, ValueError) as exc:
+        return _build_invalid_payload_result(
+            card_family="ClaimCard",
+            target_id=target_id,
+            message=str(exc),
+        )
+    except RegistryError as exc:
+        error_category, message = translate_gateway_error(
+            exc,
+            card_family="ClaimCard",
+            parent_study_id=parent_study_id,
+            referenced_dataset_ids=referenced_dataset_ids,
+        )
+        return build_command_result(
+            ok=False,
+            operation=_OPERATION_NAME,
+            card_family="ClaimCard",
+            target_id=target_id,
+            message=message,
+            error_category=error_category,
+        )
+    except Exception:
+        return _build_unexpected_bridge_failure(
+            card_family="ClaimCard",
+            target_id=target_id,
+        )
+
+    return build_command_result(
+        ok=True,
+        operation=_OPERATION_NAME,
+        card_family="ClaimCard",
+        target_id=created["claim_id"],
+        message="ClaimCard ingest created the canonical ClaimCard record.",
+    )
+
+
 def execute_studycard_ingest(
     *,
     study_id: str,
@@ -573,8 +724,46 @@ def execute_datasetcard_ingest(
     return execute_datasetcard_ingest_input(normalized_input)
 
 
+def execute_claimcard_ingest(
+    *,
+    claim_id: str,
+    study_id: str,
+    claim_text: str,
+    claim_type: str,
+    provenance_pointer: str,
+    status: ClaimCardStatus,
+    review_readiness: ClaimReviewReadiness,
+    created_from: str,
+    dataset_ids: str | Sequence[str] | None = None,
+    claim_summary_handle: str | None = None,
+) -> CommandExecutionResult:
+    """Execute the internal ClaimCard ingest bridge through the real gateway path."""
+
+    target_id = claim_id if isinstance(claim_id, str) else None
+    try:
+        normalized_input = normalize_claimcard_ingest_input(
+            claim_id=claim_id,
+            study_id=study_id,
+            claim_text=claim_text,
+            claim_type=claim_type,
+            provenance_pointer=provenance_pointer,
+            status=status,
+            review_readiness=review_readiness,
+            created_from=created_from,
+            dataset_ids=dataset_ids,
+            claim_summary_handle=claim_summary_handle,
+        )
+    except ValueError as exc:
+        return _build_invalid_payload_result(
+            card_family="ClaimCard",
+            target_id=target_id,
+            message=str(exc),
+        )
+    return execute_claimcard_ingest_input(normalized_input)
+
+
 def handle_ingest_command(args: object) -> CommandExecutionResult:
-    """Handle mapping-based internal `ingest` dispatch for StudyCard and DatasetCard."""
+    """Handle mapping-based internal `ingest` dispatch for StudyCard, DatasetCard, and ClaimCard."""
 
     if not isinstance(args, Mapping):
         return _build_invalid_payload_result(
@@ -643,12 +832,36 @@ def handle_ingest_command(args: object) -> CommandExecutionResult:
                 message=str(exc),
             )
 
+    if card_family == "ClaimCard":
+        try:
+            return execute_claimcard_ingest(
+                claim_id=_require_mapping_value(args, "claim_id"),
+                study_id=_require_mapping_value(args, "study_id"),
+                claim_text=_require_mapping_value(args, "claim_text"),
+                claim_type=_require_mapping_value(args, "claim_type"),
+                provenance_pointer=_require_mapping_value(args, "provenance_pointer"),
+                status=_require_mapping_value(args, "status"),
+                review_readiness=_require_mapping_value(args, "review_readiness"),
+                created_from=_require_mapping_value(args, "created_from"),
+                dataset_ids=_optional_mapping_scope_value(args, "dataset_ids"),
+                claim_summary_handle=_optional_mapping_string(args, "claim_summary_handle"),
+            )
+        except ValueError as exc:
+            return _build_invalid_payload_result(
+                card_family="ClaimCard",
+                target_id=target_id,
+                message=str(exc),
+            )
+
     return build_command_result(
         ok=False,
         operation=_OPERATION_NAME,
         card_family=card_family,
         target_id=target_id,
-        message=f"Internal ingest runtime is implemented only for StudyCard and DatasetCard, not {card_family}.",
+        message=(
+            "Internal ingest runtime is implemented only for StudyCard, DatasetCard, "
+            f"and ClaimCard, not {card_family}."
+        ),
         error_category="unsupported_operation",
     )
 
@@ -666,7 +879,7 @@ def describe_payload_contracts() -> tuple[CommandPayloadDescriptor, ...]:
 
 
 def list_deferred_capabilities() -> DescriptorSequence:
-    """List deferred `ingest` capabilities beyond the public Study/Dataset bridges."""
+    """List deferred `ingest` capabilities beyond the public Study/Dataset/Claim bridges."""
 
     return _DEFERRED_CAPABILITIES
 
@@ -777,6 +990,63 @@ def _translate_datasetcard_gateway_error(
     )
 
 
+def _translate_claimcard_gateway_error(
+    exc: Exception,
+    *,
+    parent_study_id: str | None,
+    referenced_dataset_ids: Sequence[str] | None,
+) -> tuple[CommandErrorCategory, str]:
+    if isinstance(exc, CardAlreadyExistsError):
+        return (
+            "duplicate_target",
+            "ClaimCard ingest did not write because the canonical ClaimCard already exists.",
+        )
+    if isinstance(exc, BrokenReferenceError):
+        missing_dataset_ids = _extract_missing_dataset_reference_ids(exc)
+        if missing_dataset_ids is not None:
+            missing_display = ", ".join(missing_dataset_ids)
+            if not missing_display and referenced_dataset_ids is not None:
+                missing_display = ", ".join(referenced_dataset_ids)
+            if missing_display:
+                return (
+                    "missing_reference",
+                    "ClaimCard ingest requires referenced DatasetCard(s) to exist before create: "
+                    f"{missing_display}.",
+                )
+            return (
+                "missing_reference",
+                "ClaimCard ingest requires referenced DatasetCard(s) to exist before create.",
+            )
+        if parent_study_id is None:
+            return (
+                "missing_reference",
+                "ClaimCard ingest requires the parent StudyCard to exist before create.",
+            )
+        return (
+            "missing_reference",
+            f"ClaimCard ingest requires the parent StudyCard '{parent_study_id}' to exist before create.",
+        )
+    if isinstance(exc, UnsupportedRegistryOperationError):
+        return (
+            "unsupported_operation",
+            "ClaimCard ingest rejected an unsupported registry operation or identifier.",
+        )
+    if isinstance(exc, RegistryError):
+        if _looks_like_invalid_claim_payload_error(exc):
+            return (
+                "invalid_payload",
+                f"ClaimCard ingest rejected invalid ClaimCard data: {exc}",
+            )
+        return (
+            "registry_failure",
+            "ClaimCard ingest failed at the registry gateway boundary.",
+        )
+    return (
+        "registry_failure",
+        "ClaimCard ingest failed before the registry gateway could complete.",
+    )
+
+
 def _looks_like_unsafe_study_id_error(exc: RegistryError) -> bool:
     message = str(exc)
     if "field 'study_id'" not in message and "lookup ID" not in message:
@@ -806,6 +1076,33 @@ def _looks_like_invalid_dataset_payload_error(exc: RegistryError) -> bool:
         or "missing required fields" in message
         or "unexpected fields" in message
     )
+
+
+def _looks_like_invalid_claim_payload_error(exc: RegistryError) -> bool:
+    message = str(exc)
+    if "filesystem access" in message or "runtime translation" in message:
+        return False
+    return (
+        message.startswith("ClaimCard field '")
+        or message.startswith("ClaimCard payload ")
+        or "missing required fields" in message
+        or "unexpected fields" in message
+    )
+
+
+def _extract_missing_dataset_reference_ids(
+    exc: BrokenReferenceError,
+) -> tuple[str, ...] | None:
+    message = str(exc)
+    marker = "DatasetCard(s)"
+    if marker not in message:
+        return None
+    split_marker = "canonical paths: "
+    if split_marker not in message:
+        return ()
+    trailing = message.split(split_marker, 1)[1].rstrip(".")
+    values = [value.strip() for value in trailing.split(",") if value.strip()]
+    return tuple(values)
 
 
 def _mapping_target_id(
@@ -870,6 +1167,22 @@ def _require_mapping_scope_value(
     )
 
 
+def _optional_mapping_scope_value(
+    args: Mapping[str, object],
+    field_name: str,
+) -> str | Sequence[str] | None:
+    if field_name not in args or args[field_name] is None:
+        return None
+    value = args[field_name]
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return value
+    raise ValueError(
+        f"Field '{field_name}' must be a string or a list/tuple of strings."
+    )
+
+
 def _optional_mapping_string(
     args: Mapping[str, object],
     field_name: str,
@@ -883,6 +1196,8 @@ __all__ = [
     "build_parser",
     "describe_command_family",
     "describe_payload_contracts",
+    "execute_claimcard_ingest",
+    "execute_claimcard_ingest_input",
     "execute_datasetcard_ingest",
     "execute_datasetcard_ingest_input",
     "execute_studycard_ingest",
@@ -891,10 +1206,13 @@ __all__ = [
     "handle_ingest_command",
     "list_deferred_capabilities",
     "list_expected_gateway_dependencies",
+    "normalize_claimcard_ingest_input",
     "normalize_datasetcard_ingest_input",
+    "normalize_public_claimcard_cli_input",
     "normalize_public_datasetcard_cli_input",
     "normalize_public_studycard_cli_input",
     "normalize_studycard_ingest_input",
+    "prepare_claimcard_ingest_payload",
     "prepare_datasetcard_ingest_payload",
     "prepare_studycard_ingest_payload",
     "translate_gateway_error",

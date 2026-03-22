@@ -52,6 +52,7 @@ DatasetAvailabilityStatus = Literal["unknown", "open", "restricted", "unavailabl
 ClaimReviewReadiness = Literal["needs_scope", "reviewable", "execution_candidate"]
 CommandFamilyName = Literal[
     "ingest",
+    "show",
     "bind",
     "extract",
     "audit",
@@ -62,6 +63,7 @@ CommandFamilyName = Literal[
 
 ReservedCLIFamilyName = Literal[
     "ingest",
+    "show",
     "bind",
     "extract",
     "audit",
@@ -263,6 +265,53 @@ class ClaimCardPayload(_ClaimCardPayloadRequired, total=False):
     claim_summary_handle: str
 
 
+class _ClaimCardIngestInputRequired(TypedDict):
+    """Required keys for the internal ClaimCard ingest command input."""
+
+    claim_id: str
+    study_id: str
+    claim_text: str
+    claim_type: str
+    provenance_pointer: str
+    status: ClaimCardStatus
+    review_readiness: ClaimReviewReadiness
+    created_from: str
+
+
+class ClaimCardIngestInput(_ClaimCardIngestInputRequired, total=False):
+    """Normalized internal ClaimCard ingest input before payload preparation."""
+
+    dataset_ids: Sequence[str]
+    claim_summary_handle: str
+
+
+class _ClaimCardCLIInputRequired(TypedDict):
+    """Required fields for the public ingest claim CLI adapter boundary."""
+
+    claim_id: str
+    study_id: str
+    claim_text: str
+    claim_type: str
+    provenance_pointer: str
+    status: ClaimCardStatus
+    review_readiness: ClaimReviewReadiness
+    created_from: str
+
+
+class ClaimCardCLIInput(_ClaimCardCLIInputRequired, total=False):
+    """Typed mapping built from parsed CLI args before internal normalization."""
+
+    dataset_ids: Sequence[str]
+    claim_summary_handle: str
+
+
+class ShowCLIInput(TypedDict):
+    """Typed mapping built from parsed CLI args for public by-id show commands."""
+
+    card_family: CardFamilyName
+    target_id: str
+
+
 GatewayCardPayload: TypeAlias = (
     StudyCardPayload | DatasetCardPayload | ClaimCardPayload
 )
@@ -377,6 +426,8 @@ __all__ = [
     "CardSequence",
     "CardFieldName",
     "CardFieldSequence",
+    "ClaimCardCLIInput",
+    "ClaimCardIngestInput",
     "ClaimCardPayload",
     "ClaimCardStatus",
     "ClaimReviewReadiness",
@@ -414,6 +465,7 @@ __all__ = [
     "RelationshipPointerMap",
     "ReservedCLIFamilyName",
     "ResponsibilityMap",
+    "ShowCLIInput",
     "StudyCardCLIInput",
     "StudyCardIngestInput",
     "StudyCardPayload",

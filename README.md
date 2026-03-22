@@ -4,7 +4,7 @@
 
 MacroVeritas is a docs-first, CLI-first Python project scaffold for a future claim-centered evidence grading and data-level verification system focused on melanoma, immune checkpoint inhibition, and macrophage literature.
 
-This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, or analysis pipeline is implemented yet. The implemented registry logic remains narrow and create-oriented.
+This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, or analysis pipeline is implemented yet. The implemented registry logic remains narrow and limited to create plus read-by-id registry operations.
 
 ## Current Status
 
@@ -13,7 +13,7 @@ This repository is in the initialization / MVP documentation freeze stage. No sc
 - Repository name: `macro-veritas`
 - Implemented now:
   - lightweight Python package scaffold
-  - minimal CLI commands for status, config inspection, layout initialization, and create-only `StudyCard` / `DatasetCard` ingest
+  - minimal CLI commands for status, config inspection, layout initialization, create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, and by-id `StudyCard` / `DatasetCard` / `ClaimCard` show
   - docs describing scope, constraints, and intended architecture
   - committed project config with explicit external data root
 - Not implemented now:
@@ -80,12 +80,16 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `init-layout`
   - `ingest study`
   - `ingest dataset`
-- Two real public domain commands are now implemented: create-only `StudyCard` ingest and create-only `DatasetCard` ingest.
-- The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, and narrow registry-card creation.
+  - `ingest claim`
+  - `show study`
+  - `show dataset`
+  - `show claim`
+- Two narrow public domain families are now implemented: create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest and by-id `StudyCard` / `DatasetCard` / `ClaimCard` show.
+- The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, narrow registry-card creation, and narrow registry-card read-by-id access.
 - CellVoyager code is not integrated into the current MacroVeritas package or CLI surface.
 
 ## Next Milestone
 
 The next milestone is to extend the registry surface carefully beyond the current
-public `StudyCard` and `DatasetCard` ingest paths without introducing scientific
+public `StudyCard`, `DatasetCard`, and `ClaimCard` ingest/show-by-id paths without introducing scientific
 inference logic.

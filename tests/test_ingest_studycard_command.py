@@ -164,22 +164,3 @@ def test_registry_failure_is_translated_without_leaking_raw_contract(
         "error_category": "registry_failure",
     }
 
-
-def test_handle_ingest_command_keeps_claimcard_non_runtime(
-    configured_registry_root: Path,
-) -> None:
-    result = ingest.handle_ingest_command(
-        {
-            "card_family": "ClaimCard",
-            "claim_id": "claim-001",
-        }
-    )
-
-    assert result == {
-        "ok": False,
-        "operation": "ingest",
-        "card_family": "ClaimCard",
-        "target_id": "claim-001",
-        "message": "Internal ingest runtime is implemented only for StudyCard and DatasetCard, not ClaimCard.",
-        "error_category": "unsupported_operation",
-    }

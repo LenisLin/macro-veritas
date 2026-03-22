@@ -15,10 +15,10 @@ MacroVeritas.
 
 This document now describes a mixed implementation state.
 
-- Two narrow public exceptions now exist: `ingest study` and `ingest dataset`.
-- Those public paths are thin adapters over the same narrow internal ingest
-  bridge module.
-- ClaimCard ingest remains internal and non-public.
+- Six narrow public exceptions now exist: `ingest study`, `ingest dataset`,
+  `ingest claim`, `show study`, `show dataset`, and `show claim`.
+- Those public paths are thin adapters over the same narrow internal ingest and
+  show bridge modules.
 - The rest of the command families remain reserved and non-public.
 
 ## Command Families
@@ -27,36 +27,78 @@ This document now describes a mixed implementation state.
 
 - Owning module: `macro_veritas.commands.ingest`
 - Owning domain: Registry Department / 户部, intake boundary
-- Purpose: execute the current StudyCard and DatasetCard ingest bridges while
-  keeping ClaimCard ingest non-runtime and non-public
+- Purpose: execute the current StudyCard, DatasetCard, and ClaimCard ingest
+  bridges while keeping update/patch ingest semantics deferred
 - Payload contract source: [`docs/payload_contracts.md`](payload_contracts.md)
 - MVP payload families touched: `StudyCardPayload`, `DatasetCardPayload`,
   `ClaimCardPayload`
-- Expected primary inputs: internal StudyCard or DatasetCard ingest input,
-  target card-family label, full-card StudyCard/DatasetCard payload prepared
-  from normalized intake input, and provenance/reference notes already carried
-  by those inputs
-- Expected primary outputs: StudyCard or DatasetCard gateway create-plan
-  request, StudyCard or DatasetCard gateway create execution, and an internal
-  command result mapping
+- Expected primary inputs: internal StudyCard, DatasetCard, or ClaimCard
+  ingest input; target card-family label; full-card StudyCard/DatasetCard/
+  ClaimCard payload prepared from normalized intake input; and
+  provenance/reference notes already carried by those inputs
+- Expected primary outputs: StudyCard, DatasetCard, or ClaimCard gateway
+  create-plan request; StudyCard, DatasetCard, or ClaimCard gateway create
+  execution; and an internal command result mapping
 - Expected dependency boundary: registry governance intake descriptors,
   card-contract docs, payload-contract docs, runtime docs, and registry gateway
   create-planning/create contracts
 - Public paths now:
   - `macro_veritas ingest study` is a thin adapter over the StudyCard bridge
   - `macro_veritas ingest dataset` is a thin adapter over the DatasetCard bridge
+  - `macro_veritas ingest claim` is a thin adapter over the ClaimCard bridge
 - Runtime status now:
   - public StudyCard create-only ingest is implemented through normalized
     command input, `plan_create_study_card(...)`, and `create_study_card(...)`
   - public DatasetCard create-only ingest is implemented through normalized
     command input, `plan_create_dataset_card(...)`, and `create_dataset_card(...)`
-  - missing parent `StudyCard` failures for DatasetCard ingest are translated to
-    a clean command-level `missing_reference` result
-- Still deferred inside `ingest`: ClaimCard ingest runtime/public exposure,
-  StudyCard update/patch ingest, DatasetCard update/patch ingest, and broader
-  identifier allocation behavior
-- Non-goals in this milestone: no ClaimCard public ingest, no StudyCard or
-  DatasetCard update/patch ingest, no scientific logic, no evidence grading
+  - public ClaimCard create-only ingest is implemented through normalized
+    command input, `plan_create_claim_card(...)`, and `create_claim_card(...)`
+  - missing parent `StudyCard` failures for DatasetCard and ClaimCard ingest
+    are translated to a clean command-level `missing_reference` result
+  - missing referenced `DatasetCard` failures for ClaimCard ingest are
+    translated to a clean command-level `missing_reference` result
+- Still deferred inside `ingest`: StudyCard update/patch ingest, DatasetCard
+  update/patch ingest, ClaimCard update/patch ingest, and broader identifier
+  allocation behavior
+- Non-goals in this milestone: no StudyCard, DatasetCard, or ClaimCard
+  update/patch ingest; no scientific logic; no evidence grading
+
+### `show`
+
+- Owning module: `macro_veritas.commands.show`
+- Owning domain: Registry Department / 户部, read boundary
+- Purpose: execute the current StudyCard, DatasetCard, and ClaimCard by-id
+  read bridges while keeping list/search/update/delete semantics deferred
+- Payload contract source: [`docs/payload_contracts.md`](payload_contracts.md)
+- MVP payload families touched: read-only `StudyCardPayload`,
+  `DatasetCardPayload`, and `ClaimCardPayload`
+- Expected primary inputs: internal by-id StudyCard, DatasetCard, or ClaimCard
+  input carrying a target card-family label plus one canonical ID
+- Expected primary outputs: StudyCard, DatasetCard, or ClaimCard gateway
+  get-by-id request plus either the raw hydrated card mapping or a narrow
+  command failure result
+- Expected dependency boundary: registry governance read descriptors,
+  card-contract docs, gateway-contract docs, and registry gateway get-by-id
+  contracts
+- Public paths now:
+  - `macro_veritas show study` is a thin adapter over the StudyCard bridge
+  - `macro_veritas show dataset` is a thin adapter over the DatasetCard bridge
+  - `macro_veritas show claim` is a thin adapter over the ClaimCard bridge
+- Runtime status now:
+  - public StudyCard by-id show is implemented through normalized command
+    input and `get_study_card(...)`
+  - public DatasetCard by-id show is implemented through normalized command
+    input and `get_dataset_card(...)`
+  - public ClaimCard by-id show is implemented through normalized command
+    input and `get_claim_card(...)`
+  - missing target card failures are translated to a clean command-level
+    `missing_reference` result
+  - unsafe identifiers are translated to a clean command-level
+    `unsupported_operation` result
+- Still deferred inside `show`: list behavior, search behavior, filtering,
+  relationship expansion, reverse lookups, and any update/delete semantics
+- Non-goals in this milestone: no list/search/filter, no relationship
+  expansion, no update/delete, no scientific logic, and no evidence grading
 
 ### `bind`
 
@@ -154,23 +196,26 @@ The frozen internal command style is conservative:
 - static descriptor helpers for family metadata and dependency declarations
 - static payload-touchpoint descriptors that point to
   [`docs/payload_contracts.md`](payload_contracts.md)
-- runtime execution exists only for the StudyCard and DatasetCard ingest
+- runtime execution exists only for the StudyCard, DatasetCard, and ClaimCard
+  ingest bridges plus the StudyCard, DatasetCard, and ClaimCard by-id show
   bridges; other command families remain descriptor/skeleton-only
 - file IO is allowed only through the registry gateway for explicitly
   documented runtime paths
-- raw `argparse.Namespace` objects remain outside the command-to-gateway boundary
+- raw `argparse.Namespace` objects remain outside the command-to-gateway
+  boundary
 - no silent side effects
 
 Interpretation:
 
-- the public CLI adapts parsed `ingest study` and `ingest dataset` flags into
-  typed mappings and then into normalized internal ingest inputs before payload
-  preparation
+- the public CLI adapts parsed `ingest study`, `ingest dataset`, `ingest claim`,
+  `show study`, `show dataset`, and `show claim` flags into typed mappings and
+  then into normalized internal inputs before calling the gateway
 - the command layer does not write files directly
 - the command layer does not bypass the gateway
-- `handle_ingest_command(...)` accepts mapping-based internal input and supports
-  StudyCard plus DatasetCard only
-- ClaimCard ingest remains unsupported at the runtime layer in this milestone
+- `handle_ingest_command(...)` accepts mapping-based internal input and
+  supports StudyCard, DatasetCard, and ClaimCard
+- `handle_show_command(...)` accepts mapping-based internal input and supports
+  StudyCard, DatasetCard, and ClaimCard by-id reads
 - broader option and flag design remains deferred
 
 ## Public Exposure Rule
@@ -185,5 +230,10 @@ exceptions.
   ingest.
 - `python -m macro_veritas ingest dataset` is public for create-only
   `DatasetCard` ingest.
-- `ClaimCard` ingest remains non-public and skeleton-only.
+- `python -m macro_veritas ingest claim` is public for create-only `ClaimCard`
+  ingest.
+- `python -m macro_veritas show study` is public for by-id `StudyCard` read.
+- `python -m macro_veritas show dataset` is public for by-id `DatasetCard`
+  read.
+- `python -m macro_veritas show claim` is public for by-id `ClaimCard` read.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain non-public.

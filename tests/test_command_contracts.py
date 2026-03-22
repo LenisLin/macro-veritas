@@ -8,7 +8,7 @@ from typing import get_args
 
 import pytest
 
-from macro_veritas.commands import audit, bind, common, extract, grade, ingest, review, run
+from macro_veritas.commands import audit, bind, common, extract, grade, ingest, review, run, show
 from macro_veritas.shared import types as shared_types
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
@@ -24,6 +24,7 @@ def _subprocess_env() -> dict[str, str]:
 def test_shared_command_contract_types_are_frozen() -> None:
     assert get_args(shared_types.CommandFamilyName) == (
         "ingest",
+        "show",
         "bind",
         "extract",
         "audit",
@@ -135,6 +136,41 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "artifact_locator",
         "availability_note",
     }
+    assert shared_types.ClaimCardIngestInput.__required_keys__ == {
+        "claim_id",
+        "study_id",
+        "claim_text",
+        "claim_type",
+        "provenance_pointer",
+        "status",
+        "review_readiness",
+        "created_from",
+    }
+    assert shared_types.ClaimCardIngestInput.__optional_keys__ == {
+        "dataset_ids",
+        "claim_summary_handle",
+    }
+    assert shared_types.ClaimCardCLIInput.__required_keys__ == {
+        "claim_id",
+        "study_id",
+        "claim_text",
+        "claim_type",
+        "provenance_pointer",
+        "status",
+        "review_readiness",
+        "created_from",
+    }
+    assert shared_types.ClaimCardCLIInput.__optional_keys__ == {
+        "dataset_ids",
+        "claim_summary_handle",
+    }
+
+
+    assert shared_types.ShowCLIInput.__required_keys__ == {
+        "card_family",
+        "target_id",
+    }
+    assert shared_types.ShowCLIInput.__optional_keys__ == set()
 
 
 def test_common_command_style_descriptor_is_static() -> None:
@@ -146,9 +182,9 @@ def test_common_command_style_descriptor_is_static() -> None:
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
-    assert "StudyCard and DatasetCard ingest paths are runtime-real" in style["runtime_status"]
+    assert "StudyCard, DatasetCard, and ClaimCard ingest/show paths are runtime-real" in style["runtime_status"]
     assert style["public_exposure"] == (
-        "public ingest study and ingest dataset paths only; all other reserved families remain non-public"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, and show claim paths only; all other reserved families remain non-public"
     )
     assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
     assert "outside the frozen payload contract" in payload_style["raw_cli_argument_layer"]
@@ -158,17 +194,29 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert runtime_boundary["source_of_truth_doc"] == "docs/cli_command_contracts.md"
     assert "ingest study" in runtime_boundary["public_cli_exposure"]
     assert "ingest dataset" in runtime_boundary["public_cli_exposure"]
+    assert "ingest claim" in runtime_boundary["public_cli_exposure"]
+    assert "show study" in runtime_boundary["public_cli_exposure"]
+    assert "show dataset" in runtime_boundary["public_cli_exposure"]
+    assert "show claim" in runtime_boundary["public_cli_exposure"]
     assert "public StudyCard CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public ClaimCard CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public StudyCard show CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public DatasetCard show CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public ClaimCard show CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
-    assert "ClaimCard ingest" in runtime_boundary["still_skeleton_only"]
+    assert "ClaimCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
+    assert "StudyCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
+    assert "DatasetCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
+    assert "ClaimCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
+    assert "ClaimCard ingest" not in runtime_boundary["still_skeleton_only"]
     assert result_style["output_type"] == "CommandExecutionResult"
     assert result_style["failure_field"] == "error_category"
     assert "missing_reference" in result_style["supported_error_categories"]
 
 
 def test_command_family_modules_export_static_metadata() -> None:
-    modules = [ingest, bind, extract, audit, review, run, grade]
+    modules = [ingest, show, bind, extract, audit, review, run, grade]
 
     for module in modules:
         family = module.family_name()
@@ -180,7 +228,11 @@ def test_command_family_modules_export_static_metadata() -> None:
         assert descriptor["handler"] == f"handle_{family}_command"
         if family == "ingest":
             assert descriptor["public_exposure"] == (
-                "public `ingest study` and `ingest dataset` only; ClaimCard stays non-public"
+                "public `ingest study`, `ingest dataset`, and `ingest claim` only; update semantics stay non-public"
+            )
+        elif family == "show":
+            assert descriptor["public_exposure"] == (
+                "public `show study`, `show dataset`, and `show claim` only; list/search/update/delete semantics stay non-public"
             )
         else:
             assert descriptor["public_exposure"] == "reserved internal; not public CLI"
@@ -212,7 +264,7 @@ def test_command_handlers_raise_precise_placeholders() -> None:
         run.handle_run_command(object())
 
 
-def test_public_cli_help_exposes_only_ingest_family_beyond_scaffold_commands() -> None:
+def test_public_cli_help_exposes_only_ingest_and_show_families_beyond_scaffold_commands() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "macro_veritas", "--help"],
         check=False,
@@ -226,6 +278,7 @@ def test_public_cli_help_exposes_only_ingest_family_beyond_scaffold_commands() -
     assert "show-config" in result.stdout
     assert "init-layout" in result.stdout
     assert "ingest" in result.stdout
+    assert "show" in result.stdout
     assert "bind" not in result.stdout
     assert "extract" not in result.stdout
     assert "audit" not in result.stdout

@@ -32,10 +32,12 @@ Recommended first-pass reading order:
 19. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real StudyCard ingest runtime path.
 20. [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md) for the first public domain command surface.
 21. [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md) for the second public domain command surface.
-22. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
-23. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and module responsibilities.
-24. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
-25. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
+22. [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md) for the third public domain command surface.
+23. [`docs/public_show_cli.md`](public_show_cli.md) for the first public read-by-id command surface.
+24. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
+25. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and module responsibilities.
+26. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
+27. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
 
 ## Status Labels
 
@@ -68,10 +70,12 @@ These documents mix frozen-position context with design-intent detail.
 - [`docs/studycard_runtime.md`](studycard_runtime.md): records the implemented StudyCard runtime slice. Defines current implemented position for this slice.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records the implemented DatasetCard runtime slice plus the thin public DatasetCard CLI path. Defines current implemented position for this slice.
 - [`docs/claimcard_runtime.md`](claimcard_runtime.md): records the implemented ClaimCard runtime slice. Defines current implemented position for this slice.
-- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the command-family contracts while distinguishing the public `ingest study` and `ingest dataset` paths from the still-internal families. Defines current frozen position for this slice.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the command-family contracts while distinguishing the public `ingest study`, `ingest dataset`, `ingest claim`, `show study`, `show dataset`, and `show claim` paths from the still-internal families. Defines current frozen position for this slice.
 - [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records the StudyCard ingest runtime beneath the public CLI adapter. Defines current implemented position for this slice.
 - [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` surface. Defines current implemented position for this slice.
 - [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md): records the exact public `ingest dataset` surface. Defines current implemented position for this slice.
+- [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md): records the exact public `ingest claim` surface. Defines current implemented position for this slice.
+- [`docs/public_show_cli.md`](public_show_cli.md): records the exact public `show study`, `show dataset`, and `show claim` surfaces. Defines current implemented position for this slice.
 
 ## Contracts And Audit
 
@@ -88,8 +92,10 @@ These documents describe the public CLI surface and the next layer of object and
 - [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records exactly what StudyCard ingest runtime behavior is real now.
 - [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` command shape, create-only behavior, and user-facing expectations.
 - [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md): records the exact public `ingest dataset` command shape, create-only behavior, parent-StudyCard requirement, and user-facing expectations.
+- [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md): records the exact public `ingest claim` command shape, create-only behavior, StudyCard and optional DatasetCard reference requirements, and user-facing expectations.
+- [`docs/public_show_cli.md`](public_show_cli.md): records the exact public `show study`, `show dataset`, and `show claim` command shapes, by-id behavior, and user-facing expectations.
 - [`docs/api_specs.md`](api_specs.md): documents the current CLI contract and clearly states that there is no web API in v0.1.
-- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the internal command-family contracts for `ingest`, `bind`, `extract`, `audit`, `review`, `run`, and `grade`.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the internal command-family contracts for `ingest`, `show`, `bind`, `extract`, `audit`, `review`, `run`, and `grade`.
 - [`docs/data_contracts.md`](data_contracts.md): summarizes the minimum contract categories for planned object families and points to the first frozen card slice. Design intent / future-detail.
 - [`docs/audit_policy.md`](audit_policy.md): defines the lightweight MVP audit posture, trigger points, and outcomes without implying an implemented audit engine. Design intent / future-detail.
 
@@ -108,5 +114,6 @@ then read `architecture`, `module_map`, `registry_model`, `state_machine`,
 `card_contracts`, `payload_contracts`, `registry_layout`,
 `registry_io_boundary`, `gateway_contracts`, `studycard_runtime`,
 `datasetcard_runtime`, `claimcard_runtime`, `ingest_studycard_runtime`,
-`public_ingest_studycard_cli`, `public_ingest_datasetcard_cli`, `api_specs`,
+`public_ingest_studycard_cli`, `public_ingest_datasetcard_cli`,
+`public_ingest_claimcard_cli`, `public_show_cli`, `api_specs`,
 `cli_command_contracts`, and `audit_policy`.

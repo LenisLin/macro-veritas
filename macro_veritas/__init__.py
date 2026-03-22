@@ -4,7 +4,7 @@ from pathlib import Path
 from pkgutil import extend_path
 
 __all__ = ["__version__"]
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 __path__ = extend_path(__path__, __name__)
 

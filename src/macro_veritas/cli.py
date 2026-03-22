@@ -9,8 +9,13 @@ import sys
 from typing import Iterable, Iterator
 
 from .commands import ingest as ingest_command
+from .commands import show as show_command
 from .commands.common import format_command_result_for_cli
 from .config import load_project_config
+from .registry.claim import (
+    allowed_review_readiness as allowed_claim_review_readiness,
+)
+from .registry.claim import allowed_statuses as allowed_claim_statuses
 from .registry.dataset import (
     allowed_availability_statuses as allowed_dataset_availability_statuses,
 )
@@ -18,8 +23,10 @@ from .registry.dataset import allowed_statuses as allowed_dataset_statuses
 from .registry.study import allowed_screening_decisions
 from .registry.study import allowed_statuses as allowed_study_statuses
 from .shared.types import (
+    ClaimCardCLIInput,
     CommandExecutionResult,
     DatasetCardCLIInput,
+    ShowCLIInput,
     StudyCardCLIInput,
 )
 
@@ -79,6 +86,54 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _configure_dataset_ingest_parser(dataset_parser)
     dataset_parser.set_defaults(handler=_run_ingest_dataset)
+
+    claim_parser = ingest_subparsers.add_parser(
+        "claim",
+        help="Create one ClaimCard from explicit CLI fields",
+    )
+    _configure_claim_ingest_parser(claim_parser)
+    claim_parser.set_defaults(handler=_run_ingest_claim)
+
+    show_parser = subparsers.add_parser(
+        "show",
+        help="Read one registry card by canonical ID",
+    )
+    show_subparsers = show_parser.add_subparsers(
+        dest="show_command",
+        required=True,
+    )
+    show_study_parser = show_subparsers.add_parser(
+        "study",
+        help="Show one StudyCard by canonical ID",
+    )
+    show_study_parser.add_argument(
+        "--study-id",
+        required=True,
+        help="Canonical StudyCard identifier",
+    )
+    show_study_parser.set_defaults(handler=_run_show_study)
+
+    show_dataset_parser = show_subparsers.add_parser(
+        "dataset",
+        help="Show one DatasetCard by canonical ID",
+    )
+    show_dataset_parser.add_argument(
+        "--dataset-id",
+        required=True,
+        help="Canonical DatasetCard identifier",
+    )
+    show_dataset_parser.set_defaults(handler=_run_show_dataset)
+
+    show_claim_parser = show_subparsers.add_parser(
+        "claim",
+        help="Show one ClaimCard by canonical ID",
+    )
+    show_claim_parser.add_argument(
+        "--claim-id",
+        required=True,
+        help="Canonical ClaimCard identifier",
+    )
+    show_claim_parser.set_defaults(handler=_run_show_claim)
 
     return parser
 
@@ -212,6 +267,58 @@ def _configure_dataset_ingest_parser(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _configure_claim_ingest_parser(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--claim-id", required=True, help="Canonical ClaimCard identifier")
+    parser.add_argument(
+        "--study-id",
+        required=True,
+        help="Canonical parent StudyCard identifier",
+    )
+    parser.add_argument(
+        "--claim-text",
+        required=True,
+        help="Human-readable claim text captured for the ClaimCard",
+    )
+    parser.add_argument(
+        "--claim-type",
+        required=True,
+        help="Short category label describing the claim type",
+    )
+    parser.add_argument(
+        "--provenance-pointer",
+        required=True,
+        help="Figure, table, supplement, or text-span pointer for the claim",
+    )
+    parser.add_argument(
+        "--status",
+        required=True,
+        choices=allowed_claim_statuses(),
+        help="ClaimCard lifecycle status",
+    )
+    parser.add_argument(
+        "--review-readiness",
+        required=True,
+        choices=allowed_claim_review_readiness(),
+        help="ClaimCard review readiness label",
+    )
+    parser.add_argument(
+        "--created-from",
+        required=True,
+        help="Provenance note describing where this ClaimCard came from",
+    )
+    parser.add_argument(
+        "--dataset-id",
+        action="append",
+        default=None,
+        help="Repeatable referenced DatasetCard identifier",
+    )
+    parser.add_argument(
+        "--claim-summary-handle",
+        default=None,
+        help="Optional normalized summary handle stored on the ClaimCard",
+    )
+
+
 def _build_studycard_cli_input(args: argparse.Namespace) -> StudyCardCLIInput:
     cli_input: StudyCardCLIInput = {
         "study_id": args.study_id,
@@ -251,6 +358,28 @@ def _build_datasetcard_cli_input(args: argparse.Namespace) -> DatasetCardCLIInpu
     return cli_input
 
 
+def _build_claimcard_cli_input(args: argparse.Namespace) -> ClaimCardCLIInput:
+    cli_input: ClaimCardCLIInput = {
+        "claim_id": args.claim_id,
+        "study_id": args.study_id,
+        "claim_text": args.claim_text,
+        "claim_type": args.claim_type,
+        "provenance_pointer": args.provenance_pointer,
+        "status": args.status,
+        "review_readiness": args.review_readiness,
+        "created_from": args.created_from,
+    }
+    if args.dataset_id is not None:
+        cli_input["dataset_ids"] = list(args.dataset_id)
+    if args.claim_summary_handle is not None:
+        cli_input["claim_summary_handle"] = args.claim_summary_handle
+    return cli_input
+
+
+def _build_show_cli_input(*, card_family: str, target_id: str) -> ShowCLIInput:
+    return {"card_family": card_family, "target_id": target_id}
+
+
 @contextmanager
 def _configured_runtime_environment(config_path: str | None) -> Iterator[None]:
     config = load_project_config(config_path)
@@ -270,6 +399,11 @@ def _emit_command_result(result: CommandExecutionResult, *, command_path: str) -
     stream = sys.stdout if result["ok"] else sys.stderr
     print(message, file=stream)
     return 0 if result["ok"] else 1
+
+
+def _emit_json_document(document: object) -> int:
+    print(json.dumps(document, indent=2, sort_keys=True))
+    return 0
 
 
 def _run_status(args: argparse.Namespace) -> int:
@@ -351,6 +485,78 @@ def _run_ingest_dataset(args: argparse.Namespace) -> int:
         return 1
 
     return _emit_command_result(result, command_path="ingest dataset")
+
+
+def _run_ingest_claim(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_claimcard_cli_input(args)
+        normalized_input = ingest_command.normalize_public_claimcard_cli_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = ingest_command.execute_claimcard_ingest_input(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"ingest claim failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="ingest claim")
+
+
+def _run_show_study(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_show_cli_input(card_family="StudyCard", target_id=args.study_id)
+        normalized_input = show_command.normalize_show_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            card, error = show_command.execute_show_study(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"show study failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if error is not None:
+        return _emit_command_result(error, command_path="show study")
+    return _emit_json_document(card)
+
+
+
+def _run_show_dataset(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_show_cli_input(card_family="DatasetCard", target_id=args.dataset_id)
+        normalized_input = show_command.normalize_show_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            card, error = show_command.execute_show_dataset(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"show dataset failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if error is not None:
+        return _emit_command_result(error, command_path="show dataset")
+    return _emit_json_document(card)
+
+
+
+def _run_show_claim(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_show_cli_input(card_family="ClaimCard", target_id=args.claim_id)
+        normalized_input = show_command.normalize_show_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            card, error = show_command.execute_show_claim(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"show claim failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if error is not None:
+        return _emit_command_result(error, command_path="show claim")
+    return _emit_json_document(card)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -70,20 +70,63 @@ The following commands are the current stable public CLI surface.
 - Source of truth:
   [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md)
 
-## Reserved Internal Command Families
+### `macro_veritas ingest claim`
 
-The following names remain reserved for broader future command-family work.
+- Purpose: create one canonical `ClaimCard` from explicit CLI fields.
+- Expected effect: converts explicit CLI flags into normalized ClaimCard ingest
+  input, prepares one `ClaimCardPayload`, calls ClaimCard create planning,
+  calls ClaimCard create execution, and writes one canonical YAML file through
+  the registry gateway.
+- What it should not do: update an existing `ClaimCard`, infer scientific
+  content, bypass the gateway, or widen into evidence-grading or extraction
+  workflow.
+- Source of truth:
+  [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md)
 
-- `ingest` is public only for create-only `StudyCard` and `DatasetCard` paths.
-- `ClaimCard` ingest remains internal/non-public.
-- All other command families remain internal or deferred.
+### `macro_veritas show study`
 
-Their internal command-family contract is frozen in
-[`docs/cli_command_contracts.md`](cli_command_contracts.md).
+- Purpose: read one canonical `StudyCard` by explicit ID.
+- Expected effect: converts the explicit `--study-id` flag into a narrow by-id
+  input mapping, calls `get_study_card`, and prints the raw hydrated card
+  mapping as JSON.
+- What it should not do: list studies, search studies, expand related records,
+  or bypass the gateway.
+- Source of truth:
+  [`docs/public_show_cli.md`](public_show_cli.md)
 
-| CLI Group | Intended Purpose | Current Status | Internal Skeleton Module | Governance Domain Alignment |
+### `macro_veritas show dataset`
+
+- Purpose: read one canonical `DatasetCard` by explicit ID.
+- Expected effect: converts the explicit `--dataset-id` flag into a narrow
+  by-id input mapping, calls `get_dataset_card`, and prints the raw hydrated
+  card mapping as JSON.
+- What it should not do: list datasets, search datasets, expand related
+  records, or bypass the gateway.
+- Source of truth:
+  [`docs/public_show_cli.md`](public_show_cli.md)
+
+### `macro_veritas show claim`
+
+- Purpose: read one canonical `ClaimCard` by explicit ID.
+- Expected effect: converts the explicit `--claim-id` flag into a narrow by-id
+  input mapping, calls `get_claim_card`, and prints the raw hydrated card
+  mapping as JSON.
+- What it should not do: list claims, search claims, expand related records,
+  or bypass the gateway.
+- Source of truth:
+  [`docs/public_show_cli.md`](public_show_cli.md)
+
+There is still no public list/search/update/delete capability for any card
+family.
+
+## Command Families
+
+The following command-family names are recognized in the current codebase.
+
+| CLI Group | Intended Purpose | Current Status | Internal Module | Governance Domain Alignment |
 | --- | --- | --- | --- | --- |
-| `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for create-only `StudyCard` at `ingest study` and create-only `DatasetCard` at `ingest dataset`; ClaimCard ingest remains non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
+| `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for create-only `StudyCard` at `ingest study`, create-only `DatasetCard` at `ingest dataset`, and create-only `ClaimCard` at `ingest claim`; update semantics remain non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
+| `show` | Read one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `show study`, by-id `DatasetCard` at `show dataset`, and by-id `ClaimCard` at `show claim`; list/search/update/delete semantics remain non-public. | `macro_veritas.commands.show` | Registry Department / 户部 |
 | `bind` | Associate registry records with concrete raw, processed, or run-facing artifact locations. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.bind` | Registry Department / 户部 |
 | `extract` | Capture structured claim or metadata fragments from curated sources into project records. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.extract` | Registry Department / 户部 |
 | `audit` | Record routine review outcomes such as `pass`, `return`, or `escalate`. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.audit` | Review Department / 刑部 |

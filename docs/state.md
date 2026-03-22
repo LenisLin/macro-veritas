@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Phase: Initialization / second public ingest command
+- Phase: Initialization / first public read CLI exposure
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -16,7 +16,8 @@
 - A documentation map exists at `docs/index.md` to support new contributors and
   new model sessions.
 - A minimal public CLI exists with `status`, `show-config`, `init-layout`,
-  `ingest study`, and `ingest dataset`.
+  `ingest study`, `ingest dataset`, `ingest claim`, `show study`,
+  `show dataset`, and `show claim`.
 - A committed project config defines the current external data root and
   placeholder layout paths.
 - The registry gateway implements real file-backed `StudyCard` read, exists,
@@ -27,15 +28,19 @@
   list, create, and update behavior.
 - The internal command layer implements a real StudyCard ingest bridge.
 - The internal command layer implements a real DatasetCard ingest bridge.
-- The public CLI exposes two real domain commands: create-only `StudyCard`
-  ingest at `ingest study` and create-only `DatasetCard` ingest at
-  `ingest dataset`.
-- The StudyCard ingest path adapts public CLI flags into normalized command
-  input, prepares a `StudyCardPayload`, calls StudyCard gateway planning and
-  runtime create, and returns a narrow command result mapping.
-- The DatasetCard ingest path adapts public CLI flags into normalized command
-  input, prepares a `DatasetCardPayload`, calls DatasetCard gateway planning
-  and runtime create, and returns a narrow command result mapping.
+- The internal command layer implements a real ClaimCard ingest bridge.
+- The internal command layer implements a real StudyCard show-by-id bridge.
+- The internal command layer implements a real DatasetCard show-by-id bridge.
+- The internal command layer implements a real ClaimCard show-by-id bridge.
+- The public CLI exposes the create triangle for `StudyCard`, `DatasetCard`,
+  and `ClaimCard` through `ingest study`, `ingest dataset`, and `ingest claim`.
+- The public CLI exposes show-by-id for all three core cards through
+  `show study`, `show dataset`, and `show claim`.
+- The public show path adapts explicit CLI flags into narrow by-id input,
+  calls `get_study_card` / `get_dataset_card` / `get_claim_card`, and returns
+  stable JSON to stdout on success.
+- Missing `StudyCard`, `DatasetCard`, and `ClaimCard` reads are translated into
+  clean command-level failures.
 - DatasetCard create/update enforce parent StudyCard existence at the gateway
   boundary.
 - ClaimCard create/update enforce parent StudyCard existence and optional
@@ -45,10 +50,8 @@
 - StudyCard, DatasetCard, and ClaimCard single-card writes use a temp-file plus
   replace atomic write flow.
 - Internal tests cover the StudyCard, DatasetCard, and ClaimCard runtime slices.
-- Internal tests cover the StudyCard ingest bridge and the public StudyCard and
-  DatasetCard CLI paths.
-- ClaimCard ingest remains non-public and skeleton-only.
-- The public CLI otherwise remains minimal.
+- Internal tests cover the public ingest and public show CLI paths for the
+  three core card families.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain skeleton-only.
 - AVCP-derived governance assets remain in place as internal process
   scaffolding.
@@ -64,9 +67,12 @@
 
 ## Explicitly Deferred
 
-- ClaimCard public ingest
+- public list/search/filter for StudyCard, DatasetCard, or ClaimCard
+- public update/delete for StudyCard, DatasetCard, or ClaimCard
+- relationship expansion or reverse lookups in public reads
 - StudyCard update or patch ingest
 - DatasetCard update or patch ingest
+- ClaimCard update or patch ingest
 - scientific pipelines
 - claim extraction
 - evidence grading logic
@@ -86,5 +92,5 @@
 ## Next Milestone
 
 - Extend runtime only where contracts remain narrow and honest, without
-  introducing scientific inference logic or widening the public CLI beyond the
-  current create-only StudyCard and DatasetCard ingest paths prematurely.
+  introducing scientific inference logic and without implying public
+  list/search/update/delete before those contracts are intentionally designed.

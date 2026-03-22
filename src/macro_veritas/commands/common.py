@@ -5,7 +5,7 @@ macro_veritas.commands.*.
 
 It does not dispatch broad public CLI command families or register parsers. It
 does provide a small result envelope and formatting helper for the real
-StudyCard and DatasetCard ingest bridges while keeping the rest of the command
+StudyCard, DatasetCard, and ClaimCard ingest bridges while keeping the rest of the command
 families internal-only.
 Boundary docs: docs/cli_command_contracts.md, docs/payload_contracts.md,
 docs/module_map.md, docs/datasetcard_runtime.md, and docs/api_specs.md.
@@ -29,11 +29,11 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
     "parser_builder_shape": "build_parser(subparsers_or_parser: object) -> None",
     "handler_shape": "handle_<family>_command(args: object) -> object",
     "runtime_status": (
-        "mixed; the StudyCard and DatasetCard ingest paths are runtime-real and all other "
-        "per-family execution remains explicitly documented"
+        "mixed; the StudyCard, DatasetCard, and ClaimCard ingest/show paths are runtime-real "
+        "and all other per-family execution remains explicitly documented"
     ),
     "public_exposure": (
-        "public ingest study and ingest dataset paths only; all other reserved families remain non-public"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, and show claim paths only; all other reserved families remain non-public"
     ),
     "file_io": "allowed only through the registry gateway for explicitly documented internal paths",
     "silent_side_effects": "forbidden",
@@ -50,7 +50,7 @@ _COMMAND_PAYLOAD_CONTRACT_STYLE: dict[str, object] = {
     ),
     "gateway_payload_layer": (
         "handlers prepare full-card StudyCardPayload / DatasetCardPayload / "
-        "ClaimCardPayload mappings for create or update planning"
+        "ClaimCardPayload mappings for create-only planning in the current public paths"
     ),
     "stored_card_representation_layer": (
         "frozen separately by docs/card_contracts.md and returned by gateway "
@@ -67,23 +67,33 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
 _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
     "source_of_truth_doc": "docs/cli_command_contracts.md",
     "public_cli_exposure": (
-        "public ingest study and ingest dataset exist as thin adapters over the internal ingest bridge"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, and show claim exist as thin adapters over the internal ingest/show bridges"
     ),
     "runtime_real_now": (
         "public StudyCard CLI adapter",
         "public DatasetCard CLI adapter",
+        "public ClaimCard CLI adapter",
+        "public StudyCard show CLI adapter",
+        "public DatasetCard show CLI adapter",
+        "public ClaimCard show CLI adapter",
         "StudyCard command-normalized ingest input",
         "DatasetCard command-normalized ingest input",
+        "ClaimCard command-normalized ingest input",
         "StudyCard payload preparation",
         "DatasetCard payload preparation",
+        "ClaimCard payload preparation",
         "StudyCard plan_create gateway call",
         "DatasetCard plan_create gateway call",
+        "ClaimCard plan_create gateway call",
         "StudyCard create gateway call",
         "DatasetCard create gateway call",
+        "ClaimCard create gateway call",
+        "StudyCard get-by-id gateway call",
+        "DatasetCard get-by-id gateway call",
+        "ClaimCard get-by-id gateway call",
         "command-layer success/failure result translation",
     ),
     "still_skeleton_only": (
-        "ClaimCard ingest",
         "bind",
         "extract",
         "audit",

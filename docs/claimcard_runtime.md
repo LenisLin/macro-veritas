@@ -10,11 +10,13 @@ MacroVeritas:
 - single-card atomic write behavior for ClaimCard create and update
 - gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
   enforcement for ClaimCard create and update
+- the public create-only `macro_veritas ingest claim` CLI entry point as a thin
+  adapter over the existing ClaimCard ingest bridge and gateway path
 - gateway translation of lower-level ClaimCard runtime failures into registry
   domain errors
 
-This milestone stays intentionally narrow. It makes ClaimCard registry IO
-runtime-real without widening the public CLI or implementing scientific logic.
+This milestone stays intentionally narrow. It makes ClaimCard registry IO and
+create-only public CLI intake real without implementing scientific logic.
 
 ## Runtime-Real Now
 
@@ -32,6 +34,10 @@ writing storage:
 - `plan_create_claim_card(card)`
 - `plan_update_claim_card(card)`
 
+The public CLI entry point that now sits above that gateway/runtime slice is:
+
+- `macro_veritas ingest claim`
+
 Interpretation:
 
 - `get_claim_card`, `claim_card_exists`, and `list_claim_cards` read real files
@@ -39,6 +45,9 @@ Interpretation:
   through the gateway only
 - `plan_create_claim_card` and `plan_update_claim_card` validate input and
   direct references, then return planning descriptors without writing files
+- `macro_veritas ingest claim` remains a thin adapter: CLI args are normalized
+  into command input, then into `ClaimCardPayload`, then routed through
+  `plan_create_claim_card(...)` and `create_claim_card(...)`
 
 ## Referential Integrity Rules
 
@@ -71,6 +80,8 @@ Current implementation notes:
   `BrokenReferenceError`
 - the same direct checks are also applied by `plan_create_claim_card` and
   `plan_update_claim_card`, but those functions still do not write storage
+- the public CLI surfaces those failures as clean command-level
+  `missing_reference` results rather than raw filesystem exceptions
 
 ## Canonical ClaimCard Path Rule
 
@@ -136,6 +147,10 @@ Implemented translations:
   `UnsupportedRegistryOperationError`
 - other filesystem failures -> `RegistryError`
 
+The public CLI translates those gateway/domain errors again into concise
+command-level results such as `duplicate_target`, `missing_reference`,
+`invalid_payload`, `unsupported_operation`, and `registry_failure`.
+
 ## Non-Goals
 
 This milestone does not add:
@@ -145,6 +160,6 @@ This milestone does not add:
 - evidence grading
 - multi-card transactions
 - reverse indexes or manifests
-- public CLI create/update commands
+- public ClaimCard update or patch commands
 - FastAPI, SQL, notebook workflow, plugin discovery, or orchestration runtime
 - CellVoyager integration
