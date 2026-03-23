@@ -164,6 +164,9 @@ class StudyCardIngestInput(_StudyCardIngestInputRequired, total=False):
     source_artifact: str
 
 
+StudyCardFileInput: TypeAlias = Mapping[str, object]
+
+
 class _StudyCardCLIInputRequired(TypedDict):
     """Required fields for the public ingest study CLI adapter boundary."""
 
@@ -228,6 +231,9 @@ class DatasetCardIngestInput(_DatasetCardIngestInputRequired, total=False):
     availability_note: str
 
 
+DatasetCardFileInput: TypeAlias = Mapping[str, object]
+
+
 class _DatasetCardCLIInputRequired(TypedDict):
     """Required fields for the public ingest dataset CLI adapter boundary."""
 
@@ -290,7 +296,7 @@ class ClaimCardIngestInput(_ClaimCardIngestInputRequired, total=False):
     claim_summary_handle: str
 
 
-ClaimCardFileInput: TypeAlias = ClaimCardIngestInput
+ClaimCardFileInput: TypeAlias = Mapping[str, object]
 
 
 class _ClaimCardCLIInputRequired(TypedDict):
@@ -477,6 +483,7 @@ __all__ = [
     "CardFieldName",
     "CardFieldSequence",
     "ClaimCardCLIInput",
+    "ClaimCardFileInput",
     "ClaimCardIngestInput",
     "ClaimCardPayload",
     "ClaimCardStatus",
@@ -490,6 +497,7 @@ __all__ = [
     "ContractCategoryName",
     "DatasetAvailabilityStatus",
     "DatasetCardCLIInput",
+    "DatasetCardFileInput",
     "DatasetCardIngestInput",
     "DatasetCardPayload",
     "DatasetCardStatus",
@@ -522,6 +530,7 @@ __all__ = [
     "StudyCardSummary",
     "ShowCLIInput",
     "StudyCardCLIInput",
+    "StudyCardFileInput",
     "StudyCardIngestInput",
     "StudyCardPayload",
     "StudyScreeningDecision",

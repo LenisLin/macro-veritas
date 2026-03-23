@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Phase: Initialization / first public ClaimCard file-based ingest exposure
+- Phase: Initialization / public single-file ingest parity across the three core cards
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -16,8 +16,9 @@
 - A documentation map exists at `docs/index.md` to support new contributors and
   new model sessions.
 - A minimal public CLI exists with `status`, `show-config`, `init-layout`,
-  `ingest study`, `ingest dataset`, `ingest claim`,
-  `ingest claim --from-file`, `show study`, `show dataset`, `show claim`,
+  `ingest study`, `ingest study --from-file`, `ingest dataset`,
+  `ingest dataset --from-file`, `ingest claim`, `ingest claim --from-file`,
+  `show study`, `show dataset`, `show claim`,
   `list studies`, `list datasets`, `list claims`, `delete study`,
   `delete dataset`, and `delete claim`.
 - A committed project config defines the current external data root and
@@ -31,7 +32,7 @@
 - The internal command layer implements a real StudyCard ingest bridge.
 - The internal command layer implements a real DatasetCard ingest bridge.
 - The internal command layer implements a real ClaimCard ingest bridge.
-- The internal command layer also implements a ClaimCard-only single-file YAML ingest bridge that loads one mapping, normalizes it to the same ClaimCard ingest input, and then reuses the existing ClaimCard payload/create path.
+- The internal command layer implements single-file YAML ingest bridges for StudyCard, DatasetCard, and ClaimCard that each load one mapping, normalize it to the same card-family ingest input used by the flag-based path, and then reuse the existing payload/create path.
 - The internal command layer implements a real StudyCard show-by-id bridge.
 - The internal command layer implements a real DatasetCard show-by-id bridge.
 - The internal command layer implements a real ClaimCard show-by-id bridge.
@@ -43,7 +44,7 @@
 - The internal command layer implements a real ClaimCard delete bridge.
 - The public CLI exposes the create triangle for `StudyCard`, `DatasetCard`,
   and `ClaimCard` through `ingest study`, `ingest dataset`, and `ingest claim`.
-- The public CLI also exposes ClaimCard-only single-file YAML create-only ingest through `ingest claim --from-file <path.yaml>`.
+- The public CLI also exposes single-file YAML create-only ingest through `ingest study --from-file <path.yaml>`, `ingest dataset --from-file <path.yaml>`, and `ingest claim --from-file <path.yaml>`.
 - The public CLI exposes show-by-id for all three core cards through
   `show study`, `show dataset`, and `show claim`.
 - The public CLI exposes family-level discovery for all three core cards
@@ -76,7 +77,7 @@
   replace atomic write flow.
 - Internal tests cover the StudyCard, DatasetCard, and ClaimCard runtime slices.
 - Internal tests cover the public ingest, public show, and public list CLI
-  paths for the three core card families, including ClaimCard `--from-file` ingest.
+  paths for the three core card families, including single-file `--from-file` ingest for StudyCard, DatasetCard, and ClaimCard.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain skeleton-only.
 - AVCP-derived governance assets remain in place as internal process
   scaffolding.
@@ -87,7 +88,7 @@
   filesystem-oriented registry/persistence.
 - Planned object families and future CLI growth beyond the current slice are
   documented at a placeholder level only.
-- StudyCard and DatasetCard file-based ingest are still absent.
+- Batch and directory-based ingest remain absent even though single-file YAML ingest now exists for StudyCard, DatasetCard, and ClaimCard.
 - Future execution-layer patterns may draw limited inspiration from
   CellVoyager, but no such layer is implemented here.
 
@@ -104,8 +105,6 @@
 - StudyCard update or patch ingest
 - DatasetCard update or patch ingest
 - ClaimCard update or patch ingest
-- StudyCard file-based ingest
-- DatasetCard file-based ingest
 - batch or directory-based file ingest
 - scientific pipelines
 - claim extraction

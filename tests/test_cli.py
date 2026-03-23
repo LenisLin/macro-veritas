@@ -87,7 +87,7 @@ def test_ingest_help_shows_public_study_dataset_and_claim_subcommands_only() -> 
     assert "extract" not in result.stdout
 
 
-def test_ingest_claim_help_shows_claim_only_from_file_option() -> None:
+def test_ingest_help_shows_from_file_option_for_all_three_card_families() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "macro_veritas", "ingest", "claim", "--help"],
         check=False,
@@ -114,8 +114,8 @@ def test_ingest_claim_help_shows_claim_only_from_file_option() -> None:
     assert "--from-file" in result.stdout
     assert study_result.returncode == 0, study_result.stderr
     assert dataset_result.returncode == 0, dataset_result.stderr
-    assert "--from-file" not in study_result.stdout
-    assert "--from-file" not in dataset_result.stdout
+    assert "--from-file" in study_result.stdout
+    assert "--from-file" in dataset_result.stdout
 
 
 def test_show_help_shows_public_study_dataset_and_claim_subcommands_only() -> None:

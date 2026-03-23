@@ -2,12 +2,11 @@
 
 ## Purpose
 
-This document is the source of truth for the first file-based ingest milestone.
+This document is the source of truth for file-based `ClaimCard` ingest.
 
-- It defines the ClaimCard-only `--from-file` public path.
-- It fixes the narrow end-to-end bridge:
-  raw file path -> YAML mapping load -> normalized ClaimCard ingest input -> `ClaimCardPayload` -> gateway create -> canonical YAML file write.
-- It keeps the scope narrow: single-file, create-only, YAML-only ClaimCard ingest.
+- It defines the public `ingest claim --from-file` path.
+- It fixes the narrow bridge: file path -> YAML mapping load -> normalized ClaimCard ingest input -> `ClaimCardPayload` -> gateway create -> canonical YAML write.
+- It stays aligned with the StudyCard and DatasetCard file-ingest paths: single-file, create-only, YAML-mapping ingest only.
 
 ## Exact CLI Shape
 
@@ -27,10 +26,10 @@ python -m macro_veritas ingest claim --from-file <path.yaml>
 
 - Format: YAML only
 - File shape: one mapping at the document root
-- Supported card family in this milestone: `ClaimCard` only
-- Supported file count in this milestone: one file only
-- Input keys follow the existing ClaimCard ingest-input names, not the stored canonical YAML names
-- In particular, the input file uses `created_from`; the stored canonical ClaimCard still uses `created_from_note`
+- File count: one file only
+- YAML is loaded safely and the root mapping keys must be strings
+- Input keys use the existing ClaimCard ingest-input names, not the stored canonical YAML names
+- In particular, the input file uses `created_from`; the stored canonical ClaimCard still writes `created_from_note`
 
 Example:
 
@@ -63,14 +62,16 @@ dataset_ids:
 ## Optional Keys
 
 - `dataset_ids`
-  - If provided, it must be a YAML sequence of dataset IDs.
+  - If provided, it must be a YAML sequence of strings.
 - `claim_summary_handle`
+  - If provided, it must be a string.
 
 ## Mixed-Input Rule
 
 - `--from-file` cannot be combined with ClaimCard field flags.
 - This includes required field flags such as `--claim-id` and optional field flags such as `--dataset-id`.
-- Mixed usage fails as a command-level `invalid_payload` result.
+- Mixed usage fails at the command layer before gateway work.
+- Mixed usage is surfaced as an `invalid_payload` CLI failure.
 - There is no precedence rule in this milestone.
 
 ## Success Output Expectations
@@ -78,7 +79,7 @@ dataset_ids:
 - Exit code: `0`
 - Output channel: standard output
 - Output style: one concise line, for example `ingest claim: created ClaimCard claim-001`
-- Side effect: the existing ClaimCard gateway create path writes one canonical YAML file beneath the configured registry root
+- Side effect: the existing ClaimCard create path writes one canonical YAML file beneath the configured registry root
 
 ## Failure Output Expectations
 
@@ -99,12 +100,10 @@ dataset_ids:
 
 ## Non-Goals
 
-- StudyCard `--from-file` ingest
-- DatasetCard `--from-file` ingest
 - batch ingest
 - directory scans or config-driven file discovery
 - update, replace, or patch semantics
-- JSON input mode
+- JSON input mode as a public contract
 - scientific logic
 - evidence grading
 - CellVoyager integration

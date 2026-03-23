@@ -30,13 +30,14 @@ This document now describes a mixed implementation state.
 - Owning module: `macro_veritas.commands.ingest`
 - Owning domain: Registry Department / 户部, intake boundary
 - Purpose: execute the current StudyCard, DatasetCard, and ClaimCard ingest
-  bridges, including the ClaimCard-only single-file YAML path, while keeping
-  update/patch ingest semantics deferred
+  bridges, including the single-file YAML paths for StudyCard, DatasetCard,
+  and ClaimCard, while keeping update/patch ingest semantics deferred
 - Payload contract source: [`docs/payload_contracts.md`](payload_contracts.md)
 - MVP payload families touched: `StudyCardPayload`, `DatasetCardPayload`,
   `ClaimCardPayload`
 - Expected primary inputs: internal StudyCard, DatasetCard, or ClaimCard
-  ingest input; ClaimCard-only single-file YAML mapping input; target
+  ingest input; StudyCard, DatasetCard, or ClaimCard single-file YAML
+  mapping input; target
   card-family label; full-card StudyCard/DatasetCard/ClaimCard payload
   prepared from normalized intake input; and provenance/reference notes already
   carried by those inputs
@@ -44,13 +45,16 @@ This document now describes a mixed implementation state.
   create-plan request; StudyCard, DatasetCard, or ClaimCard gateway create
   execution; and an internal command result mapping
 - Expected dependency boundary: registry governance intake descriptors,
-  card-contract docs, payload-contract docs, runtime docs, public ClaimCard
-  file-ingest docs, and registry gateway create-planning/create contracts
+  card-contract docs, payload-contract docs, runtime docs, public StudyCard,
+  DatasetCard, and ClaimCard file-ingest docs, and registry gateway
+  create-planning/create contracts
 - Public paths now:
   - `macro_veritas ingest study` is a thin adapter over the StudyCard bridge
+  - `macro_veritas ingest study --from-file` is a thin adapter over the same StudyCard bridge after YAML file load and normalization
   - `macro_veritas ingest dataset` is a thin adapter over the DatasetCard bridge
+  - `macro_veritas ingest dataset --from-file` is a thin adapter over the same DatasetCard bridge after YAML file load and normalization
   - `macro_veritas ingest claim` is a thin adapter over the ClaimCard bridge
-  - `macro_veritas ingest claim --from-file` is a ClaimCard-only thin adapter over the same ClaimCard bridge after YAML file load and normalization
+  - `macro_veritas ingest claim --from-file` is a thin adapter over the same ClaimCard bridge after YAML file load and normalization
 - Runtime status now:
   - public StudyCard create-only ingest is implemented through normalized
     command input, `plan_create_study_card(...)`, and `create_study_card(...)`
@@ -58,6 +62,12 @@ This document now describes a mixed implementation state.
     command input, `plan_create_dataset_card(...)`, and `create_dataset_card(...)`
   - public ClaimCard create-only ingest is implemented through normalized
     command input, `plan_create_claim_card(...)`, and `create_claim_card(...)`
+  - public StudyCard file-based ingest is implemented through YAML mapping load,
+    file-input normalization, `plan_create_study_card(...)`, and
+    `create_study_card(...)`
+  - public DatasetCard file-based ingest is implemented through YAML mapping load,
+    file-input normalization, `plan_create_dataset_card(...)`, and
+    `create_dataset_card(...)`
   - public ClaimCard file-based ingest is implemented through YAML mapping load,
     file-input normalization, `plan_create_claim_card(...)`, and
     `create_claim_card(...)`
@@ -66,8 +76,8 @@ This document now describes a mixed implementation state.
   - missing referenced `DatasetCard` failures for ClaimCard ingest are
     translated to a clean command-level `missing_reference` result
 - Still deferred inside `ingest`: StudyCard update/patch ingest, DatasetCard
-  update/patch ingest, ClaimCard update/patch ingest, StudyCard/DatasetCard
-  file-based ingest, batch file ingest, and broader identifier allocation
+  update/patch ingest, ClaimCard update/patch ingest, batch file ingest, and
+  broader identifier allocation
   behavior
 - Non-goals in this milestone: no StudyCard, DatasetCard, or ClaimCard
   update/patch ingest; no StudyCard or DatasetCard `--from-file` ingest; no
@@ -286,15 +296,16 @@ The frozen internal command style is conservative:
   bridges, and the StudyCard, DatasetCard, and ClaimCard by-id delete bridges;
   other command families remain descriptor/skeleton-only
 - file IO is allowed through the registry gateway for registry mutations and
-  through the documented ClaimCard-only single-file YAML intake path at
-  `ingest claim --from-file`
+  through the documented single-file YAML intake paths at `ingest study
+  --from-file`, `ingest dataset --from-file`, and `ingest claim --from-file`
 - raw `argparse.Namespace` objects remain outside the command-to-gateway
   boundary
 - no silent side effects
 
 Interpretation:
 
-- the public CLI adapts parsed `ingest study`, `ingest dataset`, `ingest claim`,
+- the public CLI adapts parsed `ingest study`, `ingest study --from-file`,
+  `ingest dataset`, `ingest dataset --from-file`, `ingest claim`,
   `ingest claim --from-file`, `show study`, `show dataset`, `show claim`,
   `list studies`, `list datasets`, `list claims`, `delete study`,
   `delete dataset`, and `delete claim` commands into typed mappings and then
@@ -325,8 +336,12 @@ exceptions.
   `DatasetCard` ingest.
 - `python -m macro_veritas ingest claim` is public for create-only `ClaimCard`
   ingest.
-- `python -m macro_veritas ingest claim --from-file` is public for ClaimCard-only
-  single-file YAML create ingest.
+- `python -m macro_veritas ingest study --from-file` is public for single-file
+  YAML `StudyCard` create ingest.
+- `python -m macro_veritas ingest dataset --from-file` is public for single-file
+  YAML `DatasetCard` create ingest.
+- `python -m macro_veritas ingest claim --from-file` is public for single-file
+  YAML `ClaimCard` create ingest.
 - `python -m macro_veritas show study` is public for by-id `StudyCard` read.
 - `python -m macro_veritas show dataset` is public for by-id `DatasetCard`
   read.

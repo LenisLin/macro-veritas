@@ -36,6 +36,35 @@ from .shared.types import (
 
 SCAFFOLD_STAGE = "Initialization / scaffold"
 
+_STUDYCARD_REQUIRED_FIELD_FLAGS: tuple[tuple[str, str], ...] = (
+    ("study_id", "--study-id"),
+    ("citation_handle", "--citation-handle"),
+    ("tumor_type", "--tumor-type"),
+    ("therapy_scope", "--therapy-scope"),
+    ("relevance_scope", "--relevance-scope"),
+    ("screening_decision", "--screening-decision"),
+    ("status", "--status"),
+    ("created_from", "--created-from"),
+)
+_STUDYCARD_ALL_FIELD_FLAGS: tuple[tuple[str, str], ...] = (
+    _STUDYCARD_REQUIRED_FIELD_FLAGS
+    + (("screening_note", "--screening-note"), ("source_artifact", "--source-artifact"))
+)
+_DATASETCARD_REQUIRED_FIELD_FLAGS: tuple[tuple[str, str], ...] = (
+    ("dataset_id", "--dataset-id"),
+    ("study_id", "--study-id"),
+    ("status", "--status"),
+    ("modality_scope", "--modality-scope"),
+    ("platform_summary", "--platform-summary"),
+    ("cohort_summary", "--cohort-summary"),
+    ("locator_confidence_note", "--locator-confidence-note"),
+    ("source_locator", "--source-locator"),
+    ("availability_status", "--availability-status"),
+)
+_DATASETCARD_ALL_FIELD_FLAGS: tuple[tuple[str, str], ...] = (
+    _DATASETCARD_REQUIRED_FIELD_FLAGS
+    + (("accession_id", "--accession-id"), ("availability_note", "--availability-note"), ("artifact_locator", "--artifact-locator"))
+)
 _CLAIMCARD_REQUIRED_FIELD_FLAGS: tuple[tuple[str, str], ...] = (
     ("claim_id", "--claim-id"),
     ("study_id", "--study-id"),
@@ -94,14 +123,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     study_parser = ingest_subparsers.add_parser(
         "study",
-        help="Create one StudyCard from explicit CLI fields",
+        help="Create one StudyCard from explicit CLI fields or one YAML file",
     )
     _configure_study_ingest_parser(study_parser)
     study_parser.set_defaults(handler=_run_ingest_study)
 
     dataset_parser = ingest_subparsers.add_parser(
         "dataset",
-        help="Create one DatasetCard from explicit CLI fields",
+        help="Create one DatasetCard from explicit CLI fields or one YAML file",
     )
     _configure_dataset_ingest_parser(dataset_parser)
     dataset_parser.set_defaults(handler=_run_ingest_dataset)
@@ -238,45 +267,44 @@ def _print_lines(lines: Iterable[str]) -> None:
 
 
 def _configure_study_ingest_parser(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--study-id", required=True, help="Canonical StudyCard identifier")
+    parser.add_argument(
+        "--from-file",
+        default=None,
+        type=Path,
+        help="Load one StudyCard ingest mapping from a YAML file; not combinable with field flags",
+    )
+    parser.add_argument("--study-id", help="Canonical StudyCard identifier")
     parser.add_argument(
         "--citation-handle",
-        required=True,
         help="Stable citation or accession handle for the study",
     )
     parser.add_argument(
         "--tumor-type",
         action="append",
-        required=True,
         help="Repeatable tumor scope tag",
     )
     parser.add_argument(
         "--therapy-scope",
         action="append",
-        required=True,
         help="Repeatable therapy scope tag",
     )
     parser.add_argument(
         "--relevance-scope",
         action="append",
-        required=True,
         help="Repeatable relevance scope tag",
     )
     parser.add_argument(
         "--screening-decision",
-        required=True,
         choices=allowed_screening_decisions(),
         help="StudyCard screening decision",
     )
     parser.add_argument(
         "--status",
-        required=True,
         choices=allowed_study_statuses(),
         help="StudyCard lifecycle status",
     )
     parser.add_argument(
         "--created-from",
-        required=True,
         help="Provenance note describing where this StudyCard came from",
     )
     parser.add_argument(
@@ -292,47 +320,45 @@ def _configure_study_ingest_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def _configure_dataset_ingest_parser(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--dataset-id", required=True, help="Canonical DatasetCard identifier")
+    parser.add_argument(
+        "--from-file",
+        default=None,
+        type=Path,
+        help="Load one DatasetCard ingest mapping from a YAML file; not combinable with field flags",
+    )
+    parser.add_argument("--dataset-id", help="Canonical DatasetCard identifier")
     parser.add_argument(
         "--study-id",
-        required=True,
         help="Canonical parent StudyCard identifier",
     )
     parser.add_argument(
         "--status",
-        required=True,
         choices=allowed_dataset_statuses(),
         help="DatasetCard lifecycle status",
     )
     parser.add_argument(
         "--modality-scope",
         action="append",
-        required=True,
         help="Repeatable modality scope tag",
     )
     parser.add_argument(
         "--platform-summary",
-        required=True,
         help="Minimal human-readable platform or assay summary",
     )
     parser.add_argument(
         "--cohort-summary",
-        required=True,
         help="Minimal human-readable cohort summary",
     )
     parser.add_argument(
         "--locator-confidence-note",
-        required=True,
         help="Short provenance note explaining why the locator is trusted",
     )
     parser.add_argument(
         "--source-locator",
-        required=True,
         help="Primary accession, URL, or supplement locator for the dataset",
     )
     parser.add_argument(
         "--availability-status",
-        required=True,
         choices=allowed_dataset_availability_statuses(),
         help="Dataset access label",
     )
@@ -359,8 +385,7 @@ def _configure_claim_ingest_parser(parser: argparse.ArgumentParser) -> None:
         default=None,
         type=Path,
         help=(
-            "Load one ClaimCard ingest mapping from a YAML file; ClaimCard-only "
-            "and not combinable with field flags"
+            "Load one ClaimCard ingest mapping from a YAML file; not combinable with field flags"
         ),
     )
     parser.add_argument("--claim-id", help="Canonical ClaimCard identifier")
@@ -464,6 +489,38 @@ def _build_claimcard_cli_input(args: argparse.Namespace) -> ClaimCardCLIInput:
     return cli_input
 
 
+def _studycard_field_flag_values(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "study_id": args.study_id,
+        "citation_handle": args.citation_handle,
+        "tumor_type": args.tumor_type,
+        "therapy_scope": args.therapy_scope,
+        "relevance_scope": args.relevance_scope,
+        "screening_decision": args.screening_decision,
+        "status": args.status,
+        "created_from": args.created_from,
+        "screening_note": args.screening_note,
+        "source_artifact": args.source_artifact,
+    }
+
+
+def _datasetcard_field_flag_values(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "dataset_id": args.dataset_id,
+        "study_id": args.study_id,
+        "status": args.status,
+        "modality_scope": args.modality_scope,
+        "platform_summary": args.platform_summary,
+        "cohort_summary": args.cohort_summary,
+        "locator_confidence_note": args.locator_confidence_note,
+        "source_locator": args.source_locator,
+        "availability_status": args.availability_status,
+        "accession_id": args.accession_id,
+        "availability_note": args.availability_note,
+        "artifact_locator": args.artifact_locator,
+    }
+
+
 def _claimcard_field_flag_values(args: argparse.Namespace) -> dict[str, object]:
     return {
         "claim_id": args.claim_id,
@@ -479,17 +536,23 @@ def _claimcard_field_flag_values(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
-def _resolve_claimcard_ingest_mode(args: argparse.Namespace) -> str:
-    field_values = _claimcard_field_flag_values(args)
+def _resolve_ingest_mode(
+    *,
+    args: argparse.Namespace,
+    card_family: str,
+    field_values: dict[str, object],
+    required_field_flags: tuple[tuple[str, str], ...],
+    all_field_flags: tuple[tuple[str, str], ...],
+) -> str:
     provided_field_flags = [
         option
-        for field_name, option in _CLAIMCARD_ALL_FIELD_FLAGS
+        for field_name, option in all_field_flags
         if field_values[field_name] is not None
     ]
     if args.from_file is not None:
         if provided_field_flags:
             raise ValueError(
-                "ClaimCard --from-file cannot be combined with field flags: "
+                f"{card_family} --from-file cannot be combined with field flags: "
                 + ", ".join(provided_field_flags)
                 + "."
             )
@@ -497,16 +560,46 @@ def _resolve_claimcard_ingest_mode(args: argparse.Namespace) -> str:
 
     missing_required_flags = [
         option
-        for field_name, option in _CLAIMCARD_REQUIRED_FIELD_FLAGS
+        for field_name, option in required_field_flags
         if field_values[field_name] is None
     ]
     if missing_required_flags:
         raise ValueError(
-            "ClaimCard flag-based ingest requires "
+            f"{card_family} flag-based ingest requires "
             + ", ".join(missing_required_flags)
             + " unless --from-file is used."
         )
     return "flags"
+
+
+def _resolve_studycard_ingest_mode(args: argparse.Namespace) -> str:
+    return _resolve_ingest_mode(
+        args=args,
+        card_family="StudyCard",
+        field_values=_studycard_field_flag_values(args),
+        required_field_flags=_STUDYCARD_REQUIRED_FIELD_FLAGS,
+        all_field_flags=_STUDYCARD_ALL_FIELD_FLAGS,
+    )
+
+
+def _resolve_datasetcard_ingest_mode(args: argparse.Namespace) -> str:
+    return _resolve_ingest_mode(
+        args=args,
+        card_family="DatasetCard",
+        field_values=_datasetcard_field_flag_values(args),
+        required_field_flags=_DATASETCARD_REQUIRED_FIELD_FLAGS,
+        all_field_flags=_DATASETCARD_ALL_FIELD_FLAGS,
+    )
+
+
+def _resolve_claimcard_ingest_mode(args: argparse.Namespace) -> str:
+    return _resolve_ingest_mode(
+        args=args,
+        card_family="ClaimCard",
+        field_values=_claimcard_field_flag_values(args),
+        required_field_flags=_CLAIMCARD_REQUIRED_FIELD_FLAGS,
+        all_field_flags=_CLAIMCARD_ALL_FIELD_FLAGS,
+    )
 
 
 def _build_show_cli_input(*, card_family: str, target_id: str) -> ShowCLIInput:
@@ -598,10 +691,14 @@ def _run_init_layout(args: argparse.Namespace) -> int:
 
 def _run_ingest_study(args: argparse.Namespace) -> int:
     try:
-        cli_input = _build_studycard_cli_input(args)
-        normalized_input = ingest_command.normalize_public_studycard_cli_input(cli_input)
+        mode = _resolve_studycard_ingest_mode(args)
         with _configured_runtime_environment(args.config):
-            result = ingest_command.execute_studycard_ingest_input(normalized_input)
+            if mode == "from_file":
+                result = ingest_command.execute_studycard_ingest_from_file(args.from_file)
+            else:
+                cli_input = _build_studycard_cli_input(args)
+                normalized_input = ingest_command.normalize_public_studycard_cli_input(cli_input)
+                result = ingest_command.execute_studycard_ingest_input(normalized_input)
     except (FileNotFoundError, ValueError) as exc:
         print(
             f"ingest study failed [invalid_payload]: {exc}",
@@ -614,10 +711,14 @@ def _run_ingest_study(args: argparse.Namespace) -> int:
 
 def _run_ingest_dataset(args: argparse.Namespace) -> int:
     try:
-        cli_input = _build_datasetcard_cli_input(args)
-        normalized_input = ingest_command.normalize_public_datasetcard_cli_input(cli_input)
+        mode = _resolve_datasetcard_ingest_mode(args)
         with _configured_runtime_environment(args.config):
-            result = ingest_command.execute_datasetcard_ingest_input(normalized_input)
+            if mode == "from_file":
+                result = ingest_command.execute_datasetcard_ingest_from_file(args.from_file)
+            else:
+                cli_input = _build_datasetcard_cli_input(args)
+                normalized_input = ingest_command.normalize_public_datasetcard_cli_input(cli_input)
+                result = ingest_command.execute_datasetcard_ingest_input(normalized_input)
     except (FileNotFoundError, ValueError) as exc:
         print(
             f"ingest dataset failed [invalid_payload]: {exc}",

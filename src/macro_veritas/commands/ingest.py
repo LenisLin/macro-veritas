@@ -2,17 +2,17 @@
 
 Owning domain: Registry Department / 户部 intake boundary.
 Implemented now:
-- thin public CLI adapter support for `ingest study`
-- thin public CLI adapter support for `ingest dataset`
-- thin public CLI adapter support for `ingest claim`
+- thin public CLI adapter support for `ingest study`, `ingest dataset`, and `ingest claim`
+- thin public CLI adapter support for `ingest study --from-file`, `ingest dataset --from-file`, and `ingest claim --from-file`
 - internal StudyCard, DatasetCard, and ClaimCard ingest input normalization
+- single-file YAML mapping load + normalization for StudyCard, DatasetCard, and ClaimCard ingest
 - StudyCard, DatasetCard, and ClaimCard payload preparation against the frozen payload contract
 - StudyCard, DatasetCard, and ClaimCard gateway planning + runtime create execution
 - command-layer success/failure result translation
 
 Deferred:
 - StudyCard, DatasetCard, or ClaimCard update/patch ingest semantics
-- broader ingest expansion beyond the narrow public create-only paths
+- broader ingest expansion beyond the narrow public create-only and single-file ingest paths
 """
 
 from __future__ import annotations
@@ -56,11 +56,13 @@ from macro_veritas.shared.types import (
     CommandPayloadDescriptor,
     DatasetAvailabilityStatus,
     DatasetCardCLIInput,
+    DatasetCardFileInput,
     DatasetCardIngestInput,
     DatasetCardPayload,
     DatasetCardStatus,
     DescriptorSequence,
     StudyCardCLIInput,
+    StudyCardFileInput,
     StudyCardIngestInput,
     StudyCardPayload,
     StudyCardStatus,
@@ -73,11 +75,13 @@ _OWNING_MODULE = "macro_veritas.commands.ingest"
 _OWNING_DOMAIN = "Registry Department / 户部"
 _PURPOSE = (
     "Execute the narrow public StudyCard, DatasetCard, and ClaimCard ingest bridges, "
-    "including ClaimCard-only single-file YAML intake, while keeping update semantics deferred."
+    "including single-file YAML intake for all three core card families, while keeping update semantics deferred."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
     "public StudyCard CLI adapter input",
+    "public StudyCard single-file YAML mapping input",
     "public DatasetCard CLI adapter input",
+    "public DatasetCard single-file YAML mapping input",
     "public ClaimCard CLI adapter input",
     "public ClaimCard single-file YAML mapping input",
     "internal StudyCard, DatasetCard, or ClaimCard ingest input",
@@ -98,6 +102,10 @@ _DEPENDENCY_CONTRACTS: DescriptorSequence = (
     "docs/ingest_studycard_runtime.md",
     "docs/datasetcard_runtime.md",
     "docs/claimcard_runtime.md",
+    "docs/public_ingest_studycard_cli.md",
+    "docs/public_ingest_studycard_from_file.md",
+    "docs/public_ingest_datasetcard_cli.md",
+    "docs/public_ingest_datasetcard_from_file.md",
     "docs/public_ingest_claimcard_cli.md",
     "docs/public_ingest_claimcard_from_file.md",
     "macro_veritas.governance.departments.registry",
@@ -150,17 +158,15 @@ _DEFERRED_CAPABILITIES: DescriptorSequence = (
     "StudyCard update or patch ingest semantics",
     "DatasetCard update or patch ingest semantics",
     "ClaimCard update or patch ingest semantics",
-    "StudyCard file-based ingest input",
-    "DatasetCard file-based ingest input",
     "identifier allocation beyond caller-provided canonical IDs",
-    "broader ingest surfaces such as directory-driven or batch file input",
+    "broader ingest surfaces such as multi-file, directory-driven, or batch file input",
 )
 _NON_GOALS: DescriptorSequence = (
     "StudyCard update or patch ingest",
     "DatasetCard update or patch ingest",
     "ClaimCard update or patch ingest",
-    "StudyCard or DatasetCard file-based ingest",
     "batch ingest",
+    "directory-driven or bulk config file ingest",
     "scientific logic",
     "evidence grading",
     "CellVoyager integration",
@@ -174,6 +180,42 @@ _UNSAFE_STUDY_ID_MESSAGE_FRAGMENTS: tuple[str, ...] = (
     "must be a canonical identifier, not a path",
     "must not contain surrounding whitespace",
     "must not contain NUL bytes",
+)
+_STUDYCARD_FILE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "study_id",
+    "citation_handle",
+    "tumor_type",
+    "therapy_scope",
+    "relevance_scope",
+    "screening_decision",
+    "status",
+    "created_from",
+)
+_STUDYCARD_FILE_OPTIONAL_FIELDS: tuple[str, ...] = (
+    "screening_note",
+    "source_artifact",
+)
+_STUDYCARD_FILE_ALLOWED_FIELDS: tuple[str, ...] = (
+    _STUDYCARD_FILE_REQUIRED_FIELDS + _STUDYCARD_FILE_OPTIONAL_FIELDS
+)
+_DATASETCARD_FILE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "dataset_id",
+    "study_id",
+    "status",
+    "modality_scope",
+    "platform_summary",
+    "cohort_summary",
+    "locator_confidence_note",
+    "source_locator",
+    "availability_status",
+)
+_DATASETCARD_FILE_OPTIONAL_FIELDS: tuple[str, ...] = (
+    "accession_id",
+    "availability_note",
+    "artifact_locator",
+)
+_DATASETCARD_FILE_ALLOWED_FIELDS: tuple[str, ...] = (
+    _DATASETCARD_FILE_REQUIRED_FIELDS + _DATASETCARD_FILE_OPTIONAL_FIELDS
 )
 _CLAIMCARD_FILE_REQUIRED_FIELDS: tuple[str, ...] = (
     "claim_id",
@@ -213,8 +255,9 @@ def describe_command_family() -> CommandDescriptor:
         dependency_contracts=_DEPENDENCY_CONTRACTS,
         non_goals=_NON_GOALS,
         public_exposure=(
-            "public `ingest study`, `ingest dataset`, `ingest claim`, and ClaimCard-only "
-            "single-file YAML intake at `ingest claim --from-file`; update semantics stay non-public"
+            "public `ingest study`, `ingest study --from-file`, `ingest dataset`, "
+            "`ingest dataset --from-file`, `ingest claim`, and `ingest claim --from-file`; "
+            "update semantics stay non-public"
         ),
     )
 
@@ -449,26 +492,229 @@ def normalize_public_claimcard_cli_input(
     )
 
 
-def load_claimcard_ingest_file(path: str | Path) -> ClaimCardFileInput:
-    """Load one ClaimCard ingest mapping from a YAML file."""
+def _load_ingest_yaml_mapping(
+    path: str | Path,
+    *,
+    card_family: CardFamilyName,
+) -> dict[str, object]:
+    """Load one card-family ingest mapping from a YAML file."""
 
     input_path = Path(path)
     try:
         document = input_path.read_text(encoding="utf-8")
     except FileNotFoundError as exc:
-        raise ValueError(f"ClaimCard ingest file was not found: {input_path}.") from exc
+        raise ValueError(f"{card_family} ingest file was not found: {input_path}.") from exc
     except OSError as exc:
-        raise ValueError(f"ClaimCard ingest file could not be read: {input_path}.") from exc
+        raise ValueError(f"{card_family} ingest file could not be read: {input_path}.") from exc
 
     try:
         parsed = yaml.safe_load(document)
     except yaml.YAMLError as exc:
-        raise ValueError(f"ClaimCard ingest file is not valid YAML: {input_path}.") from exc
+        raise ValueError(f"{card_family} ingest file is not valid YAML: {input_path}.") from exc
 
     if not isinstance(parsed, Mapping):
-        raise ValueError(f"ClaimCard ingest file must decode to one mapping: {input_path}.")
+        raise ValueError(f"{card_family} ingest file must decode to one mapping: {input_path}.")
 
     return dict(parsed)
+
+
+def _normalize_ingest_file_mapping(
+    command_input: Mapping[str, object],
+    *,
+    card_family: CardFamilyName,
+    required_fields: Sequence[str],
+    allowed_fields: Sequence[str],
+) -> dict[str, object]:
+    """Validate the top-level file mapping contract for one ingest family."""
+
+    raw_input = dict(command_input)
+    non_string_keys = [key for key in raw_input if not isinstance(key, str)]
+    if non_string_keys:
+        raise ValueError(f"{card_family} ingest file keys must be strings.")
+
+    missing_fields = [field_name for field_name in required_fields if field_name not in raw_input]
+    if missing_fields:
+        raise ValueError(
+            f"{card_family} ingest file is missing required keys: "
+            + ", ".join(missing_fields)
+        )
+
+    unexpected_fields = sorted(
+        field_name for field_name in raw_input if field_name not in allowed_fields
+    )
+    if unexpected_fields:
+        raise ValueError(
+            f"{card_family} ingest file contains unsupported keys: "
+            + ", ".join(unexpected_fields)
+        )
+
+    return raw_input
+
+
+def _normalize_file_sequence_field(
+    raw_input: Mapping[str, object],
+    *,
+    card_family: CardFamilyName,
+    field_name: str,
+    required: bool,
+) -> list[str] | None:
+    """Validate one YAML sequence field for file-based ingest."""
+
+    if field_name not in raw_input:
+        if required:
+            raise ValueError(f"{card_family} ingest file is missing required keys: {field_name}")
+        return None
+
+    raw_value = raw_input[field_name]
+    message_suffix = "." if required else " when provided."
+    if not isinstance(raw_value, (list, tuple)):
+        raise ValueError(
+            f"{card_family} ingest file field '{field_name}' must be a YAML sequence of strings{message_suffix}"
+        )
+
+    normalized_items: list[str] = []
+    for item in raw_value:
+        if not isinstance(item, str):
+            raise ValueError(
+                f"{card_family} ingest file field '{field_name}' must be a YAML sequence of strings{message_suffix}"
+            )
+        normalized_items.append(item)
+    return normalized_items
+
+
+def _optional_file_string(
+    raw_input: Mapping[str, object],
+    *,
+    card_family: CardFamilyName,
+    field_name: str,
+) -> str | None:
+    """Return one optional string field from file input."""
+
+    if field_name not in raw_input:
+        return None
+
+    raw_value = raw_input[field_name]
+    if not isinstance(raw_value, str):
+        raise ValueError(
+            f"{card_family} ingest file field '{field_name}' must be a string when provided."
+        )
+    return raw_value
+
+
+def load_studycard_ingest_file(path: str | Path) -> StudyCardFileInput:
+    """Load one StudyCard ingest mapping from a YAML file."""
+
+    return _load_ingest_yaml_mapping(path, card_family="StudyCard")
+
+
+def normalize_studycard_file_input(
+    command_input: Mapping[str, object],
+) -> StudyCardIngestInput:
+    """Convert a loaded StudyCard YAML mapping into normalized ingest input."""
+
+    raw_input = _normalize_ingest_file_mapping(
+        command_input,
+        card_family="StudyCard",
+        required_fields=_STUDYCARD_FILE_REQUIRED_FIELDS,
+        allowed_fields=_STUDYCARD_FILE_ALLOWED_FIELDS,
+    )
+    tumor_type = _normalize_file_sequence_field(
+        raw_input,
+        card_family="StudyCard",
+        field_name="tumor_type",
+        required=True,
+    )
+    therapy_scope = _normalize_file_sequence_field(
+        raw_input,
+        card_family="StudyCard",
+        field_name="therapy_scope",
+        required=True,
+    )
+    relevance_scope = _normalize_file_sequence_field(
+        raw_input,
+        card_family="StudyCard",
+        field_name="relevance_scope",
+        required=True,
+    )
+
+    return normalize_studycard_ingest_input(
+        study_id=raw_input["study_id"],
+        citation_handle=raw_input["citation_handle"],
+        tumor_type=tumor_type,
+        therapy_scope=therapy_scope,
+        relevance_scope=relevance_scope,
+        screening_decision=raw_input["screening_decision"],
+        status=raw_input["status"],
+        created_from=raw_input["created_from"],
+        screening_note=_optional_file_string(
+            raw_input,
+            card_family="StudyCard",
+            field_name="screening_note",
+        ),
+        source_artifact=_optional_file_string(
+            raw_input,
+            card_family="StudyCard",
+            field_name="source_artifact",
+        ),
+    )
+
+
+def load_datasetcard_ingest_file(path: str | Path) -> DatasetCardFileInput:
+    """Load one DatasetCard ingest mapping from a YAML file."""
+
+    return _load_ingest_yaml_mapping(path, card_family="DatasetCard")
+
+
+def normalize_datasetcard_file_input(
+    command_input: Mapping[str, object],
+) -> DatasetCardIngestInput:
+    """Convert a loaded DatasetCard YAML mapping into normalized ingest input."""
+
+    raw_input = _normalize_ingest_file_mapping(
+        command_input,
+        card_family="DatasetCard",
+        required_fields=_DATASETCARD_FILE_REQUIRED_FIELDS,
+        allowed_fields=_DATASETCARD_FILE_ALLOWED_FIELDS,
+    )
+    modality_scope = _normalize_file_sequence_field(
+        raw_input,
+        card_family="DatasetCard",
+        field_name="modality_scope",
+        required=True,
+    )
+
+    return normalize_datasetcard_ingest_input(
+        dataset_id=raw_input["dataset_id"],
+        study_id=raw_input["study_id"],
+        status=raw_input["status"],
+        modality_scope=modality_scope,
+        platform_summary=raw_input["platform_summary"],
+        cohort_summary=raw_input["cohort_summary"],
+        locator_confidence_note=raw_input["locator_confidence_note"],
+        source_locator=raw_input["source_locator"],
+        availability_status=raw_input["availability_status"],
+        accession_id=_optional_file_string(
+            raw_input,
+            card_family="DatasetCard",
+            field_name="accession_id",
+        ),
+        availability_note=_optional_file_string(
+            raw_input,
+            card_family="DatasetCard",
+            field_name="availability_note",
+        ),
+        artifact_locator=_optional_file_string(
+            raw_input,
+            card_family="DatasetCard",
+            field_name="artifact_locator",
+        ),
+    )
+
+
+def load_claimcard_ingest_file(path: str | Path) -> ClaimCardFileInput:
+    """Load one ClaimCard ingest mapping from a YAML file."""
+
+    return _load_ingest_yaml_mapping(path, card_family="ClaimCard")
 
 
 def normalize_claimcard_file_input(
@@ -476,53 +722,18 @@ def normalize_claimcard_file_input(
 ) -> ClaimCardIngestInput:
     """Convert a loaded ClaimCard YAML mapping into normalized ingest input."""
 
-    raw_input = dict(command_input)
-    non_string_keys = [key for key in raw_input if not isinstance(key, str)]
-    if non_string_keys:
-        raise ValueError("ClaimCard ingest file keys must be strings.")
-
-    missing_fields = [
-        field_name
-        for field_name in _CLAIMCARD_FILE_REQUIRED_FIELDS
-        if field_name not in raw_input
-    ]
-    if missing_fields:
-        raise ValueError(
-            "ClaimCard ingest file is missing required keys: "
-            + ", ".join(missing_fields)
-        )
-
-    unexpected_fields = sorted(
-        field_name
-        for field_name in raw_input
-        if field_name not in _CLAIMCARD_FILE_ALLOWED_FIELDS
+    raw_input = _normalize_ingest_file_mapping(
+        command_input,
+        card_family="ClaimCard",
+        required_fields=_CLAIMCARD_FILE_REQUIRED_FIELDS,
+        allowed_fields=_CLAIMCARD_FILE_ALLOWED_FIELDS,
     )
-    if unexpected_fields:
-        raise ValueError(
-            "ClaimCard ingest file contains unsupported keys: "
-            + ", ".join(unexpected_fields)
-        )
-
-    dataset_ids: Sequence[str] | None = None
-    if "dataset_ids" in raw_input:
-        raw_dataset_ids = raw_input["dataset_ids"]
-        if not isinstance(raw_dataset_ids, (list, tuple)):
-            raise ValueError(
-                "ClaimCard ingest file field 'dataset_ids' must be a YAML sequence of strings when provided."
-            )
-        dataset_ids = raw_dataset_ids
-
-    claim_summary_handle: str | None = None
-    if "claim_summary_handle" in raw_input:
-        raw_claim_summary_handle = raw_input["claim_summary_handle"]
-        if raw_claim_summary_handle is None:
-            raise ValueError(
-                "ClaimCard ingest file field 'claim_summary_handle' must be a string when provided."
-            )
-        claim_summary_handle = _require_command_string(
-            raw_claim_summary_handle,
-            field_name="claim_summary_handle",
-        )
+    dataset_ids = _normalize_file_sequence_field(
+        raw_input,
+        card_family="ClaimCard",
+        field_name="dataset_ids",
+        required=False,
+    )
 
     return normalize_claimcard_ingest_input(
         claim_id=raw_input["claim_id"],
@@ -534,7 +745,11 @@ def normalize_claimcard_file_input(
         review_readiness=raw_input["review_readiness"],
         created_from=raw_input["created_from"],
         dataset_ids=dataset_ids,
-        claim_summary_handle=claim_summary_handle,
+        claim_summary_handle=_optional_file_string(
+            raw_input,
+            card_family="ClaimCard",
+            field_name="claim_summary_handle",
+        ),
     )
 
 
@@ -761,6 +976,22 @@ def execute_claimcard_ingest_input(
         target_id=created["claim_id"],
         message="ClaimCard ingest created the canonical ClaimCard record.",
     )
+
+
+def execute_studycard_ingest_from_file(path: str | Path) -> CommandExecutionResult:
+    """Execute StudyCard ingest from one YAML file through the standard create bridge."""
+
+    loaded_input = load_studycard_ingest_file(path)
+    normalized_input = normalize_studycard_file_input(loaded_input)
+    return execute_studycard_ingest_input(normalized_input)
+
+
+def execute_datasetcard_ingest_from_file(path: str | Path) -> CommandExecutionResult:
+    """Execute DatasetCard ingest from one YAML file through the standard create bridge."""
+
+    loaded_input = load_datasetcard_ingest_file(path)
+    normalized_input = normalize_datasetcard_file_input(loaded_input)
+    return execute_datasetcard_ingest_input(normalized_input)
 
 
 def execute_claimcard_ingest_from_file(path: str | Path) -> CommandExecutionResult:
@@ -1327,20 +1558,26 @@ __all__ = [
     "execute_claimcard_ingest_from_file",
     "execute_claimcard_ingest_input",
     "execute_datasetcard_ingest",
+    "execute_datasetcard_ingest_from_file",
     "execute_datasetcard_ingest_input",
     "execute_studycard_ingest",
+    "execute_studycard_ingest_from_file",
     "execute_studycard_ingest_input",
     "family_name",
     "handle_ingest_command",
     "list_deferred_capabilities",
     "list_expected_gateway_dependencies",
     "load_claimcard_ingest_file",
+    "load_datasetcard_ingest_file",
+    "load_studycard_ingest_file",
     "normalize_claimcard_file_input",
     "normalize_claimcard_ingest_input",
+    "normalize_datasetcard_file_input",
     "normalize_datasetcard_ingest_input",
     "normalize_public_claimcard_cli_input",
     "normalize_public_datasetcard_cli_input",
     "normalize_public_studycard_cli_input",
+    "normalize_studycard_file_input",
     "normalize_studycard_ingest_input",
     "prepare_claimcard_ingest_payload",
     "prepare_datasetcard_ingest_payload",

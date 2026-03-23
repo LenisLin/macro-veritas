@@ -53,10 +53,22 @@ The following commands are the current stable public CLI surface.
   input, prepares one `StudyCardPayload`, calls StudyCard create planning,
   calls StudyCard create execution, and writes one canonical YAML file through
   the registry gateway.
-- What it should not do: update an existing `StudyCard`, ingest `DatasetCard`
-  or `ClaimCard`, infer scientific content, or bypass the gateway.
+- What it should not do: update an existing `StudyCard`, ingest from a batch,
+  infer scientific content, or bypass the gateway.
 - Source of truth:
   [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md)
+
+### `macro_veritas ingest study --from-file <path>`
+
+- Purpose: create one canonical `StudyCard` from one YAML mapping file.
+- Expected effect: loads one YAML mapping, normalizes it into the same
+  StudyCard ingest input used by the flag-based path, prepares one
+  `StudyCardPayload`, calls StudyCard create planning, calls StudyCard create
+  execution, and writes one canonical YAML file through the registry gateway.
+- What it should not do: scan directories, accept batches, update an existing
+  `StudyCard`, or bypass the gateway.
+- Source of truth:
+  [`docs/public_ingest_studycard_from_file.md`](public_ingest_studycard_from_file.md)
 
 ### `macro_veritas ingest dataset`
 
@@ -65,10 +77,23 @@ The following commands are the current stable public CLI surface.
   ingest input, prepares one `DatasetCardPayload`, calls DatasetCard create
   planning, calls DatasetCard create execution, and writes one canonical YAML
   file through the registry gateway.
-- What it should not do: update an existing `DatasetCard`, ingest `ClaimCard`,
-  infer scientific content, or bypass the gateway.
+- What it should not do: update an existing `DatasetCard`, ingest from a
+  batch, infer scientific content, or bypass the gateway.
 - Source of truth:
   [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md)
+
+### `macro_veritas ingest dataset --from-file <path>`
+
+- Purpose: create one canonical `DatasetCard` from one YAML mapping file.
+- Expected effect: loads one YAML mapping, normalizes it into the same
+  DatasetCard ingest input used by the flag-based path, prepares one
+  `DatasetCardPayload`, calls DatasetCard create planning, calls DatasetCard
+  create execution, and writes one canonical YAML file through the registry
+  gateway.
+- What it should not do: scan directories, accept batches, update an existing
+  `DatasetCard`, or bypass the gateway.
+- Source of truth:
+  [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md)
 
 ### `macro_veritas ingest claim`
 
@@ -90,9 +115,8 @@ The following commands are the current stable public CLI surface.
   ClaimCard ingest input used by the flag-based path, prepares one
   `ClaimCardPayload`, calls ClaimCard create planning, calls ClaimCard create
   execution, and writes one canonical YAML file through the registry gateway.
-- What it should not do: ingest `StudyCard` or `DatasetCard` from files, scan
-  directories, accept batches, update an existing `ClaimCard`, or bypass the
-  gateway.
+- What it should not do: scan directories, accept batches, update an
+  existing `ClaimCard`, or bypass the gateway.
 - Source of truth:
   [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md)
 
@@ -204,7 +228,7 @@ The following command-family names are recognized in the current codebase.
 
 | CLI Group | Intended Purpose | Current Status | Internal Module | Governance Domain Alignment |
 | --- | --- | --- | --- | --- |
-| `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for create-only `StudyCard` at `ingest study`, create-only `DatasetCard` at `ingest dataset`, create-only `ClaimCard` at `ingest claim`, and ClaimCard-only single-file YAML create at `ingest claim --from-file`; update semantics remain non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
+| `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for create-only `StudyCard` at `ingest study`, single-file `StudyCard` create at `ingest study --from-file`, create-only `DatasetCard` at `ingest dataset`, single-file `DatasetCard` create at `ingest dataset --from-file`, create-only `ClaimCard` at `ingest claim`, and single-file `ClaimCard` create at `ingest claim --from-file`; update semantics remain non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
 | `show` | Read one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `show study`, by-id `DatasetCard` at `show dataset`, and by-id `ClaimCard` at `show claim`; list/search/update/delete semantics remain non-public. | `macro_veritas.commands.show` | Registry Department / 户部 |
 | `list` | Discover existing study, dataset, or claim identifiers by family. | Public for compact `StudyCard` summaries at `list studies`, compact `DatasetCard` summaries at `list datasets`, and compact `ClaimCard` summaries at `list claims`; search/filter/update/delete semantics remain non-public. | `macro_veritas.commands.listing` | Registry Department / 户部 |
 | `delete` | Remove one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `delete study`, by-id `DatasetCard` at `delete dataset`, and by-id `ClaimCard` at `delete claim`; force/cascade/search/filter/update semantics remain non-public. | `macro_veritas.commands.delete` | Registry Department / 户部 |

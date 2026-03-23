@@ -33,10 +33,10 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
         "runtime-real and all other per-family execution remains explicitly documented"
     ),
     "public_exposure": (
-        "public ingest study, ingest dataset, ingest claim, ingest claim --from-file, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
+        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
     ),
     "file_io": (
-        "allowed through the registry gateway for registry mutations and through the documented ClaimCard-only single-file YAML intake boundary at ingest claim --from-file"
+        "allowed through the registry gateway for registry mutations and through the documented single-file YAML intake boundary at ingest study --from-file, ingest dataset --from-file, and ingest claim --from-file"
     ),
     "silent_side_effects": "forbidden",
 }
@@ -69,12 +69,14 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
 _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
     "source_of_truth_doc": "docs/cli_command_contracts.md",
     "public_cli_exposure": (
-        "public ingest study, ingest dataset, ingest claim, ingest claim --from-file, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim exist as thin adapters over the internal ingest/show/list/delete bridges"
+        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim exist as thin adapters over the internal ingest/show/list/delete bridges"
     ),
     "runtime_real_now": (
         "public StudyCard CLI adapter",
         "public DatasetCard CLI adapter",
         "public ClaimCard CLI adapter",
+        "public StudyCard file-based CLI adapter",
+        "public DatasetCard file-based CLI adapter",
         "public ClaimCard file-based CLI adapter",
         "public StudyCard show CLI adapter",
         "public DatasetCard show CLI adapter",
@@ -88,6 +90,8 @@ _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
         "StudyCard command-normalized ingest input",
         "DatasetCard command-normalized ingest input",
         "ClaimCard command-normalized ingest input",
+        "StudyCard file-loaded ingest input",
+        "DatasetCard file-loaded ingest input",
         "ClaimCard file-loaded ingest input",
         "StudyCard payload preparation",
         "DatasetCard payload preparation",
