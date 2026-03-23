@@ -149,8 +149,41 @@ The following commands are the current stable public CLI surface.
 - Source of truth:
   [`docs/public_list_cli.md`](public_list_cli.md)
 
-There is still no public search/filter/update/delete capability for any card
-family.
+### `macro_veritas delete study`
+
+- Purpose: delete one canonical `StudyCard` by explicit ID.
+- Expected effect: converts the explicit `--study-id` flag into a narrow by-id
+  delete input mapping, calls `delete_study_card`, and removes the canonical
+  YAML file only when no dependent `DatasetCard` or `ClaimCard` records exist.
+- What it should not do: force delete, cascade delete, search, filter, update,
+  or bypass the gateway.
+- Source of truth:
+  [`docs/public_delete_cli.md`](public_delete_cli.md)
+
+### `macro_veritas delete dataset`
+
+- Purpose: delete one canonical `DatasetCard` by explicit ID.
+- Expected effect: converts the explicit `--dataset-id` flag into a narrow
+  by-id delete input mapping, calls `delete_dataset_card`, and removes the
+  canonical YAML file only when no dependent `ClaimCard` records exist.
+- What it should not do: force delete, cascade delete, search, filter, update,
+  or bypass the gateway.
+- Source of truth:
+  [`docs/public_delete_cli.md`](public_delete_cli.md)
+
+### `macro_veritas delete claim`
+
+- Purpose: delete one canonical `ClaimCard` by explicit ID.
+- Expected effect: converts the explicit `--claim-id` flag into a narrow by-id
+  delete input mapping, calls `delete_claim_card`, and removes the canonical
+  YAML file when the target exists.
+- What it should not do: force delete, cascade delete, search, filter, update,
+  or bypass the gateway.
+- Source of truth:
+  [`docs/public_delete_cli.md`](public_delete_cli.md)
+
+There is still no public search, filter, update, force delete, cascade delete,
+or delete-by-filter capability for any card family.
 
 ## Command Families
 
@@ -161,6 +194,7 @@ The following command-family names are recognized in the current codebase.
 | `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for create-only `StudyCard` at `ingest study`, create-only `DatasetCard` at `ingest dataset`, and create-only `ClaimCard` at `ingest claim`; update semantics remain non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
 | `show` | Read one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `show study`, by-id `DatasetCard` at `show dataset`, and by-id `ClaimCard` at `show claim`; list/search/update/delete semantics remain non-public. | `macro_veritas.commands.show` | Registry Department / 户部 |
 | `list` | Discover existing study, dataset, or claim identifiers by family. | Public for compact `StudyCard` summaries at `list studies`, compact `DatasetCard` summaries at `list datasets`, and compact `ClaimCard` summaries at `list claims`; search/filter/update/delete semantics remain non-public. | `macro_veritas.commands.listing` | Registry Department / 户部 |
+| `delete` | Remove one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `delete study`, by-id `DatasetCard` at `delete dataset`, and by-id `ClaimCard` at `delete claim`; force/cascade/search/filter/update semantics remain non-public. | `macro_veritas.commands.delete` | Registry Department / 户部 |
 | `bind` | Associate registry records with concrete raw, processed, or run-facing artifact locations. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.bind` | Registry Department / 户部 |
 | `extract` | Capture structured claim or metadata fragments from curated sources into project records. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.extract` | Registry Department / 户部 |
 | `audit` | Record routine review outcomes such as `pass`, `return`, or `escalate`. | Reserved internal skeleton only; not public CLI. | `macro_veritas.commands.audit` | Review Department / 刑部 |

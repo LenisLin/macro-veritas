@@ -178,6 +178,7 @@ _EXPECTED_CLI_FAMILIES: tuple[ReservedCLIFamilyName, ...] = (
     "ingest",
     "show",
     "list",
+    "delete",
     "bind",
     "extract",
 )

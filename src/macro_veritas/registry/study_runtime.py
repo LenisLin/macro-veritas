@@ -8,6 +8,7 @@ Responsibilities:
 - serialize and deserialize one StudyCard per YAML file
 - apply minimal structural validation for stored and input payloads
 - write one canonical card file at a time with a temp-file + fsync + replace flow
+- delete one canonical StudyCard file by canonical ID
 
 Non-goals:
 - DatasetCard or ClaimCard runtime IO
@@ -203,6 +204,14 @@ def update_study_card(registry_root: Path, card: Mapping[str, object]) -> StudyC
     return normalized
 
 
+def delete_study_card(registry_root: Path, study_id: str) -> None:
+    """Delete one StudyCard from its canonical YAML location."""
+
+    path = _study_card_file(registry_root, study_id)
+    path.unlink()
+    _fsync_directory(path.parent)
+
+
 def _study_card_file(registry_root: Path, study_id: str) -> Path:
     return study_card_path(registry_root, _normalize_lookup_study_id(study_id))
 
@@ -338,6 +347,7 @@ __all__ = [
     "StudyCardIdentifierError",
     "StudyCardStateTransitionError",
     "create_study_card",
+    "delete_study_card",
     "deserialize_study_card",
     "ensure_study_card_update_allowed",
     "list_study_cards",

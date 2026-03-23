@@ -8,6 +8,7 @@ Responsibilities:
 - serialize and deserialize one DatasetCard per YAML file
 - apply minimal structural validation for stored and input payloads
 - write one canonical card file at a time with a temp-file + fsync + replace flow
+- delete one canonical DatasetCard file by canonical ID
 
 Non-goals:
 - StudyCard referential-integrity checks (owned by the gateway boundary)
@@ -185,6 +186,14 @@ def update_dataset_card(registry_root: Path, card: Mapping[str, object]) -> Data
     return normalized
 
 
+def delete_dataset_card(registry_root: Path, dataset_id: str) -> None:
+    """Delete one DatasetCard from its canonical YAML location."""
+
+    path = _dataset_card_file(registry_root, dataset_id)
+    path.unlink()
+    _fsync_directory(path.parent)
+
+
 def _dataset_card_file(registry_root: Path, dataset_id: str) -> Path:
     return dataset_card_path(registry_root, _normalize_lookup_dataset_id(dataset_id))
 
@@ -340,6 +349,7 @@ __all__ = [
     "DatasetCardIdentifierError",
     "create_dataset_card",
     "dataset_card_exists",
+    "delete_dataset_card",
     "deserialize_dataset_card",
     "list_dataset_cards",
     "normalize_dataset_card_payload",

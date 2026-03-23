@@ -32,6 +32,10 @@ This document now describes a mixed implementation state.
 - `ClaimCard` create/update and planning enforce referenced `StudyCard`
   existence and referenced `DatasetCard` existence when `dataset_ids` is
   present.
+- `StudyCard`, `DatasetCard`, and `ClaimCard` delete execution are now
+  runtime-real behind the gateway.
+- `StudyCard` and `DatasetCard` delete execution enforce reverse-dependency
+  blocking before removal.
 - An internal StudyCard ingest bridge now consumes the unchanged StudyCard
   gateway contract by calling `plan_create_study_card(...)` and then
   `create_study_card(...)`.
@@ -72,9 +76,10 @@ Interpretation notes:
 - The concrete first-slice mapping shapes live in
   [`docs/payload_contracts.md`](payload_contracts.md).
 - `plan_*` returns a planning descriptor only; it does not mutate storage.
-- `create_study_card`, `update_study_card`, `create_dataset_card`,
-  `update_dataset_card`, `create_claim_card`, and `update_claim_card` are
-  separate execution helpers that return the bare stored payload on success.
+- `create_study_card`, `update_study_card`, `delete_study_card`,
+  `create_dataset_card`, `update_dataset_card`, `delete_dataset_card`,
+  `create_claim_card`, `update_claim_card`, and `delete_claim_card` are
+  separate execution helpers.
 - The internal StudyCard ingest bridge uses this exact split: plan first, then
   create.
 
@@ -92,6 +97,8 @@ Gateway/domain error categories:
 - `CardAlreadyExistsError`: a create plan targets a card that already exists
 - `BrokenReferenceError`: a create or update plan refers to a missing linked
   card that the gateway owns as a direct reference check
+- `DependencyExistsError`: a delete request would leave dependent linked cards
+  behind
 - `InvalidStateTransitionError`: the requested change conflicts with the frozen
   lifecycle or transition policy
 - `UnsupportedRegistryOperationError`: the caller asks for an operation or

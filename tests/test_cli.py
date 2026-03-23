@@ -67,6 +67,7 @@ def test_python_module_help_succeeds() -> None:
     assert "ingest" in result.stdout
     assert "show" in result.stdout
     assert "list" in result.stdout
+    assert "delete" in result.stdout
 
 
 def test_ingest_help_shows_public_study_dataset_and_claim_subcommands_only() -> None:
@@ -117,6 +118,23 @@ def test_list_help_shows_public_studies_datasets_and_claims_subcommands_only() -
     assert "studies" in result.stdout
     assert "datasets" in result.stdout
     assert "claims" in result.stdout
+    assert "bind" not in result.stdout
+    assert "extract" not in result.stdout
+
+
+def test_delete_help_shows_public_study_dataset_and_claim_subcommands_only() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "macro_veritas", "delete", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "study" in result.stdout
+    assert "dataset" in result.stdout
+    assert "claim" in result.stdout
     assert "bind" not in result.stdout
     assert "extract" not in result.stdout
 

@@ -34,6 +34,10 @@ class BrokenReferenceError(RegistryError):
     """Raised when direct gateway-owned reference checks find a missing linked card."""
 
 
+class DependencyExistsError(RegistryError):
+    """Raised when delete would leave dependent registry records behind."""
+
+
 class InvalidStateTransitionError(RegistryError):
     """Raised when the requested change conflicts with the frozen state policy."""
 
@@ -46,6 +50,7 @@ __all__ = [
     "BrokenReferenceError",
     "CardAlreadyExistsError",
     "CardNotFoundError",
+    "DependencyExistsError",
     "InvalidStateTransitionError",
     "RegistryError",
     "UnsupportedRegistryOperationError",

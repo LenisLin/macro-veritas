@@ -32,6 +32,7 @@ _REGISTRY_ERROR_CATEGORIES: tuple[str, ...] = (
     "CardNotFoundError",
     "CardAlreadyExistsError",
     "BrokenReferenceError",
+    "DependencyExistsError",
     "InvalidStateTransitionError",
     "UnsupportedRegistryOperationError",
 )
@@ -191,11 +192,20 @@ def describe_integrity_enforcement_policy() -> dict[str, object]:
 
     return {
         "enforcement_point": "registry gateway",
-        "scope": "direct referenced-card existence checks for create and update operations",
-        "DatasetCard": "must confirm referenced StudyCard exists",
+        "scope": (
+            "direct referenced-card existence checks for create and update operations "
+            "plus reverse-dependency blocking checks for delete operations"
+        ),
+        "DatasetCard": (
+            "must confirm referenced StudyCard exists for create/update and must block "
+            "delete when referenced by any ClaimCard"
+        ),
+        "StudyCard": (
+            "must block delete when referenced by any DatasetCard or ClaimCard"
+        ),
         "ClaimCard": (
             "must confirm referenced StudyCard exists and each referenced "
-            "DatasetCard exists"
+            "DatasetCard exists for create/update"
         ),
         "governance_layer": (
             "may add higher-level policy checks but does not replace gateway-level "

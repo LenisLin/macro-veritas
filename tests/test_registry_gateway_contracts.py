@@ -8,6 +8,7 @@ from macro_veritas.registry.errors import (
     BrokenReferenceError,
     CardAlreadyExistsError,
     CardNotFoundError,
+    DependencyExistsError,
     InvalidStateTransitionError,
     RegistryError,
     UnsupportedRegistryOperationError,
@@ -16,6 +17,9 @@ from macro_veritas.registry.gateway import (
     claim_card_exists,
     create_claim_card,
     create_dataset_card,
+    delete_claim_card,
+    delete_dataset_card,
+    delete_study_card,
     describe_atomic_write_policy,
     describe_gateway_error_semantics,
     describe_gateway_result_contract,
@@ -124,6 +128,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "plan_update",
         "create",
         "update",
+        "delete",
     )
     assert gateway_role["runtime_real_behavior"]["DatasetCard"] == (
         "get",
@@ -133,6 +138,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "plan_update",
         "create",
         "update",
+        "delete",
     )
     assert gateway_role["runtime_real_behavior"]["ClaimCard"] == (
         "get",
@@ -142,6 +148,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "plan_update",
         "create",
         "update",
+        "delete",
     )
     assert result_contract["get_by_id"]["success_shape"] == "GatewayReadCard"
     assert result_contract["exists_by_id"]["success_shape"] == "bool"
@@ -151,6 +158,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "get_by_id",
         "plan_update",
         "update",
+        "delete",
     )
     assert error_semantics["BrokenReferenceError"]["applies_to"] == (
         "plan_create",
@@ -158,6 +166,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "create",
         "update",
     )
+    assert error_semantics["DependencyExistsError"]["applies_to"] == ("delete",)
     assert error_semantics["UnsupportedRegistryOperationError"]["not_a_raw_os_exception"] is True
     assert mutation_plan_contract["output_type"] == "MutationPlanDescriptor"
     assert mutation_plan_contract["input_requirement"] == "full_card_payload"
@@ -186,6 +195,7 @@ def test_registry_error_surface_is_small_and_explicit() -> None:
         "CardNotFoundError",
         "CardAlreadyExistsError",
         "BrokenReferenceError",
+        "DependencyExistsError",
         "InvalidStateTransitionError",
         "UnsupportedRegistryOperationError",
     )
@@ -193,6 +203,7 @@ def test_registry_error_surface_is_small_and_explicit() -> None:
     assert issubclass(CardNotFoundError, RegistryError)
     assert issubclass(CardAlreadyExistsError, RegistryError)
     assert issubclass(BrokenReferenceError, RegistryError)
+    assert issubclass(DependencyExistsError, RegistryError)
     assert issubclass(InvalidStateTransitionError, RegistryError)
     assert issubclass(UnsupportedRegistryOperationError, RegistryError)
 
@@ -207,6 +218,9 @@ def test_gateway_signatures_reference_frozen_payload_types() -> None:
     plan_update_study_hints = get_type_hints(plan_update_study_card)
     plan_update_claim_hints = get_type_hints(plan_update_claim_card)
     create_dataset_hints = get_type_hints(create_dataset_card)
+    delete_claim_hints = get_type_hints(delete_claim_card)
+    delete_dataset_hints = get_type_hints(delete_dataset_card)
+    delete_study_hints = get_type_hints(delete_study_card)
     update_claim_hints = get_type_hints(update_claim_card)
     update_dataset_hints = get_type_hints(update_dataset_card)
 
@@ -227,6 +241,12 @@ def test_gateway_signatures_reference_frozen_payload_types() -> None:
     assert plan_update_claim_hints["return"] is shared_types.MutationPlanDescriptor
     assert create_dataset_hints["card"] is shared_types.DatasetCardPayload
     assert create_dataset_hints["return"] is shared_types.DatasetCardPayload
+    assert delete_claim_hints["claim_id"] is str
+    assert delete_claim_hints["return"] is type(None)
+    assert delete_dataset_hints["dataset_id"] is str
+    assert delete_dataset_hints["return"] is type(None)
+    assert delete_study_hints["study_id"] is str
+    assert delete_study_hints["return"] is type(None)
     assert update_claim_hints["card"] is shared_types.ClaimCardPayload
     assert update_claim_hints["return"] is shared_types.ClaimCardPayload
     assert update_dataset_hints["card"] is shared_types.DatasetCardPayload

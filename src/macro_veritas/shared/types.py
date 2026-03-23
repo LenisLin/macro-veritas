@@ -54,6 +54,7 @@ CommandFamilyName = Literal[
     "ingest",
     "show",
     "list",
+    "delete",
     "bind",
     "extract",
     "audit",
@@ -66,6 +67,7 @@ ReservedCLIFamilyName = Literal[
     "ingest",
     "show",
     "list",
+    "delete",
     "bind",
     "extract",
     "audit",
@@ -81,6 +83,7 @@ CommandPayloadUsage = Literal[
 ]
 CommandErrorCategory = Literal[
     "duplicate_target",
+    "dependency_exists",
     "missing_reference",
     "invalid_payload",
     "unsupported_operation",
@@ -320,6 +323,13 @@ class ListCLIInput(TypedDict):
     card_family: CardFamilyName
 
 
+class DeleteCLIInput(TypedDict):
+    """Typed mapping built from parsed CLI args for public by-id delete commands."""
+
+    card_family: CardFamilyName
+    target_id: str
+
+
 class StudyCardSummary(TypedDict):
     """Compact public discovery summary for one `StudyCard`."""
 
@@ -480,6 +490,7 @@ __all__ = [
     "DatasetCardIngestInput",
     "DatasetCardPayload",
     "DatasetCardStatus",
+    "DeleteCLIInput",
     "DepartmentName",
     "DescriptorMap",
     "DescriptorSequence",

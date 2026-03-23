@@ -5,8 +5,8 @@ macro_veritas.commands.*.
 
 It does not dispatch broad public CLI command families or register parsers. It
 does provide a small result envelope and formatting helper for the real
-StudyCard, DatasetCard, and ClaimCard ingest bridges while keeping the rest of the command
-families internal-only.
+StudyCard, DatasetCard, and ClaimCard ingest/show/list/delete bridges while
+keeping the rest of the command families internal-only.
 Boundary docs: docs/cli_command_contracts.md, docs/payload_contracts.md,
 docs/module_map.md, docs/datasetcard_runtime.md, and docs/api_specs.md.
 """
@@ -29,11 +29,11 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
     "parser_builder_shape": "build_parser(subparsers_or_parser: object) -> None",
     "handler_shape": "handle_<family>_command(args: object) -> object",
     "runtime_status": (
-        "mixed; the StudyCard, DatasetCard, and ClaimCard ingest/show/list paths are "
+        "mixed; the StudyCard, DatasetCard, and ClaimCard ingest/show/list/delete paths are "
         "runtime-real and all other per-family execution remains explicitly documented"
     ),
     "public_exposure": (
-        "public ingest study, ingest dataset, ingest claim, show study, show dataset, show claim, list studies, list datasets, and list claims paths only; all other reserved families remain non-public"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
     ),
     "file_io": "allowed only through the registry gateway for explicitly documented internal paths",
     "silent_side_effects": "forbidden",
@@ -67,7 +67,7 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
 _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
     "source_of_truth_doc": "docs/cli_command_contracts.md",
     "public_cli_exposure": (
-        "public ingest study, ingest dataset, ingest claim, show study, show dataset, show claim, list studies, list datasets, and list claims exist as thin adapters over the internal ingest/show/list bridges"
+        "public ingest study, ingest dataset, ingest claim, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim exist as thin adapters over the internal ingest/show/list/delete bridges"
     ),
     "runtime_real_now": (
         "public StudyCard CLI adapter",
@@ -79,6 +79,9 @@ _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
         "public StudyCard list CLI adapter",
         "public DatasetCard list CLI adapter",
         "public ClaimCard list CLI adapter",
+        "public StudyCard delete CLI adapter",
+        "public DatasetCard delete CLI adapter",
+        "public ClaimCard delete CLI adapter",
         "StudyCard command-normalized ingest input",
         "DatasetCard command-normalized ingest input",
         "ClaimCard command-normalized ingest input",
@@ -97,6 +100,9 @@ _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
         "StudyCard list-by-family gateway call",
         "DatasetCard list-by-family gateway call",
         "ClaimCard list-by-family gateway call",
+        "StudyCard delete gateway call",
+        "DatasetCard delete gateway call",
+        "ClaimCard delete gateway call",
         "command-layer success/failure result translation",
     ),
     "still_skeleton_only": (
@@ -114,6 +120,7 @@ _COMMAND_RESULT_STYLE: dict[str, object] = {
     "failure_field": "error_category",
     "supported_error_categories": (
         "duplicate_target",
+        "dependency_exists",
         "missing_reference",
         "invalid_payload",
         "unsupported_operation",
@@ -251,6 +258,8 @@ def format_command_result_for_cli(
         target_id = result["target_id"]
         if target_id is None:
             return f"{command_path}: ok"
+        if result["operation"] == "delete":
+            return f"{command_path}: deleted {result['card_family']} {target_id}"
         return f"{command_path}: created {result['card_family']} {target_id}"
 
     return (

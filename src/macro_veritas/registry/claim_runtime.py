@@ -8,6 +8,7 @@ Responsibilities:
 - serialize and deserialize one ClaimCard per YAML file
 - apply minimal structural validation for stored and input payloads
 - write one canonical card file at a time with a temp-file + fsync + replace flow
+- delete one canonical ClaimCard file by canonical ID
 
 Non-goals:
 - StudyCard or DatasetCard referential-integrity checks
@@ -175,6 +176,14 @@ def update_claim_card(registry_root: Path, card: Mapping[str, object]) -> ClaimC
     _read_claim_card_from_path(path)
     _write_claim_card_file(path, normalized)
     return normalized
+
+
+def delete_claim_card(registry_root: Path, claim_id: str) -> None:
+    """Delete one ClaimCard from its canonical YAML location."""
+
+    path = _claim_card_file(registry_root, claim_id)
+    path.unlink()
+    _fsync_directory(path.parent)
 
 
 def _claim_card_file(registry_root: Path, claim_id: str) -> Path:
@@ -347,6 +356,7 @@ __all__ = [
     "ClaimCardIdentifierError",
     "claim_card_exists",
     "create_claim_card",
+    "delete_claim_card",
     "deserialize_claim_card",
     "list_claim_cards",
     "normalize_claim_card_payload",

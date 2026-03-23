@@ -15,11 +15,12 @@ MacroVeritas.
 
 This document now describes a mixed implementation state.
 
-- Nine narrow public exceptions now exist: `ingest study`, `ingest dataset`,
+- Twelve narrow public exceptions now exist: `ingest study`, `ingest dataset`,
   `ingest claim`, `show study`, `show dataset`, `show claim`, `list studies`,
-  `list datasets`, and `list claims`.
+  `list datasets`, `list claims`, `delete study`, `delete dataset`, and
+  `delete claim`.
 - Those public paths are thin adapters over the same narrow internal ingest,
-  show, and list bridge modules.
+  show, list, and delete bridge modules.
 - The rest of the command families remain reserved and non-public.
 
 ## Command Families
@@ -139,6 +140,42 @@ This document now describes a mixed implementation state.
   relationship expansion, no update/delete, no scientific logic, and no
   evidence grading
 
+### `delete`
+
+- Owning module: `macro_veritas.commands.delete`
+- Owning domain: Registry Department / 户部, mutation boundary
+- Purpose: execute the current StudyCard, DatasetCard, and ClaimCard by-id
+  delete bridges while keeping force/cascade/filter/update semantics deferred
+- Payload contract source: none; delete consumes narrow by-id command input and
+  does not prepare full-card payloads
+- Expected primary inputs: internal by-id StudyCard, DatasetCard, or ClaimCard
+  input carrying a target card-family label plus one canonical ID
+- Expected primary outputs: StudyCard, DatasetCard, or ClaimCard gateway delete
+  request plus a narrow command result
+- Expected dependency boundary: registry governance mutation descriptors,
+  registry-io docs, gateway-contract docs, public delete doc, and registry
+  gateway delete contracts
+- Public paths now:
+  - `macro_veritas delete study` is a thin adapter over the StudyCard bridge
+  - `macro_veritas delete dataset` is a thin adapter over the DatasetCard bridge
+  - `macro_veritas delete claim` is a thin adapter over the ClaimCard bridge
+- Runtime status now:
+  - public StudyCard by-id delete is implemented through normalized command
+    input and `delete_study_card(...)`
+  - public DatasetCard by-id delete is implemented through normalized command
+    input and `delete_dataset_card(...)`
+  - public ClaimCard by-id delete is implemented through normalized command
+    input and `delete_claim_card(...)`
+  - dependency-blocked deletes are translated to a clean command-level
+    `dependency_exists` result
+  - missing target cards are translated to a clean command-level
+    `missing_reference` result
+- Still deferred inside `delete`: force delete, cascade delete, delete by
+  search/filter, restore, trash/archive, and update semantics
+- Non-goals in this milestone: no force delete, no cascade delete, no
+  delete-by-filter, no restore/trash semantics, no scientific logic, and no
+  evidence grading
+
 ### `bind`
 
 - Owning module: `macro_veritas.commands.bind`
@@ -237,8 +274,9 @@ The frozen internal command style is conservative:
   [`docs/payload_contracts.md`](payload_contracts.md)
 - runtime execution exists only for the StudyCard, DatasetCard, and ClaimCard
   ingest bridges, the StudyCard, DatasetCard, and ClaimCard by-id show
-  bridges, and the StudyCard, DatasetCard, and ClaimCard family-level list
-  bridges; other command families remain descriptor/skeleton-only
+  bridges, the StudyCard, DatasetCard, and ClaimCard family-level list
+  bridges, and the StudyCard, DatasetCard, and ClaimCard by-id delete bridges;
+  other command families remain descriptor/skeleton-only
 - file IO is allowed only through the registry gateway for explicitly
   documented runtime paths
 - raw `argparse.Namespace` objects remain outside the command-to-gateway
@@ -249,8 +287,9 @@ Interpretation:
 
 - the public CLI adapts parsed `ingest study`, `ingest dataset`, `ingest claim`,
   `show study`, `show dataset`, `show claim`, `list studies`, `list datasets`,
-  and `list claims` commands into typed mappings and then into normalized
-  internal inputs before calling the gateway
+  `list claims`, `delete study`, `delete dataset`, and `delete claim`
+  commands into typed mappings and then into normalized internal inputs before
+  calling the gateway
 - the command layer does not write files directly
 - the command layer does not bypass the gateway
 - `handle_ingest_command(...)` accepts mapping-based internal input and
@@ -259,6 +298,8 @@ Interpretation:
   StudyCard, DatasetCard, and ClaimCard by-id reads
 - `handle_list_command(...)` accepts mapping-based internal input and supports
   StudyCard, DatasetCard, and ClaimCard family-level discovery reads
+- `handle_delete_command(...)` accepts mapping-based internal input and
+  supports StudyCard, DatasetCard, and ClaimCard by-id delete execution
 - broader option and flag design remains deferred
 
 ## Public Exposure Rule
@@ -282,4 +323,10 @@ exceptions.
 - `python -m macro_veritas list studies` is public for compact `StudyCard` discovery.
 - `python -m macro_veritas list datasets` is public for compact `DatasetCard` discovery.
 - `python -m macro_veritas list claims` is public for compact `ClaimCard` discovery.
+- `python -m macro_veritas delete study` is public for referentially-aware
+  by-id `StudyCard` delete.
+- `python -m macro_veritas delete dataset` is public for referentially-aware
+  by-id `DatasetCard` delete.
+- `python -m macro_veritas delete claim` is public for by-id `ClaimCard`
+  delete.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain non-public.

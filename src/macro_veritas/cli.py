@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from typing import Iterable, Iterator
 
+from .commands import delete as delete_command
 from .commands import ingest as ingest_command
 from .commands import listing as listing_command
 from .commands import show as show_command
@@ -27,6 +28,7 @@ from .shared.types import (
     ClaimCardCLIInput,
     CommandExecutionResult,
     DatasetCardCLIInput,
+    DeleteCLIInput,
     ListCLIInput,
     ShowCLIInput,
     StudyCardCLIInput,
@@ -162,6 +164,47 @@ def _build_parser() -> argparse.ArgumentParser:
         help="List compact ClaimCard summaries",
     )
     list_claims_parser.set_defaults(handler=_run_list_claims)
+
+    delete_parser = subparsers.add_parser(
+        "delete",
+        help="Delete one registry card by canonical ID without force or cascade",
+    )
+    delete_subparsers = delete_parser.add_subparsers(
+        dest="delete_command",
+        required=True,
+    )
+    delete_study_parser = delete_subparsers.add_parser(
+        "study",
+        help="Delete one StudyCard by canonical ID when no dependent cards exist",
+    )
+    delete_study_parser.add_argument(
+        "--study-id",
+        required=True,
+        help="Canonical StudyCard identifier",
+    )
+    delete_study_parser.set_defaults(handler=_run_delete_study)
+
+    delete_dataset_parser = delete_subparsers.add_parser(
+        "dataset",
+        help="Delete one DatasetCard by canonical ID when no dependent claims exist",
+    )
+    delete_dataset_parser.add_argument(
+        "--dataset-id",
+        required=True,
+        help="Canonical DatasetCard identifier",
+    )
+    delete_dataset_parser.set_defaults(handler=_run_delete_dataset)
+
+    delete_claim_parser = delete_subparsers.add_parser(
+        "claim",
+        help="Delete one ClaimCard by canonical ID",
+    )
+    delete_claim_parser.add_argument(
+        "--claim-id",
+        required=True,
+        help="Canonical ClaimCard identifier",
+    )
+    delete_claim_parser.set_defaults(handler=_run_delete_claim)
 
     return parser
 
@@ -412,6 +455,10 @@ def _build_list_cli_input(*, card_family: str) -> ListCLIInput:
     return {"card_family": card_family}
 
 
+def _build_delete_cli_input(*, card_family: str, target_id: str) -> DeleteCLIInput:
+    return {"card_family": card_family, "target_id": target_id}
+
+
 @contextmanager
 def _configured_runtime_environment(config_path: str | None) -> Iterator[None]:
     config = load_project_config(config_path)
@@ -645,6 +692,54 @@ def _run_list_claims(args: argparse.Namespace) -> int:
     if error is not None:
         return _emit_command_result(error, command_path="list claims")
     return _emit_json_document(summaries)
+
+
+def _run_delete_study(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_delete_cli_input(card_family="StudyCard", target_id=args.study_id)
+        normalized_input = delete_command.normalize_delete_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = delete_command.execute_delete_study(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"delete study failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="delete study")
+
+
+def _run_delete_dataset(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_delete_cli_input(card_family="DatasetCard", target_id=args.dataset_id)
+        normalized_input = delete_command.normalize_delete_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = delete_command.execute_delete_dataset(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"delete dataset failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="delete dataset")
+
+
+def _run_delete_claim(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_delete_cli_input(card_family="ClaimCard", target_id=args.claim_id)
+        normalized_input = delete_command.normalize_delete_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = delete_command.execute_delete_claim(normalized_input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(
+            f"delete claim failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="delete claim")
 
 
 

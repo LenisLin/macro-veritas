@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Phase: Initialization / first public discovery CLI exposure
+- Phase: Initialization / first public referentially-aware delete CLI exposure
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -17,8 +17,8 @@
   new model sessions.
 - A minimal public CLI exists with `status`, `show-config`, `init-layout`,
   `ingest study`, `ingest dataset`, `ingest claim`, `show study`,
-  `show dataset`, `show claim`, `list studies`, `list datasets`, and
-  `list claims`.
+  `show dataset`, `show claim`, `list studies`, `list datasets`,
+  `list claims`, `delete study`, `delete dataset`, and `delete claim`.
 - A committed project config defines the current external data root and
   placeholder layout paths.
 - The registry gateway implements real file-backed `StudyCard` read, exists,
@@ -36,12 +36,17 @@
 - The internal command layer implements a real StudyCard family-list bridge.
 - The internal command layer implements a real DatasetCard family-list bridge.
 - The internal command layer implements a real ClaimCard family-list bridge.
+- The internal command layer implements a real StudyCard delete bridge.
+- The internal command layer implements a real DatasetCard delete bridge.
+- The internal command layer implements a real ClaimCard delete bridge.
 - The public CLI exposes the create triangle for `StudyCard`, `DatasetCard`,
   and `ClaimCard` through `ingest study`, `ingest dataset`, and `ingest claim`.
 - The public CLI exposes show-by-id for all three core cards through
   `show study`, `show dataset`, and `show claim`.
 - The public CLI exposes family-level discovery for all three core cards
   through `list studies`, `list datasets`, and `list claims`.
+- The public CLI now exposes referentially-aware by-id delete for all three
+  core cards through `delete study`, `delete dataset`, and `delete claim`.
 - The public show path adapts explicit CLI flags into narrow by-id input,
   calls `get_study_card` / `get_dataset_card` / `get_claim_card`, and returns
   stable JSON to stdout on success.
@@ -56,6 +61,12 @@
   boundary.
 - ClaimCard create/update enforce parent StudyCard existence and optional
   referenced DatasetCard existence at the gateway boundary.
+- StudyCard delete is blocked at the gateway boundary when dependent
+  DatasetCard or ClaimCard records still exist.
+- DatasetCard delete is blocked at the gateway boundary when dependent
+  ClaimCard records still exist.
+- ClaimCard delete is implemented directly at the gateway boundary when the
+  target exists.
 - StudyCard, DatasetCard, and ClaimCard serialization/deserialization use one
   YAML file per card at the canonical path.
 - StudyCard, DatasetCard, and ClaimCard single-card writes use a temp-file plus
@@ -79,7 +90,11 @@
 ## Explicitly Deferred
 
 - public search or filter for `StudyCard`, `DatasetCard`, or `ClaimCard`
-- public update/delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- public update for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- force delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- cascade delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- delete by search or filter for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- restore, undo, trash, or archive semantics for public delete
 - relationship expansion or reverse lookups in public reads
 - pagination or query semantics for public discovery
 - StudyCard update or patch ingest
@@ -105,4 +120,5 @@
 
 - Extend runtime only where contracts remain narrow and honest, without
   introducing scientific inference logic and without implying public
-  search/filter/update/delete before those contracts are intentionally designed.
+  search/filter/update/force/cascade behavior before those contracts are
+  intentionally designed.

@@ -22,6 +22,8 @@ implemented runtime slice.
   writes are now implemented behind the gateway.
 - `ClaimCard` runtime reads, listings, existence checks, and single-card writes
   are now implemented behind the gateway.
+- `StudyCard`, `DatasetCard`, and `ClaimCard` delete execution are now
+  implemented behind the gateway.
 
 ## Architectural Boundary
 
@@ -55,14 +57,20 @@ Planned operation families:
 - `plan create`
 - `plan update`
 
+Current execution helpers now also include by-id delete for `StudyCard`,
+`DatasetCard`, and `ClaimCard`.
+
 Current first-slice state:
 
 - `StudyCard`: runtime-real `get`, `exists`, `list`, `plan create`,
-  `plan update`, plus gateway-level `create` and `update` execution helpers
+  `plan update`, plus gateway-level `create`, `update`, and `delete`
+  execution helpers
 - `DatasetCard`: runtime-real `get`, `exists`, `list`, `plan create`,
-  `plan update`, plus gateway-level `create` and `update` execution helpers
+  `plan update`, plus gateway-level `create`, `update`, and `delete`
+  execution helpers
 - `ClaimCard`: runtime-real `get`, `exists`, `list`, `plan create`,
-  `plan update`, plus gateway-level `create` and `update` execution helpers
+  `plan update`, plus gateway-level `create`, `update`, and `delete`
+  execution helpers
 
 The boundary remains narrow even where runtime now exists.
 
@@ -75,13 +83,20 @@ The exact success/result shapes and mutation-plan payload contract are frozen in
 
 The conservative MVP rule is:
 
-- Direct referenced-card existence checks belong at the registry gateway boundary for create and update operations.
+- Direct referenced-card existence checks belong at the registry gateway
+  boundary for create and update operations.
+- Reverse-dependency blocking checks belong at the registry gateway boundary
+  before delete operations remove a canonical card file.
 
 Planned direct-reference checks:
 
 - `DatasetCard` create/update must confirm the referenced `StudyCard` exists.
 - `ClaimCard` create/update must confirm the referenced `StudyCard` exists.
 - `ClaimCard` create/update must confirm each referenced `DatasetCard` exists.
+- `StudyCard` delete must block when any `DatasetCard` or `ClaimCard`
+  depends on the target study.
+- `DatasetCard` delete must block when any `ClaimCard` depends on the target
+  dataset.
 
 Implemented now:
 
@@ -93,6 +108,14 @@ Implemented now:
   referenced `DatasetCard` existence when `dataset_ids` is present and non-empty.
 - `ClaimCard` planning descriptors perform the same direct checks without
   writing storage.
+- `StudyCard` delete now scans existing `DatasetCard` and `ClaimCard` records
+  before removal and raises a domain-level dependency-blocking error when
+  dependents still exist.
+- `DatasetCard` delete now scans existing `ClaimCard` records before removal
+  and raises a domain-level dependency-blocking error when dependents still
+  exist.
+- `ClaimCard` delete now removes the canonical file directly when the target
+  exists.
 
 What remains above the gateway:
 
@@ -136,6 +159,7 @@ Gateway/domain categories:
 - `CardNotFoundError`: requested card does not exist
 - `CardAlreadyExistsError`: create request targets an already existing card
 - `BrokenReferenceError`: direct referenced card is missing
+- `DependencyExistsError`: delete would leave dependent cards behind
 - `InvalidStateTransitionError`: requested change conflicts with the frozen lifecycle/state policy
 - `UnsupportedRegistryOperationError`: requested registry action is outside the supported gateway contract
 

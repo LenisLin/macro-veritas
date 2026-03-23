@@ -11,12 +11,16 @@ Implemented now:
   update for `DatasetCard`
 - real file-backed runtime reads, existence checks, listings, create, and
   update for `ClaimCard`
+- real file-backed runtime delete for `StudyCard`, `DatasetCard`, and
+  `ClaimCard`
 - planning descriptors for `StudyCard`, `DatasetCard`, and `ClaimCard` create
   and update
 - gateway-level `StudyCard` referential-integrity checks for `DatasetCard`
   create and update
 - gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
   checks for `ClaimCard` create and update
+- gateway-level reverse-dependency checks for `StudyCard` and `DatasetCard`
+  delete
 - domain-level translation of lower-level StudyCard/DatasetCard/ClaimCard
   filesystem/YAML failures
 - internal StudyCard ingest bridge support through `plan_create_study_card`
@@ -41,6 +45,7 @@ from macro_veritas.registry.claim_runtime import (
     ClaimCardIdentifierError,
     claim_card_exists as _runtime_claim_card_exists,
     create_claim_card as _runtime_create_claim_card,
+    delete_claim_card as _runtime_delete_claim_card,
     list_claim_cards as _runtime_list_claim_cards,
     normalize_claim_card_payload,
     read_claim_card as _runtime_read_claim_card,
@@ -51,6 +56,7 @@ from macro_veritas.registry.dataset_runtime import (
     DatasetCardIdentifierError,
     create_dataset_card as _runtime_create_dataset_card,
     dataset_card_exists as _runtime_dataset_card_exists,
+    delete_dataset_card as _runtime_delete_dataset_card,
     list_dataset_cards as _runtime_list_dataset_cards,
     normalize_dataset_card_payload,
     read_dataset_card as _runtime_read_dataset_card,
@@ -60,6 +66,7 @@ from macro_veritas.registry.errors import (
     BrokenReferenceError,
     CardAlreadyExistsError,
     CardNotFoundError,
+    DependencyExistsError,
     InvalidStateTransitionError,
     RegistryError,
     UnsupportedRegistryOperationError,
@@ -74,6 +81,7 @@ from macro_veritas.registry.study_runtime import (
     StudyCardIdentifierError,
     StudyCardStateTransitionError,
     create_study_card as _runtime_create_study_card,
+    delete_study_card as _runtime_delete_study_card,
     ensure_study_card_update_allowed,
     list_study_cards as _runtime_list_study_cards,
     normalize_study_card_payload,
@@ -383,6 +391,71 @@ def _require_claim_references_exist(
         _require_claim_dataset_references_exist(operation_name, list(dataset_ids))
 
 
+def _require_delete_target_exists(
+    *,
+    exists: bool,
+    operation_name: str,
+    card_family: CardFamilyName,
+) -> None:
+    if exists:
+        return
+    raise CardNotFoundError(
+        f"{operation_name} could not find the requested {card_family} at its canonical path."
+    )
+
+
+def _require_study_delete_allowed(study_id: str) -> None:
+    dependent_dataset_ids = sorted(
+        {
+            card["dataset_id"]
+            for card in list_dataset_cards()
+            if card["study_id"] == study_id
+        }
+    )
+    dependent_claim_ids = sorted(
+        {
+            card["claim_id"]
+            for card in list_claim_cards()
+            if card["study_id"] == study_id
+        }
+    )
+
+    if not dependent_dataset_ids and not dependent_claim_ids:
+        return
+
+    reasons: list[str] = []
+    if dependent_dataset_ids:
+        reasons.append(
+            "dependent DatasetCard(s) exist: " + ", ".join(dependent_dataset_ids)
+        )
+    if dependent_claim_ids:
+        reasons.append(
+            "dependent ClaimCard(s) exist: " + ", ".join(dependent_claim_ids)
+        )
+
+    raise DependencyExistsError(
+        f"cannot delete StudyCard '{study_id}' because " + "; ".join(reasons) + "."
+    )
+
+
+def _require_dataset_delete_allowed(dataset_id: str) -> None:
+    dependent_claim_ids = sorted(
+        {
+            card["claim_id"]
+            for card in list_claim_cards()
+            if dataset_id in card.get("dataset_ids", ())
+        }
+    )
+    if not dependent_claim_ids:
+        return
+
+    raise DependencyExistsError(
+        f"cannot delete DatasetCard '{dataset_id}' because dependent ClaimCard(s) exist: "
+        + ", ".join(dependent_claim_ids)
+        + "."
+    )
+
+
 def describe_registry_gateway_role() -> dict[str, object]:
     """Describe the frozen role of the registry gateway boundary."""
 
@@ -401,7 +474,16 @@ def describe_registry_gateway_role() -> dict[str, object]:
         "operation_families": _OPERATION_FAMILIES,
         "planned_error_categories": list_registry_error_categories(),
         "runtime_real_behavior": {
-            "StudyCard": ("get", "exists", "list", "plan_create", "plan_update", "create", "update"),
+            "StudyCard": (
+                "get",
+                "exists",
+                "list",
+                "plan_create",
+                "plan_update",
+                "create",
+                "update",
+                "delete",
+            ),
             "DatasetCard": (
                 "get",
                 "exists",
@@ -410,6 +492,7 @@ def describe_registry_gateway_role() -> dict[str, object]:
                 "plan_update",
                 "create",
                 "update",
+                "delete",
             ),
             "ClaimCard": (
                 "get",
@@ -419,17 +502,30 @@ def describe_registry_gateway_role() -> dict[str, object]:
                 "plan_update",
                 "create",
                 "update",
+                "delete",
             ),
         },
         "result_style": (
             "bare card reads shaped like the frozen card contract + bool exists "
             "+ tuple listings + explicit mutation-plan descriptor + "
-            "StudyCard/DatasetCard/ClaimCard runtime create/update helpers + domain exceptions"
+            "StudyCard/DatasetCard/ClaimCard runtime create/update/delete helpers + domain exceptions"
         ),
         "internal_command_bridges": {
             "StudyCard_ingest": (
                 "macro_veritas.commands.ingest.execute_studycard_ingest -> "
                 "plan_create_study_card -> create_study_card"
+            ),
+            "StudyCard_delete": (
+                "macro_veritas.commands.delete.execute_delete_study -> "
+                "delete_study_card"
+            ),
+            "DatasetCard_delete": (
+                "macro_veritas.commands.delete.execute_delete_dataset -> "
+                "delete_dataset_card"
+            ),
+            "ClaimCard_delete": (
+                "macro_veritas.commands.delete.execute_delete_claim -> "
+                "delete_claim_card"
             ),
         },
     }
@@ -462,7 +558,7 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
         "CardNotFoundError": {
             "semantic_layer": "gateway/domain",
             "meaning": "requested target card is absent for read, update execution, or update planning",
-            "applies_to": ("get_by_id", "plan_update", "update"),
+            "applies_to": ("get_by_id", "plan_update", "update", "delete"),
             "not_a_raw_os_exception": True,
         },
         "CardAlreadyExistsError": {
@@ -475,6 +571,12 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
             "semantic_layer": "gateway/domain",
             "meaning": "direct gateway-owned referenced-card existence check failed",
             "applies_to": ("plan_create", "plan_update", "create", "update"),
+            "not_a_raw_os_exception": True,
+        },
+        "DependencyExistsError": {
+            "semantic_layer": "gateway/domain",
+            "meaning": "requested delete would leave dependent registry records behind",
+            "applies_to": ("delete",),
             "not_a_raw_os_exception": True,
         },
         "InvalidStateTransitionError": {
@@ -491,7 +593,7 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
                 "caller requested an operation or input style outside the frozen contract, "
                 "including unsafe StudyCard, DatasetCard, or ClaimCard lookup IDs"
             ),
-            "applies_to": _OPERATION_FAMILIES,
+            "applies_to": _OPERATION_FAMILIES + ("create", "update", "delete"),
             "not_a_raw_os_exception": True,
         },
     }
@@ -842,6 +944,23 @@ def plan_update_study_card(card: StudyCardPayload) -> MutationPlanDescriptor:
         raise _translate_study_runtime_error("plan_update_study_card", exc) from exc
 
 
+def delete_study_card(study_id: str) -> None:
+    """Delete one StudyCard through the gateway's real runtime path."""
+
+    try:
+        _require_delete_target_exists(
+            exists=_runtime_study_card_exists(_registry_root(), study_id),
+            operation_name="delete_study_card",
+            card_family="StudyCard",
+        )
+        _require_study_delete_allowed(study_id)
+        _runtime_delete_study_card(_registry_root(), study_id)
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_study_runtime_error("delete_study_card", exc) from exc
+
+
 def create_study_card(card: StudyCardPayload) -> StudyCardPayload:
     """Create one StudyCard through the gateway's real runtime path."""
 
@@ -924,6 +1043,23 @@ def plan_update_dataset_card(card: DatasetCardPayload) -> MutationPlanDescriptor
         raise _translate_dataset_runtime_error("plan_update_dataset_card", exc) from exc
 
 
+def delete_dataset_card(dataset_id: str) -> None:
+    """Delete one DatasetCard through the gateway's real runtime path."""
+
+    try:
+        _require_delete_target_exists(
+            exists=_runtime_dataset_card_exists(_registry_root(), dataset_id),
+            operation_name="delete_dataset_card",
+            card_family="DatasetCard",
+        )
+        _require_dataset_delete_allowed(dataset_id)
+        _runtime_delete_dataset_card(_registry_root(), dataset_id)
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_dataset_runtime_error("delete_dataset_card", exc) from exc
+
+
 def create_claim_card(card: ClaimCardPayload) -> ClaimCardPayload:
     """Create one ClaimCard through the gateway's real runtime path."""
 
@@ -976,11 +1112,30 @@ def plan_update_claim_card(card: ClaimCardPayload) -> MutationPlanDescriptor:
         raise _translate_claim_runtime_error("plan_update_claim_card", exc) from exc
 
 
+def delete_claim_card(claim_id: str) -> None:
+    """Delete one ClaimCard through the gateway's real runtime path."""
+
+    try:
+        _require_delete_target_exists(
+            exists=_runtime_claim_card_exists(_registry_root(), claim_id),
+            operation_name="delete_claim_card",
+            card_family="ClaimCard",
+        )
+        _runtime_delete_claim_card(_registry_root(), claim_id)
+    except RegistryError:
+        raise
+    except Exception as exc:
+        raise _translate_claim_runtime_error("delete_claim_card", exc) from exc
+
+
 __all__ = [
     "claim_card_exists",
     "create_claim_card",
     "create_dataset_card",
     "create_study_card",
+    "delete_claim_card",
+    "delete_dataset_card",
+    "delete_study_card",
     "dataset_card_exists",
     "describe_atomic_write_policy",
     "describe_gateway_error_semantics",
