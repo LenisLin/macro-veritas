@@ -12,7 +12,7 @@ This document bridges the governance freeze to the current package layout.
 - [`docs/gateway_contracts.md`](gateway_contracts.md) is the source of truth for gateway result, error, and mutation-plan communication contracts.
 - [`docs/studycard_runtime.md`](studycard_runtime.md), [`docs/datasetcard_runtime.md`](datasetcard_runtime.md), and [`docs/claimcard_runtime.md`](claimcard_runtime.md) describe the implemented registry runtime slices.
 - [`docs/cli_command_contracts.md`](cli_command_contracts.md) is the source of truth for reserved internal command-family contracts.
-- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md), [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md), [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md), [`docs/public_show_cli.md`](public_show_cli.md), [`docs/public_list_cli.md`](public_list_cli.md), and [`docs/public_delete_cli.md`](public_delete_cli.md) define the current public domain command surfaces.
+- [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md), [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md), [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md), [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md), [`docs/public_show_cli.md`](public_show_cli.md), [`docs/public_list_cli.md`](public_list_cli.md), and [`docs/public_delete_cli.md`](public_delete_cli.md) define the current public domain command surfaces.
 
 ## Stable Base To Preserve
 
@@ -21,7 +21,7 @@ The current freeze preserves the existing lightweight runtime base:
 | Current Path | Current Role | Preserve Rule |
 | --- | --- | --- |
 | `src/macro_veritas/config.py` | Resolved project configuration and layout-path helper | Keep as the current runtime configuration base. |
-| `src/macro_veritas/cli.py` | Lightweight `argparse` CLI scaffold plus the public `ingest study`, `ingest dataset`, `ingest claim`, `show study`, `show dataset`, `show claim`, `list studies`, `list datasets`, `list claims`, `delete study`, `delete dataset`, and `delete claim` adapters | Keep existing public commands intact while exposing only the narrow StudyCard, DatasetCard, and ClaimCard ingest/create, show-by-id, family-level discovery, and referentially-aware by-id delete paths. |
+| `src/macro_veritas/cli.py` | Lightweight `argparse` CLI scaffold plus the public `ingest study`, `ingest dataset`, `ingest claim`, `ingest claim --from-file`, `show study`, `show dataset`, `show claim`, `list studies`, `list datasets`, `list claims`, `delete study`, `delete dataset`, and `delete claim` adapters | Keep existing public commands intact while exposing only the narrow StudyCard, DatasetCard, and ClaimCard ingest/create, ClaimCard-only single-file YAML ingest, show-by-id, family-level discovery, and referentially-aware by-id delete paths. |
 | `src/macro_veritas/__main__.py` | Module execution entrypoint | Preserve `python -m macro_veritas` support. |
 | repo-root `macro_veritas/` bootstrap package | Checkout-time bootstrap namespace | Preserve unless the invocation model intentionally changes later. |
 | current `status` / `show-config` / `init-layout` CLI scaffold | Honest implemented interface | Treat as stable implemented fact while governance descriptors grow around it. |
@@ -64,7 +64,7 @@ The command layer stays conservative and thin.
 | Code Path | Current Role | Explicit Boundary |
 | --- | --- | --- |
 | `src/macro_veritas/commands/common.py` | Shared command-contract style descriptors, runtime-boundary descriptors, narrow command-result helpers, and lightweight command metadata helpers | No standalone dispatch engine, no bypass around the registry gateway, no broad public command framework |
-| `src/macro_veritas/commands/ingest.py` | `ingest` family module with the real StudyCard, DatasetCard, and ClaimCard execution bridges beneath the public CLI adapters | Real StudyCard/DatasetCard/ClaimCard normalization, payload preparation, plan/create gateway calls, and command result translation; update/patch ingest semantics remain deferred |
+| `src/macro_veritas/commands/ingest.py` | `ingest` family module with the real StudyCard, DatasetCard, and ClaimCard execution bridges beneath the public CLI adapters, including the ClaimCard-only single-file YAML bridge used by `ingest claim --from-file` | Real StudyCard/DatasetCard/ClaimCard normalization, ClaimCard YAML mapping load + file-input normalization, payload preparation, plan/create gateway calls, and command result translation; StudyCard/DatasetCard file ingest and update/patch ingest semantics remain deferred |
 | `src/macro_veritas/commands/show.py` | `show` family module with the real StudyCard, DatasetCard, and ClaimCard by-id execution bridges beneath the public CLI adapters | Real by-id input normalization, direct `get_*_card` gateway calls, raw card return on success, and command-level failure translation; list/search/update/delete remain deferred |
 | `src/macro_veritas/commands/listing.py` | `list` family module with the real StudyCard, DatasetCard, and ClaimCard family-level discovery bridges beneath the public CLI adapters | Real family-level input normalization, direct `list_*_cards` gateway calls, compact summary shaping, and command-level failure translation; search/filter/pagination/update/delete remain deferred |
 | `src/macro_veritas/commands/delete.py` | `delete` family module with the real StudyCard, DatasetCard, and ClaimCard by-id execution bridges beneath the public CLI adapters | Real by-id input normalization, direct `delete_*_card` gateway calls, dependency-blocking failure translation, and conservative success/failure reporting; force/cascade/filter/update remain deferred |
@@ -87,9 +87,11 @@ The command layer stays conservative and thin.
   payload, DTO, and CLI-adapter TypedDicts.
 - Higher command layers must normalize raw parser input before preparing gateway payloads.
 - The only public domain commands in this round are `ingest study`,
-  `ingest dataset`, `ingest claim`, `show study`, `show dataset`,
-  `show claim`, `list studies`, `list datasets`, `list claims`,
-  `delete study`, `delete dataset`, and `delete claim`.
+  `ingest dataset`, `ingest claim`, `ingest claim --from-file`,
+  `show study`, `show dataset`, `show claim`, `list studies`,
+  `list datasets`, `list claims`, `delete study`, `delete dataset`,
+  and `delete claim`.
 - ClaimCard public update/patch ingest remains out of scope.
+- ClaimCard file input remains single-file YAML only at `ingest claim --from-file`.
 - This round must not add FastAPI, SQL, notebook-centric workflow, evidence
   grading logic, or CellVoyager integration.

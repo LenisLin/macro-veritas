@@ -13,7 +13,7 @@ This repository is in the initialization / MVP documentation freeze stage. No sc
 - Repository name: `macro-veritas`
 - Implemented now:
   - lightweight Python package scaffold
-  - minimal CLI commands for status, config inspection, layout initialization, create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete
+  - minimal CLI commands for status, config inspection, layout initialization, create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, ClaimCard-only single-file YAML ingest at `ingest claim --from-file`, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete
   - docs describing scope, constraints, and intended architecture
   - committed project config with explicit external data root
 - Not implemented now:
@@ -81,6 +81,7 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `ingest study`
   - `ingest dataset`
   - `ingest claim`
+  - `ingest claim --from-file`
   - `show study`
   - `show dataset`
   - `show claim`
@@ -90,7 +91,7 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `delete study`
   - `delete dataset`
   - `delete claim`
-- Four narrow public domain families are now implemented: create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete.
+- Four narrow public domain families are now implemented: create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, ClaimCard-only single-file YAML ingest at `ingest claim --from-file`, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete.
 - The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, narrow registry-card creation, narrow registry-card read-by-id access, narrow registry-card discovery, and conservative registry-card deletion.
 - CellVoyager code is not integrated into the current MacroVeritas package or CLI surface.
 

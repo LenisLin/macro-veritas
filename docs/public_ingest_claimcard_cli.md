@@ -2,19 +2,16 @@
 
 ## Purpose
 
-This document is the source of truth for the third real public domain command
-in MacroVeritas.
+This document is the source of truth for the public `ClaimCard` ingest surface.
 
-- It defines the public `ClaimCard` ingest CLI surface.
-- It fixes the third end-to-end public path:
-  raw CLI args -> normalized ClaimCard ingest input -> `ClaimCardPayload` ->
-  gateway create -> canonical YAML file write.
-- It keeps the scope narrow: create-only `ClaimCard` ingest and nothing
-  broader.
+- It defines the public `ingest claim` command in both supported modes.
+- It fixes the end-to-end ClaimCard create bridge:
+  raw CLI input or one YAML mapping -> normalized ClaimCard ingest input -> `ClaimCardPayload` -> gateway create -> canonical YAML file write.
+- It keeps the scope narrow: create-only ClaimCard ingest and nothing broader.
 
-## Exact Command Shape
+## Supported Public Modes
 
-The public command is:
+### Flag-Based Mode
 
 ```bash
 macro-veritas ingest claim \
@@ -31,17 +28,15 @@ macro-veritas ingest claim \
   [--claim-summary-handle <TEXT>]
 ```
 
-Notes:
+### File-Based Mode
 
-- `--dataset-id` is repeatable.
-- The CLI uses the frozen ClaimCard field names already documented in the
-  repository where they differ from earlier preferred shorthand.
-- No `--source-artifact` flag exists for ClaimCard in this milestone because
-  that field is not part of the frozen ClaimCard contract.
-- The same path is also reachable as
-  `python -m macro_veritas ingest claim ...`.
+```bash
+macro-veritas ingest claim --from-file <path.yaml>
+```
 
-## Required CLI Arguments
+The file-based mode is ClaimCard-only in this milestone. Its detailed file contract is frozen at [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md).
+
+## Flag-Based Required Arguments
 
 - `--claim-id`
 - `--study-id`
@@ -52,65 +47,74 @@ Notes:
 - `--review-readiness`
 - `--created-from`
 
-## Optional CLI Arguments
+## Flag-Based Optional Arguments
 
 - `--dataset-id` repeated zero or more times
 - `--claim-summary-handle`
 
+## File-Based Input Keys
+
+The file-based path uses the existing ClaimCard ingest-input names:
+
+- required: `claim_id`, `study_id`, `claim_text`, `claim_type`, `provenance_pointer`, `status`, `review_readiness`, `created_from`
+- optional: `dataset_ids`, `claim_summary_handle`
+
+The canonical stored ClaimCard still writes `created_from_note` after payload preparation.
+
+## Mixed-Input Rule
+
+- Exactly one ClaimCard ingest mode is allowed per invocation.
+- `--from-file` cannot be combined with any ClaimCard field flags.
+- Mixed usage fails cleanly as `ingest claim failed [invalid_payload]: ...`
+- No precedence rule exists in this milestone.
+
 ## Create-Only Behavior
 
-- This command is create-only.
-- It always prepares a create plan and then executes a create through the
-  existing `ClaimCard` gateway path.
-- If the target `ClaimCard` already exists, the command fails and does not
-  update or replace the existing file.
+- Both modes are create-only.
+- Both modes go through the same internal ClaimCard ingest bridge.
+- Both modes prepare a ClaimCard create plan and then execute ClaimCard create through the registry gateway.
+- If the target ClaimCard already exists, the command fails and does not update or replace the existing file.
 - No patch mode or update mode exists in this milestone.
 
 ## Parent StudyCard Requirement
 
 - `ClaimCard.study_id` must point to an existing canonical parent `StudyCard`.
 - The existence check is enforced at the registry gateway boundary.
-- A missing parent StudyCard is surfaced to the CLI as a clean command-level
-  failure category: `missing_reference`.
+- A missing parent StudyCard is surfaced to the CLI as a clean `missing_reference` failure.
 
 ## Optional DatasetCard Reference Requirement
 
 - `ClaimCard.dataset_ids` is optional.
-- If one or more `--dataset-id` flags are provided, each referenced
-  `DatasetCard` must already exist at its canonical path.
+- If one or more dataset IDs are provided, each referenced `DatasetCard` must already exist at its canonical path.
 - These existence checks are enforced at the registry gateway boundary.
-- Missing referenced DatasetCards are surfaced to the CLI as a clean
-  command-level failure category: `missing_reference`.
+- Missing referenced DatasetCards are surfaced to the CLI as a clean `missing_reference` failure.
 
 ## Success Output Expectations
 
 - Exit code: `0`
 - Output channel: standard output
-- Output style: one concise line confirming the create, for example
-  `ingest claim: created ClaimCard claim-001`
-- Side effect: one canonical YAML file is written to the configured registry
-  root by the gateway/runtime layer
+- Output style: one concise line confirming the create, for example `ingest claim: created ClaimCard claim-001`
+- Side effect: one canonical YAML file is written to the configured registry root by the existing ClaimCard gateway/runtime layer
 
 ## Failure Output Expectations
 
 - Exit code: non-zero
 - Output channel: standard error
 - Output style: one concise command-level failure line
-- Parser-level malformed argument sets use standard `argparse` error output
-  and exit non-zero.
-- Domain/runtime failures are translated into the command result categories:
-  `duplicate_target`, `missing_reference`, `invalid_payload`,
-  `unsupported_operation`, and `registry_failure`.
-- The intended user-facing surface is command-level messaging, not a raw
-  filesystem traceback.
+- Parser-level invalid choices still use standard `argparse` error output and exit non-zero.
+- File and normalization failures are surfaced as `invalid_payload`.
+- Gateway/domain failures are translated into the command result categories:
+  `duplicate_target`, `missing_reference`, `invalid_payload`, `unsupported_operation`, and `registry_failure`.
+- The intended user-facing surface is command-level messaging, not a raw filesystem traceback.
 
 ## Non-Goals
 
-- `StudyCard` update or patch ingest
-- `DatasetCard` update or patch ingest
-- `ClaimCard` update or patch ingest
-- config-file-driven ingest payloads
-- `bind`, `extract`, `audit`, `review`, `run`, or `grade` public exposure
+- StudyCard update or patch ingest
+- DatasetCard update or patch ingest
+- ClaimCard update or patch ingest
+- StudyCard or DatasetCard `--from-file` ingest
+- batch ingest
+- config-directory scans
 - scientific logic
 - evidence grading
 - CellVoyager integration

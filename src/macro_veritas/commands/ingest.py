@@ -18,6 +18,9 @@ Deferred:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from pathlib import Path
+
+import yaml
 
 from macro_veritas.commands.common import (
     build_command_descriptor,
@@ -41,6 +44,7 @@ from macro_veritas.registry.gateway import (
 from macro_veritas.shared.types import (
     CardFamilyName,
     ClaimCardCLIInput,
+    ClaimCardFileInput,
     ClaimCardIngestInput,
     ClaimCardPayload,
     ClaimCardStatus,
@@ -68,13 +72,14 @@ _OPERATION_NAME = "ingest"
 _OWNING_MODULE = "macro_veritas.commands.ingest"
 _OWNING_DOMAIN = "Registry Department / 户部"
 _PURPOSE = (
-    "Execute the narrow public StudyCard, DatasetCard, and ClaimCard ingest bridges "
-    "while keeping update semantics deferred."
+    "Execute the narrow public StudyCard, DatasetCard, and ClaimCard ingest bridges, "
+    "including ClaimCard-only single-file YAML intake, while keeping update semantics deferred."
 )
 _PRIMARY_INPUTS: DescriptorSequence = (
     "public StudyCard CLI adapter input",
     "public DatasetCard CLI adapter input",
     "public ClaimCard CLI adapter input",
+    "public ClaimCard single-file YAML mapping input",
     "internal StudyCard, DatasetCard, or ClaimCard ingest input",
     "target card-family label",
     "full-card StudyCardPayload, DatasetCardPayload, or ClaimCardPayload prepared from normalized intake input",
@@ -94,6 +99,7 @@ _DEPENDENCY_CONTRACTS: DescriptorSequence = (
     "docs/datasetcard_runtime.md",
     "docs/claimcard_runtime.md",
     "docs/public_ingest_claimcard_cli.md",
+    "docs/public_ingest_claimcard_from_file.md",
     "macro_veritas.governance.departments.registry",
     "macro_veritas.registry.gateway",
 )
@@ -144,13 +150,17 @@ _DEFERRED_CAPABILITIES: DescriptorSequence = (
     "StudyCard update or patch ingest semantics",
     "DatasetCard update or patch ingest semantics",
     "ClaimCard update or patch ingest semantics",
+    "StudyCard file-based ingest input",
+    "DatasetCard file-based ingest input",
     "identifier allocation beyond caller-provided canonical IDs",
-    "broader ingest surfaces such as file-driven batch input",
+    "broader ingest surfaces such as directory-driven or batch file input",
 )
 _NON_GOALS: DescriptorSequence = (
     "StudyCard update or patch ingest",
     "DatasetCard update or patch ingest",
     "ClaimCard update or patch ingest",
+    "StudyCard or DatasetCard file-based ingest",
+    "batch ingest",
     "scientific logic",
     "evidence grading",
     "CellVoyager integration",
@@ -164,6 +174,23 @@ _UNSAFE_STUDY_ID_MESSAGE_FRAGMENTS: tuple[str, ...] = (
     "must be a canonical identifier, not a path",
     "must not contain surrounding whitespace",
     "must not contain NUL bytes",
+)
+_CLAIMCARD_FILE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "claim_id",
+    "study_id",
+    "claim_text",
+    "claim_type",
+    "provenance_pointer",
+    "status",
+    "review_readiness",
+    "created_from",
+)
+_CLAIMCARD_FILE_OPTIONAL_FIELDS: tuple[str, ...] = (
+    "dataset_ids",
+    "claim_summary_handle",
+)
+_CLAIMCARD_FILE_ALLOWED_FIELDS: tuple[str, ...] = (
+    _CLAIMCARD_FILE_REQUIRED_FIELDS + _CLAIMCARD_FILE_OPTIONAL_FIELDS
 )
 
 
@@ -185,7 +212,10 @@ def describe_command_family() -> CommandDescriptor:
         primary_outputs=_PRIMARY_OUTPUTS,
         dependency_contracts=_DEPENDENCY_CONTRACTS,
         non_goals=_NON_GOALS,
-        public_exposure="public `ingest study`, `ingest dataset`, and `ingest claim` only; update semantics stay non-public",
+        public_exposure=(
+            "public `ingest study`, `ingest dataset`, `ingest claim`, and ClaimCard-only "
+            "single-file YAML intake at `ingest claim --from-file`; update semantics stay non-public"
+        ),
     )
 
 
@@ -419,6 +449,95 @@ def normalize_public_claimcard_cli_input(
     )
 
 
+def load_claimcard_ingest_file(path: str | Path) -> ClaimCardFileInput:
+    """Load one ClaimCard ingest mapping from a YAML file."""
+
+    input_path = Path(path)
+    try:
+        document = input_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise ValueError(f"ClaimCard ingest file was not found: {input_path}.") from exc
+    except OSError as exc:
+        raise ValueError(f"ClaimCard ingest file could not be read: {input_path}.") from exc
+
+    try:
+        parsed = yaml.safe_load(document)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"ClaimCard ingest file is not valid YAML: {input_path}.") from exc
+
+    if not isinstance(parsed, Mapping):
+        raise ValueError(f"ClaimCard ingest file must decode to one mapping: {input_path}.")
+
+    return dict(parsed)
+
+
+def normalize_claimcard_file_input(
+    command_input: Mapping[str, object],
+) -> ClaimCardIngestInput:
+    """Convert a loaded ClaimCard YAML mapping into normalized ingest input."""
+
+    raw_input = dict(command_input)
+    non_string_keys = [key for key in raw_input if not isinstance(key, str)]
+    if non_string_keys:
+        raise ValueError("ClaimCard ingest file keys must be strings.")
+
+    missing_fields = [
+        field_name
+        for field_name in _CLAIMCARD_FILE_REQUIRED_FIELDS
+        if field_name not in raw_input
+    ]
+    if missing_fields:
+        raise ValueError(
+            "ClaimCard ingest file is missing required keys: "
+            + ", ".join(missing_fields)
+        )
+
+    unexpected_fields = sorted(
+        field_name
+        for field_name in raw_input
+        if field_name not in _CLAIMCARD_FILE_ALLOWED_FIELDS
+    )
+    if unexpected_fields:
+        raise ValueError(
+            "ClaimCard ingest file contains unsupported keys: "
+            + ", ".join(unexpected_fields)
+        )
+
+    dataset_ids: Sequence[str] | None = None
+    if "dataset_ids" in raw_input:
+        raw_dataset_ids = raw_input["dataset_ids"]
+        if not isinstance(raw_dataset_ids, (list, tuple)):
+            raise ValueError(
+                "ClaimCard ingest file field 'dataset_ids' must be a YAML sequence of strings when provided."
+            )
+        dataset_ids = raw_dataset_ids
+
+    claim_summary_handle: str | None = None
+    if "claim_summary_handle" in raw_input:
+        raw_claim_summary_handle = raw_input["claim_summary_handle"]
+        if raw_claim_summary_handle is None:
+            raise ValueError(
+                "ClaimCard ingest file field 'claim_summary_handle' must be a string when provided."
+            )
+        claim_summary_handle = _require_command_string(
+            raw_claim_summary_handle,
+            field_name="claim_summary_handle",
+        )
+
+    return normalize_claimcard_ingest_input(
+        claim_id=raw_input["claim_id"],
+        study_id=raw_input["study_id"],
+        claim_text=raw_input["claim_text"],
+        claim_type=raw_input["claim_type"],
+        provenance_pointer=raw_input["provenance_pointer"],
+        status=raw_input["status"],
+        review_readiness=raw_input["review_readiness"],
+        created_from=raw_input["created_from"],
+        dataset_ids=dataset_ids,
+        claim_summary_handle=claim_summary_handle,
+    )
+
+
 def prepare_studycard_ingest_payload(command_input: StudyCardIngestInput) -> StudyCardPayload:
     """Prepare one `StudyCardPayload` from normalized internal ingest input."""
 
@@ -642,6 +761,14 @@ def execute_claimcard_ingest_input(
         target_id=created["claim_id"],
         message="ClaimCard ingest created the canonical ClaimCard record.",
     )
+
+
+def execute_claimcard_ingest_from_file(path: str | Path) -> CommandExecutionResult:
+    """Execute ClaimCard ingest from one YAML file through the standard create bridge."""
+
+    loaded_input = load_claimcard_ingest_file(path)
+    normalized_input = normalize_claimcard_file_input(loaded_input)
+    return execute_claimcard_ingest_input(normalized_input)
 
 
 def execute_studycard_ingest(
@@ -1197,6 +1324,7 @@ __all__ = [
     "describe_command_family",
     "describe_payload_contracts",
     "execute_claimcard_ingest",
+    "execute_claimcard_ingest_from_file",
     "execute_claimcard_ingest_input",
     "execute_datasetcard_ingest",
     "execute_datasetcard_ingest_input",
@@ -1206,6 +1334,8 @@ __all__ = [
     "handle_ingest_command",
     "list_deferred_capabilities",
     "list_expected_gateway_dependencies",
+    "load_claimcard_ingest_file",
+    "normalize_claimcard_file_input",
     "normalize_claimcard_ingest_input",
     "normalize_datasetcard_ingest_input",
     "normalize_public_claimcard_cli_input",

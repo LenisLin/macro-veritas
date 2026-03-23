@@ -4,6 +4,9 @@
 - chore(init): convert AVCP template into MacroVeritas scaffold
 - docs(mvp): establish the MVP documentation freeze across governance, architecture, registry/state/audit, and CLI contract docs; project remains docs-first with no scientific system implemented and CellVoyager reference-only
 
+## v0.11.0 - 2026-03-23
+- release: public file-based ClaimCard ingest exposed; public CLI now supports `ingest claim --from-file <path.yaml>`; StudyCard and DatasetCard file-based ingest remain absent; no batch ingest; no update/patch semantics; release version chosen: v0.11.0
+
 ## v0.10.0 - 2026-03-23
 - release: public referentially-aware delete CLI exposed for StudyCard, DatasetCard, and ClaimCard; dependency-blocking rules now enforce safe public removals; public ingest/show/list already exist; no public force/cascade/search/filter/update; release version chosen: v0.10.0
 

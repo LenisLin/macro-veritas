@@ -36,6 +36,21 @@ from .shared.types import (
 
 SCAFFOLD_STAGE = "Initialization / scaffold"
 
+_CLAIMCARD_REQUIRED_FIELD_FLAGS: tuple[tuple[str, str], ...] = (
+    ("claim_id", "--claim-id"),
+    ("study_id", "--study-id"),
+    ("claim_text", "--claim-text"),
+    ("claim_type", "--claim-type"),
+    ("provenance_pointer", "--provenance-pointer"),
+    ("status", "--status"),
+    ("review_readiness", "--review-readiness"),
+    ("created_from", "--created-from"),
+)
+_CLAIMCARD_ALL_FIELD_FLAGS: tuple[tuple[str, str], ...] = (
+    _CLAIMCARD_REQUIRED_FIELD_FLAGS
+    + (("dataset_id", "--dataset-id"), ("claim_summary_handle", "--claim-summary-handle"))
+)
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -93,7 +108,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     claim_parser = ingest_subparsers.add_parser(
         "claim",
-        help="Create one ClaimCard from explicit CLI fields",
+        help="Create one ClaimCard from explicit CLI fields or one YAML file",
     )
     _configure_claim_ingest_parser(claim_parser)
     claim_parser.set_defaults(handler=_run_ingest_claim)
@@ -339,42 +354,44 @@ def _configure_dataset_ingest_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def _configure_claim_ingest_parser(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--claim-id", required=True, help="Canonical ClaimCard identifier")
+    parser.add_argument(
+        "--from-file",
+        default=None,
+        type=Path,
+        help=(
+            "Load one ClaimCard ingest mapping from a YAML file; ClaimCard-only "
+            "and not combinable with field flags"
+        ),
+    )
+    parser.add_argument("--claim-id", help="Canonical ClaimCard identifier")
     parser.add_argument(
         "--study-id",
-        required=True,
         help="Canonical parent StudyCard identifier",
     )
     parser.add_argument(
         "--claim-text",
-        required=True,
         help="Human-readable claim text captured for the ClaimCard",
     )
     parser.add_argument(
         "--claim-type",
-        required=True,
         help="Short category label describing the claim type",
     )
     parser.add_argument(
         "--provenance-pointer",
-        required=True,
         help="Figure, table, supplement, or text-span pointer for the claim",
     )
     parser.add_argument(
         "--status",
-        required=True,
         choices=allowed_claim_statuses(),
         help="ClaimCard lifecycle status",
     )
     parser.add_argument(
         "--review-readiness",
-        required=True,
         choices=allowed_claim_review_readiness(),
         help="ClaimCard review readiness label",
     )
     parser.add_argument(
         "--created-from",
-        required=True,
         help="Provenance note describing where this ClaimCard came from",
     )
     parser.add_argument(
@@ -445,6 +462,51 @@ def _build_claimcard_cli_input(args: argparse.Namespace) -> ClaimCardCLIInput:
     if args.claim_summary_handle is not None:
         cli_input["claim_summary_handle"] = args.claim_summary_handle
     return cli_input
+
+
+def _claimcard_field_flag_values(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "claim_id": args.claim_id,
+        "study_id": args.study_id,
+        "claim_text": args.claim_text,
+        "claim_type": args.claim_type,
+        "provenance_pointer": args.provenance_pointer,
+        "status": args.status,
+        "review_readiness": args.review_readiness,
+        "created_from": args.created_from,
+        "dataset_id": args.dataset_id,
+        "claim_summary_handle": args.claim_summary_handle,
+    }
+
+
+def _resolve_claimcard_ingest_mode(args: argparse.Namespace) -> str:
+    field_values = _claimcard_field_flag_values(args)
+    provided_field_flags = [
+        option
+        for field_name, option in _CLAIMCARD_ALL_FIELD_FLAGS
+        if field_values[field_name] is not None
+    ]
+    if args.from_file is not None:
+        if provided_field_flags:
+            raise ValueError(
+                "ClaimCard --from-file cannot be combined with field flags: "
+                + ", ".join(provided_field_flags)
+                + "."
+            )
+        return "from_file"
+
+    missing_required_flags = [
+        option
+        for field_name, option in _CLAIMCARD_REQUIRED_FIELD_FLAGS
+        if field_values[field_name] is None
+    ]
+    if missing_required_flags:
+        raise ValueError(
+            "ClaimCard flag-based ingest requires "
+            + ", ".join(missing_required_flags)
+            + " unless --from-file is used."
+        )
+    return "flags"
 
 
 def _build_show_cli_input(*, card_family: str, target_id: str) -> ShowCLIInput:
@@ -568,10 +630,14 @@ def _run_ingest_dataset(args: argparse.Namespace) -> int:
 
 def _run_ingest_claim(args: argparse.Namespace) -> int:
     try:
-        cli_input = _build_claimcard_cli_input(args)
-        normalized_input = ingest_command.normalize_public_claimcard_cli_input(cli_input)
+        mode = _resolve_claimcard_ingest_mode(args)
         with _configured_runtime_environment(args.config):
-            result = ingest_command.execute_claimcard_ingest_input(normalized_input)
+            if mode == "from_file":
+                result = ingest_command.execute_claimcard_ingest_from_file(args.from_file)
+            else:
+                cli_input = _build_claimcard_cli_input(args)
+                normalized_input = ingest_command.normalize_public_claimcard_cli_input(cli_input)
+                result = ingest_command.execute_claimcard_ingest_input(normalized_input)
     except (FileNotFoundError, ValueError) as exc:
         print(
             f"ingest claim failed [invalid_payload]: {exc}",

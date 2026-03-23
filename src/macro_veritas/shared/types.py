@@ -290,6 +290,9 @@ class ClaimCardIngestInput(_ClaimCardIngestInputRequired, total=False):
     claim_summary_handle: str
 
 
+ClaimCardFileInput: TypeAlias = ClaimCardIngestInput
+
+
 class _ClaimCardCLIInputRequired(TypedDict):
     """Required fields for the public ingest claim CLI adapter boundary."""
 
