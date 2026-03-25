@@ -20,6 +20,7 @@ from macro_veritas.commands import (
     review,
     run,
     show,
+    update,
 )
 from macro_veritas.shared import types as shared_types
 
@@ -36,6 +37,7 @@ def _subprocess_env() -> dict[str, str]:
 def test_shared_command_contract_types_are_frozen() -> None:
     assert get_args(shared_types.CommandFamilyName) == (
         "ingest",
+        "update",
         "show",
         "list",
         "delete",
@@ -151,6 +153,11 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "artifact_locator",
         "availability_note",
     }
+    assert shared_types.DatasetCardUpdateInput.__required_keys__ == {
+        "dataset_id",
+        "from_file",
+    }
+    assert shared_types.DatasetCardUpdateInput.__optional_keys__ == set()
     assert shared_types.ClaimCardIngestInput.__required_keys__ == {
         "claim_id",
         "study_id",
@@ -220,9 +227,9 @@ def test_common_command_style_descriptor_is_static() -> None:
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
-    assert "StudyCard, DatasetCard, and ClaimCard ingest/show/list/delete paths are runtime-real" in style["runtime_status"]
+    assert "DatasetCard update path are runtime-real" in style["runtime_status"]
     assert style["public_exposure"] == (
-        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
+        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, update dataset, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
     )
     assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
     assert "outside the frozen payload contract" in payload_style["raw_cli_argument_layer"]
@@ -236,6 +243,7 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "ingest dataset --from-file" in runtime_boundary["public_cli_exposure"]
     assert "ingest claim" in runtime_boundary["public_cli_exposure"]
     assert "ingest claim --from-file" in runtime_boundary["public_cli_exposure"]
+    assert "update dataset" in runtime_boundary["public_cli_exposure"]
     assert "show study" in runtime_boundary["public_cli_exposure"]
     assert "show dataset" in runtime_boundary["public_cli_exposure"]
     assert "show claim" in runtime_boundary["public_cli_exposure"]
@@ -251,6 +259,7 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "public StudyCard file-based CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard file-based CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public ClaimCard file-based CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public DatasetCard update CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public StudyCard show CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard show CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public ClaimCard show CLI adapter" in runtime_boundary["runtime_real_now"]
@@ -262,9 +271,11 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "public ClaimCard delete CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
+    assert "DatasetCard plan_update gateway call" in runtime_boundary["runtime_real_now"]
     assert "StudyCard file-loaded ingest input" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard file-loaded ingest input" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard file-loaded ingest input" in runtime_boundary["runtime_real_now"]
+    assert "DatasetCard file-loaded update input" in runtime_boundary["runtime_real_now"]
     assert "StudyCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
@@ -274,6 +285,7 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "StudyCard delete gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard delete gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard delete gateway call" in runtime_boundary["runtime_real_now"]
+    assert "DatasetCard update gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard ingest" not in runtime_boundary["still_skeleton_only"]
     assert result_style["output_type"] == "CommandExecutionResult"
     assert result_style["failure_field"] == "error_category"
@@ -282,7 +294,7 @@ def test_common_command_style_descriptor_is_static() -> None:
 
 
 def test_command_family_modules_export_static_metadata() -> None:
-    modules = [ingest, show, listing, delete, bind, extract, audit, review, run, grade]
+    modules = [ingest, update, show, listing, delete, bind, extract, audit, review, run, grade]
 
     for module in modules:
         family = module.family_name()
@@ -298,6 +310,10 @@ def test_command_family_modules_export_static_metadata() -> None:
         if family == "ingest":
             assert descriptor["public_exposure"] == (
                 "public `ingest study`, `ingest study --from-file`, `ingest dataset`, `ingest dataset --from-file`, `ingest claim`, and `ingest claim --from-file`; update semantics stay non-public"
+            )
+        elif family == "update":
+            assert descriptor["public_exposure"] == (
+                "public `update dataset --dataset-id <ID> --from-file <path.yaml>` only; StudyCard/ClaimCard/patch semantics stay non-public"
             )
         elif family == "show":
             assert descriptor["public_exposure"] == (
@@ -327,6 +343,7 @@ def test_command_family_modules_export_static_metadata() -> None:
 
 def test_command_handlers_raise_precise_placeholders() -> None:
     ingest_result = ingest.handle_ingest_command(object())
+    update_result = update.handle_update_command(object())
     list_result = listing.handle_list_command(object())
     delete_result = delete.handle_delete_command(object())
 
@@ -346,6 +363,14 @@ def test_command_handlers_raise_precise_placeholders() -> None:
         "message": "StudyCard list input is invalid: handle_list_command expects a mapping-based internal input.",
         "error_category": "invalid_payload",
     }
+    assert update_result == {
+        "ok": False,
+        "operation": "update",
+        "card_family": "DatasetCard",
+        "target_id": None,
+        "message": "DatasetCard update input is invalid: handle_update_command expects a mapping-based internal input.",
+        "error_category": "invalid_payload",
+    }
     assert delete_result == {
         "ok": False,
         "operation": "delete",
@@ -359,7 +384,7 @@ def test_command_handlers_raise_precise_placeholders() -> None:
         run.handle_run_command(object())
 
 
-def test_public_cli_help_exposes_only_ingest_show_list_and_delete_families_beyond_scaffold_commands() -> None:
+def test_public_cli_help_exposes_only_public_runtime_families_beyond_scaffold_commands() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "macro_veritas", "--help"],
         check=False,
@@ -373,6 +398,7 @@ def test_public_cli_help_exposes_only_ingest_show_list_and_delete_families_beyon
     assert "show-config" in result.stdout
     assert "init-layout" in result.stdout
     assert "ingest" in result.stdout
+    assert "update" in result.stdout
     assert "show" in result.stdout
     assert "list" in result.stdout
     assert "delete" in result.stdout

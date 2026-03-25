@@ -25,6 +25,8 @@ Implemented now:
   filesystem/YAML failures
 - internal StudyCard ingest bridge support through `plan_create_study_card`
   plus `create_study_card`
+- internal DatasetCard update bridge support through `plan_update_dataset_card`
+  plus `update_dataset_card`
 
 Non-goals:
 - no CLI wiring
@@ -522,6 +524,10 @@ def describe_registry_gateway_role() -> dict[str, object]:
             "DatasetCard_delete": (
                 "macro_veritas.commands.delete.execute_delete_dataset -> "
                 "delete_dataset_card"
+            ),
+            "DatasetCard_update": (
+                "macro_veritas.commands.update.execute_update_dataset -> "
+                "plan_update_dataset_card -> update_dataset_card"
             ),
             "ClaimCard_delete": (
                 "macro_veritas.commands.delete.execute_delete_claim -> "

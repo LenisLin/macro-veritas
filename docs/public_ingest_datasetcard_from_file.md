@@ -7,6 +7,7 @@ This document is the source of truth for file-based `DatasetCard` ingest.
 - It defines the public `ingest dataset --from-file` path.
 - It fixes the narrow bridge: file path -> YAML mapping load -> normalized DatasetCard ingest input -> `DatasetCardPayload` -> gateway create -> canonical YAML write.
 - It keeps the scope narrow: single-file, create-only, YAML-mapping DatasetCard ingest.
+- It is distinct from `update dataset --dataset-id <ID> --from-file <path.yaml>`, which expects a complete canonical `DatasetCard` replacement file and performs update, not create.
 
 ## Exact CLI Shape
 
@@ -28,6 +29,7 @@ python -m macro_veritas ingest dataset --from-file <path.yaml>
 - File shape: one mapping at the document root
 - File count: one file only
 - Input keys use the existing DatasetCard ingest-input names, not the stored canonical YAML names
+- In particular, this create path uses `modality_scope`; the update path uses the canonical stored field name `modality_scope_tags`
 
 Example:
 

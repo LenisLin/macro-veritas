@@ -10,13 +10,14 @@ MacroVeritas.
 - single-card atomic write behavior for DatasetCard create and update
 - gateway-level `StudyCard` referential-integrity enforcement for DatasetCard
   create and update
-- thin public CLI exposure for create-only `ingest dataset`
+- thin public CLI exposure for `ingest dataset` create and `update dataset`
+  full-replace update
 - gateway translation of lower-level DatasetCard runtime failures into registry
   domain errors
 
 This milestone stays intentionally narrow. It makes DatasetCard registry IO and
-create-only public CLI ingest runtime-real without widening the public CLI any
-further.
+the public create/update CLI bridges runtime-real without widening the public
+CLI any further.
 
 ## Runtime-Real Now
 
@@ -45,7 +46,7 @@ Interpretation:
 
 ## Public CLI Entry Point
 
-The public DatasetCard entry point is now real and intentionally thin:
+The public DatasetCard entry points are now real and intentionally thin:
 
 1. `macro_veritas.cli` exposes `ingest dataset`
 2. the CLI adapter converts parsed args into a small typed DatasetCard CLI mapping
@@ -55,13 +56,22 @@ The public DatasetCard entry point is now real and intentionally thin:
    prepares one full-card `DatasetCardPayload`
 5. `macro_veritas.commands.ingest.execute_datasetcard_ingest_input(...)` calls
    `plan_create_dataset_card(...)` and then `create_dataset_card(...)`
-6. the actual write remains owned by `macro_veritas.registry.gateway`
+6. `macro_veritas.cli` also exposes `update dataset`
+7. the update CLI adapter converts parsed args into a small typed DatasetCard
+   update mapping
+8. `macro_veritas.commands.update.load_datasetcard_update_file(...)` loads one
+   complete replacement `DatasetCard` YAML mapping in canonical field shape
+9. `macro_veritas.commands.update.execute_update_dataset(...)` verifies CLI
+   target / file target consistency, then calls `plan_update_dataset_card(...)`
+   and `update_dataset_card(...)`
+10. the actual write remains owned by `macro_veritas.registry.gateway`
 
 Scope limits:
 
-- the public path is create-only
-- public DatasetCard update or patch semantics do not exist
-- ClaimCard public ingest does not exist
+- the public create path still exists at `ingest dataset` and `ingest dataset --from-file`
+- the public update path exists only at `update dataset --dataset-id <ID> --from-file <path.yaml>`
+- update is full-replace only; patch semantics do not exist
+- public `StudyCard` and `ClaimCard` update do not exist
 - raw `argparse.Namespace` objects are not part of the command-to-gateway boundary
 
 ## Referential Integrity Rule
@@ -159,12 +169,21 @@ Public command-bridge translations for `ingest dataset`:
 - unsupported operation/identifier -> `unsupported_operation`
 - other gateway/domain failures -> `registry_failure`
 
+Public command-bridge translations for `update dataset`:
+
+- missing target DatasetCard -> `missing_reference`
+- missing parent StudyCard -> `missing_reference`
+- invalid replacement file or invalid DatasetCard data -> `invalid_payload`
+- unsupported operation/identifier -> `unsupported_operation`
+- other gateway/domain failures -> `registry_failure`
+
 ## Non-Goals
 
 This milestone does not add:
 
-- ClaimCard public ingest
-- DatasetCard public update or patch commands
+- StudyCard public update
+- ClaimCard public update
+- DatasetCard patch, merge, or partial-update commands
 - scientific logic
 - evidence grading
 - multi-card transactions

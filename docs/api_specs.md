@@ -95,6 +95,20 @@ The following commands are the current stable public CLI surface.
 - Source of truth:
   [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md)
 
+### `macro_veritas update dataset --dataset-id <ID> --from-file <path>`
+
+- Purpose: replace one canonical `DatasetCard` from one YAML mapping file.
+- Expected effect: converts the explicit `--dataset-id` target into a narrow
+  update input mapping, loads one complete replacement `DatasetCard` YAML
+  mapping in canonical field shape, verifies that the CLI target matches the
+  file `dataset_id`, calls DatasetCard update planning, calls DatasetCard
+  update execution, and replaces one canonical YAML file through the registry
+  gateway.
+- What it should not do: update `StudyCard` or `ClaimCard`, accept patch
+  semantics, accept field flags, accept batches, or bypass the gateway.
+- Source of truth:
+  [`docs/public_update_datasetcard_cli.md`](public_update_datasetcard_cli.md)
+
 ### `macro_veritas ingest claim`
 
 - Purpose: create one canonical `ClaimCard` from explicit CLI fields.
@@ -219,8 +233,11 @@ The following commands are the current stable public CLI surface.
 - Source of truth:
   [`docs/public_delete_cli.md`](public_delete_cli.md)
 
-There is still no public search, filter, update, force delete, cascade delete,
-or delete-by-filter capability for any card family.
+There is still no public search, filter, force delete, cascade delete, or
+delete-by-filter capability for any card family. Public update exists only for
+`DatasetCard`, only through `update dataset --dataset-id <ID> --from-file <path>`,
+and only as full-card replace; `StudyCard` / `ClaimCard` update and patch
+semantics remain absent.
 
 ## Command Families
 
@@ -229,6 +246,7 @@ The following command-family names are recognized in the current codebase.
 | CLI Group | Intended Purpose | Current Status | Internal Module | Governance Domain Alignment |
 | --- | --- | --- | --- | --- |
 | `ingest` | Add initial study, dataset, or claim records into the planned registry. | Public for create-only `StudyCard` at `ingest study`, single-file `StudyCard` create at `ingest study --from-file`, create-only `DatasetCard` at `ingest dataset`, single-file `DatasetCard` create at `ingest dataset --from-file`, create-only `ClaimCard` at `ingest claim`, and single-file `ClaimCard` create at `ingest claim --from-file`; update semantics remain non-public. | `macro_veritas.commands.ingest` | Registry Department / 户部 |
+| `update` | Replace one existing registry card by explicit canonical target. | Public only for full-replace `DatasetCard` update at `update dataset --dataset-id <ID> --from-file <path.yaml>`; `StudyCard` / `ClaimCard` update, field-flag update, and patch semantics remain non-public. | `macro_veritas.commands.update` | Registry Department / 户部 |
 | `show` | Read one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `show study`, by-id `DatasetCard` at `show dataset`, and by-id `ClaimCard` at `show claim`; list/search/update/delete semantics remain non-public. | `macro_veritas.commands.show` | Registry Department / 户部 |
 | `list` | Discover existing study, dataset, or claim identifiers by family. | Public for compact `StudyCard` summaries at `list studies`, compact `DatasetCard` summaries at `list datasets`, and compact `ClaimCard` summaries at `list claims`; search/filter/update/delete semantics remain non-public. | `macro_veritas.commands.listing` | Registry Department / 户部 |
 | `delete` | Remove one study, dataset, or claim record by canonical ID. | Public for by-id `StudyCard` at `delete study`, by-id `DatasetCard` at `delete dataset`, and by-id `ClaimCard` at `delete claim`; force/cascade/search/filter/update semantics remain non-public. | `macro_veritas.commands.delete` | Registry Department / 户部 |

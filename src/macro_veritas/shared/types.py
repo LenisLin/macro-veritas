@@ -52,6 +52,7 @@ DatasetAvailabilityStatus = Literal["unknown", "open", "restricted", "unavailabl
 ClaimReviewReadiness = Literal["needs_scope", "reviewable", "execution_candidate"]
 CommandFamilyName = Literal[
     "ingest",
+    "update",
     "show",
     "list",
     "delete",
@@ -65,6 +66,7 @@ CommandFamilyName = Literal[
 
 ReservedCLIFamilyName = Literal[
     "ingest",
+    "update",
     "show",
     "list",
     "delete",
@@ -254,6 +256,13 @@ class DatasetCardCLIInput(_DatasetCardCLIInputRequired, total=False):
     accession_id: str
     artifact_locator: str
     availability_note: str
+
+
+class DatasetCardUpdateInput(TypedDict):
+    """Typed mapping built from parsed CLI args for public DatasetCard update."""
+
+    dataset_id: str
+    from_file: str
 
 
 class _ClaimCardPayloadRequired(TypedDict):
@@ -501,6 +510,7 @@ __all__ = [
     "DatasetCardIngestInput",
     "DatasetCardPayload",
     "DatasetCardStatus",
+    "DatasetCardUpdateInput",
     "DeleteCLIInput",
     "DepartmentName",
     "DescriptorMap",

@@ -29,14 +29,15 @@ _COMMAND_CONTRACT_STYLE: dict[str, object] = {
     "parser_builder_shape": "build_parser(subparsers_or_parser: object) -> None",
     "handler_shape": "handle_<family>_command(args: object) -> object",
     "runtime_status": (
-        "mixed; the StudyCard, DatasetCard, and ClaimCard ingest/show/list/delete paths are "
-        "runtime-real and all other per-family execution remains explicitly documented"
+        "mixed; the StudyCard, DatasetCard, and ClaimCard ingest/show/list/delete paths plus "
+        "the DatasetCard update path are runtime-real and all other per-family execution "
+        "remains explicitly documented"
     ),
     "public_exposure": (
-        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
+        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, update dataset, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
     ),
     "file_io": (
-        "allowed through the registry gateway for registry mutations and through the documented single-file YAML intake boundary at ingest study --from-file, ingest dataset --from-file, and ingest claim --from-file"
+        "allowed through the registry gateway for registry mutations and through the documented single-file YAML intake boundary at ingest study --from-file, ingest dataset --from-file, ingest claim --from-file, and update dataset --from-file"
     ),
     "silent_side_effects": "forbidden",
 }
@@ -69,7 +70,7 @@ _GATEWAY_PAYLOAD_BOUNDARY: dict[str, str | bool] = {
 _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
     "source_of_truth_doc": "docs/cli_command_contracts.md",
     "public_cli_exposure": (
-        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim exist as thin adapters over the internal ingest/show/list/delete bridges"
+        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, update dataset, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim exist as thin adapters over the internal ingest/update/show/list/delete bridges"
     ),
     "runtime_real_now": (
         "public StudyCard CLI adapter",
@@ -78,6 +79,7 @@ _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
         "public StudyCard file-based CLI adapter",
         "public DatasetCard file-based CLI adapter",
         "public ClaimCard file-based CLI adapter",
+        "public DatasetCard update CLI adapter",
         "public StudyCard show CLI adapter",
         "public DatasetCard show CLI adapter",
         "public ClaimCard show CLI adapter",
@@ -93,15 +95,18 @@ _COMMAND_RUNTIME_BOUNDARY: dict[str, object] = {
         "StudyCard file-loaded ingest input",
         "DatasetCard file-loaded ingest input",
         "ClaimCard file-loaded ingest input",
+        "DatasetCard file-loaded update input",
         "StudyCard payload preparation",
         "DatasetCard payload preparation",
         "ClaimCard payload preparation",
         "StudyCard plan_create gateway call",
         "DatasetCard plan_create gateway call",
         "ClaimCard plan_create gateway call",
+        "DatasetCard plan_update gateway call",
         "StudyCard create gateway call",
         "DatasetCard create gateway call",
         "ClaimCard create gateway call",
+        "DatasetCard update gateway call",
         "StudyCard get-by-id gateway call",
         "DatasetCard get-by-id gateway call",
         "ClaimCard get-by-id gateway call",
@@ -268,6 +273,8 @@ def format_command_result_for_cli(
             return f"{command_path}: ok"
         if result["operation"] == "delete":
             return f"{command_path}: deleted {result['card_family']} {target_id}"
+        if result["operation"] == "update":
+            return f"{command_path}: updated {result['card_family']} {target_id}"
         return f"{command_path}: created {result['card_family']} {target_id}"
 
     return (

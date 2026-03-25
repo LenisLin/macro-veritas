@@ -12,6 +12,7 @@ from .commands import delete as delete_command
 from .commands import ingest as ingest_command
 from .commands import listing as listing_command
 from .commands import show as show_command
+from .commands import update as update_command
 from .commands.common import format_command_result_for_cli
 from .config import load_project_config
 from .registry.claim import (
@@ -28,6 +29,7 @@ from .shared.types import (
     ClaimCardCLIInput,
     CommandExecutionResult,
     DatasetCardCLIInput,
+    DatasetCardUpdateInput,
     DeleteCLIInput,
     ListCLIInput,
     ShowCLIInput,
@@ -141,6 +143,31 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _configure_claim_ingest_parser(claim_parser)
     claim_parser.set_defaults(handler=_run_ingest_claim)
+
+    update_parser = subparsers.add_parser(
+        "update",
+        help="Replace supported registry records through the narrow public update paths",
+    )
+    update_subparsers = update_parser.add_subparsers(
+        dest="update_command",
+        required=True,
+    )
+    update_dataset_parser = update_subparsers.add_parser(
+        "dataset",
+        help="Replace one DatasetCard from one complete YAML file",
+    )
+    update_dataset_parser.add_argument(
+        "--dataset-id",
+        required=True,
+        help="Canonical DatasetCard identifier; must match the YAML dataset_id",
+    )
+    update_dataset_parser.add_argument(
+        "--from-file",
+        required=True,
+        type=Path,
+        help="Load one complete replacement DatasetCard mapping from a YAML file",
+    )
+    update_dataset_parser.set_defaults(handler=_run_update_dataset)
 
     show_parser = subparsers.add_parser(
         "show",
@@ -471,6 +498,13 @@ def _build_datasetcard_cli_input(args: argparse.Namespace) -> DatasetCardCLIInpu
     return cli_input
 
 
+def _build_datasetcard_update_cli_input(args: argparse.Namespace) -> DatasetCardUpdateInput:
+    return {
+        "dataset_id": args.dataset_id,
+        "from_file": str(args.from_file),
+    }
+
+
 def _build_claimcard_cli_input(args: argparse.Namespace) -> ClaimCardCLIInput:
     cli_input: ClaimCardCLIInput = {
         "claim_id": args.claim_id,
@@ -747,6 +781,22 @@ def _run_ingest_claim(args: argparse.Namespace) -> int:
         return 1
 
     return _emit_command_result(result, command_path="ingest claim")
+
+
+def _run_update_dataset(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_datasetcard_update_cli_input(args)
+        normalized_input = update_command.normalize_update_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = update_command.execute_update_dataset(normalized_input)
+    except ValueError as exc:
+        print(
+            f"update dataset failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="update dataset")
 
 
 def _run_show_study(args: argparse.Namespace) -> int:

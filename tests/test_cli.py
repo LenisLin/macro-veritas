@@ -65,6 +65,7 @@ def test_python_module_help_succeeds() -> None:
     assert "MacroVeritas scaffold CLI" in result.stdout
     assert "init-layout" in result.stdout
     assert "ingest" in result.stdout
+    assert "update" in result.stdout
     assert "show" in result.stdout
     assert "list" in result.stdout
     assert "delete" in result.stdout
@@ -85,6 +86,31 @@ def test_ingest_help_shows_public_study_dataset_and_claim_subcommands_only() -> 
     assert "claim" in result.stdout
     assert "bind" not in result.stdout
     assert "extract" not in result.stdout
+
+
+def test_update_help_shows_public_dataset_subcommand_only() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "macro_veritas", "update", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+    dataset_result = subprocess.run(
+        [sys.executable, "-m", "macro_veritas", "update", "dataset", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "dataset" in result.stdout
+    assert "study" not in result.stdout
+    assert "claim" not in result.stdout
+    assert dataset_result.returncode == 0, dataset_result.stderr
+    assert "--dataset-id" in dataset_result.stdout
+    assert "--from-file" in dataset_result.stdout
 
 
 def test_ingest_help_shows_from_file_option_for_all_three_card_families() -> None:
