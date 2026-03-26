@@ -27,6 +27,7 @@ from .registry.study import allowed_screening_decisions
 from .registry.study import allowed_statuses as allowed_study_statuses
 from .shared.types import (
     ClaimCardCLIInput,
+    ClaimCardUpdateInput,
     CommandExecutionResult,
     DatasetCardCLIInput,
     DatasetCardUpdateInput,
@@ -34,6 +35,7 @@ from .shared.types import (
     ListCLIInput,
     ShowCLIInput,
     StudyCardCLIInput,
+    StudyCardUpdateInput,
 )
 
 SCAFFOLD_STAGE = "Initialization / scaffold"
@@ -152,6 +154,23 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="update_command",
         required=True,
     )
+    update_study_parser = update_subparsers.add_parser(
+        "study",
+        help="Replace one StudyCard from one complete YAML file",
+    )
+    update_study_parser.add_argument(
+        "--study-id",
+        required=True,
+        help="Canonical StudyCard identifier; must match the YAML study_id",
+    )
+    update_study_parser.add_argument(
+        "--from-file",
+        required=True,
+        type=Path,
+        help="Load one complete replacement StudyCard mapping from a YAML file",
+    )
+    update_study_parser.set_defaults(handler=_run_update_study)
+
     update_dataset_parser = update_subparsers.add_parser(
         "dataset",
         help="Replace one DatasetCard from one complete YAML file",
@@ -168,6 +187,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Load one complete replacement DatasetCard mapping from a YAML file",
     )
     update_dataset_parser.set_defaults(handler=_run_update_dataset)
+
+    update_claim_parser = update_subparsers.add_parser(
+        "claim",
+        help="Replace one ClaimCard from one complete YAML file",
+    )
+    update_claim_parser.add_argument(
+        "--claim-id",
+        required=True,
+        help="Canonical ClaimCard identifier; must match the YAML claim_id",
+    )
+    update_claim_parser.add_argument(
+        "--from-file",
+        required=True,
+        type=Path,
+        help="Load one complete replacement ClaimCard mapping from a YAML file",
+    )
+    update_claim_parser.set_defaults(handler=_run_update_claim)
 
     show_parser = subparsers.add_parser(
         "show",
@@ -505,6 +541,20 @@ def _build_datasetcard_update_cli_input(args: argparse.Namespace) -> DatasetCard
     }
 
 
+def _build_studycard_update_cli_input(args: argparse.Namespace) -> StudyCardUpdateInput:
+    return {
+        "study_id": args.study_id,
+        "from_file": str(args.from_file),
+    }
+
+
+def _build_claimcard_update_cli_input(args: argparse.Namespace) -> ClaimCardUpdateInput:
+    return {
+        "claim_id": args.claim_id,
+        "from_file": str(args.from_file),
+    }
+
+
 def _build_claimcard_cli_input(args: argparse.Namespace) -> ClaimCardCLIInput:
     cli_input: ClaimCardCLIInput = {
         "claim_id": args.claim_id,
@@ -786,7 +836,7 @@ def _run_ingest_claim(args: argparse.Namespace) -> int:
 def _run_update_dataset(args: argparse.Namespace) -> int:
     try:
         cli_input = _build_datasetcard_update_cli_input(args)
-        normalized_input = update_command.normalize_update_input(cli_input)
+        normalized_input = update_command.normalize_datasetcard_update_input(cli_input)
         with _configured_runtime_environment(args.config):
             result = update_command.execute_update_dataset(normalized_input)
     except ValueError as exc:
@@ -797,6 +847,38 @@ def _run_update_dataset(args: argparse.Namespace) -> int:
         return 1
 
     return _emit_command_result(result, command_path="update dataset")
+
+
+def _run_update_study(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_studycard_update_cli_input(args)
+        normalized_input = update_command.normalize_studycard_update_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = update_command.execute_update_study(normalized_input)
+    except ValueError as exc:
+        print(
+            f"update study failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="update study")
+
+
+def _run_update_claim(args: argparse.Namespace) -> int:
+    try:
+        cli_input = _build_claimcard_update_cli_input(args)
+        normalized_input = update_command.normalize_claimcard_update_input(cli_input)
+        with _configured_runtime_environment(args.config):
+            result = update_command.execute_update_claim(normalized_input)
+    except ValueError as exc:
+        print(
+            f"update claim failed [invalid_payload]: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _emit_command_result(result, command_path="update claim")
 
 
 def _run_show_study(args: argparse.Namespace) -> int:

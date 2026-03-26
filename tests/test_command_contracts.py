@@ -121,6 +121,11 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "screening_note",
         "source_artifact",
     }
+    assert shared_types.StudyCardUpdateInput.__required_keys__ == {
+        "study_id",
+        "from_file",
+    }
+    assert shared_types.StudyCardUpdateInput.__optional_keys__ == set()
     assert shared_types.DatasetCardIngestInput.__required_keys__ == {
         "dataset_id",
         "study_id",
@@ -186,6 +191,11 @@ def test_shared_command_contract_types_are_frozen() -> None:
         "dataset_ids",
         "claim_summary_handle",
     }
+    assert shared_types.ClaimCardUpdateInput.__required_keys__ == {
+        "claim_id",
+        "from_file",
+    }
+    assert shared_types.ClaimCardUpdateInput.__optional_keys__ == set()
 
 
     assert shared_types.ShowCLIInput.__required_keys__ == {
@@ -227,9 +237,9 @@ def test_common_command_style_descriptor_is_static() -> None:
 
     assert style["module_layout"].startswith("one module per reserved command family")
     assert style["parser_builder_shape"] == "build_parser(subparsers_or_parser: object) -> None"
-    assert "DatasetCard update path are runtime-real" in style["runtime_status"]
+    assert "StudyCard, DatasetCard, and ClaimCard update paths are runtime-real" in style["runtime_status"]
     assert style["public_exposure"] == (
-        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, update dataset, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
+        "public ingest study, ingest study --from-file, ingest dataset, ingest dataset --from-file, ingest claim, ingest claim --from-file, update study, update dataset, update claim, show study, show dataset, show claim, list studies, list datasets, list claims, delete study, delete dataset, and delete claim paths only; all other reserved families remain non-public"
     )
     assert payload_style["source_of_truth_doc"] == "docs/payload_contracts.md"
     assert "outside the frozen payload contract" in payload_style["raw_cli_argument_layer"]
@@ -237,6 +247,7 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert payload_boundary["gateway_consumes_full_card_payloads_only"] is True
     assert payload_boundary["patch_payloads_supported"] is False
     assert runtime_boundary["source_of_truth_doc"] == "docs/cli_command_contracts.md"
+    assert "update study" in runtime_boundary["public_cli_exposure"]
     assert "ingest study" in runtime_boundary["public_cli_exposure"]
     assert "ingest dataset" in runtime_boundary["public_cli_exposure"]
     assert "ingest study --from-file" in runtime_boundary["public_cli_exposure"]
@@ -244,6 +255,7 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "ingest claim" in runtime_boundary["public_cli_exposure"]
     assert "ingest claim --from-file" in runtime_boundary["public_cli_exposure"]
     assert "update dataset" in runtime_boundary["public_cli_exposure"]
+    assert "update claim" in runtime_boundary["public_cli_exposure"]
     assert "show study" in runtime_boundary["public_cli_exposure"]
     assert "show dataset" in runtime_boundary["public_cli_exposure"]
     assert "show claim" in runtime_boundary["public_cli_exposure"]
@@ -259,7 +271,9 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "public StudyCard file-based CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard file-based CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public ClaimCard file-based CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public StudyCard update CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard update CLI adapter" in runtime_boundary["runtime_real_now"]
+    assert "public ClaimCard update CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public StudyCard show CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public DatasetCard show CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "public ClaimCard show CLI adapter" in runtime_boundary["runtime_real_now"]
@@ -271,11 +285,15 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "public ClaimCard delete CLI adapter" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard plan_create gateway call" in runtime_boundary["runtime_real_now"]
+    assert "StudyCard plan_update gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard plan_update gateway call" in runtime_boundary["runtime_real_now"]
+    assert "ClaimCard plan_update gateway call" in runtime_boundary["runtime_real_now"]
     assert "StudyCard file-loaded ingest input" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard file-loaded ingest input" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard file-loaded ingest input" in runtime_boundary["runtime_real_now"]
+    assert "StudyCard file-loaded update input" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard file-loaded update input" in runtime_boundary["runtime_real_now"]
+    assert "ClaimCard file-loaded update input" in runtime_boundary["runtime_real_now"]
     assert "StudyCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard get-by-id gateway call" in runtime_boundary["runtime_real_now"]
@@ -285,7 +303,9 @@ def test_common_command_style_descriptor_is_static() -> None:
     assert "StudyCard delete gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard delete gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard delete gateway call" in runtime_boundary["runtime_real_now"]
+    assert "StudyCard update gateway call" in runtime_boundary["runtime_real_now"]
     assert "DatasetCard update gateway call" in runtime_boundary["runtime_real_now"]
+    assert "ClaimCard update gateway call" in runtime_boundary["runtime_real_now"]
     assert "ClaimCard ingest" not in runtime_boundary["still_skeleton_only"]
     assert result_style["output_type"] == "CommandExecutionResult"
     assert result_style["failure_field"] == "error_category"
@@ -313,7 +333,7 @@ def test_command_family_modules_export_static_metadata() -> None:
             )
         elif family == "update":
             assert descriptor["public_exposure"] == (
-                "public `update dataset --dataset-id <ID> --from-file <path.yaml>` only; StudyCard/ClaimCard/patch semantics stay non-public"
+                "public `update study --study-id <ID> --from-file <path.yaml>` and `update dataset --dataset-id <ID> --from-file <path.yaml>` and `update claim --claim-id <ID> --from-file <path.yaml>` only; patch semantics stay non-public"
             )
         elif family == "show":
             assert descriptor["public_exposure"] == (

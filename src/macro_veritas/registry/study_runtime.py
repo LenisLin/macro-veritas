@@ -7,6 +7,7 @@ Responsibilities:
 - resolve the canonical StudyCard filesystem path
 - serialize and deserialize one StudyCard per YAML file
 - apply minimal structural validation for stored and input payloads
+- preserve the exact prior YAML bytes in append-only history before update overwrite
 - write one canonical card file at a time with a temp-file + fsync + replace flow
 - delete one canonical StudyCard file by canonical ID
 
@@ -26,7 +27,8 @@ from pathlib import Path
 
 import yaml
 
-from macro_veritas.registry.layout import study_card_path, study_cards_dir
+from macro_veritas.registry.history import preserve_pre_update_snapshot
+from macro_veritas.registry.layout import study_card_path, study_cards_dir, study_history_dir
 from macro_veritas.registry.study import (
     allowed_screening_decisions,
     allowed_statuses,
@@ -200,6 +202,7 @@ def update_study_card(registry_root: Path, card: Mapping[str, object]) -> StudyC
     path = study_card_path(registry_root, normalized["study_id"])
     current_card = _read_study_card_from_path(path)
     ensure_study_card_update_allowed(current_card, normalized)
+    preserve_pre_update_snapshot(path, study_history_dir(registry_root, normalized["study_id"]))
     _write_study_card_file(path, normalized)
     return normalized
 

@@ -18,11 +18,13 @@ from pathlib import Path
 from macro_veritas.shared.naming import (
     claim_card_filename,
     dataset_card_filename,
+    history_subdir_name,
     registry_subdir_names,
     study_card_filename,
 )
 
 _STUDIES_SUBDIR, _DATASETS_SUBDIR, _CLAIMS_SUBDIR = registry_subdir_names()
+_HISTORY_SUBDIR = history_subdir_name()
 
 
 def study_card_relative_path(study_id: str) -> str:
@@ -77,6 +79,30 @@ def claim_card_path(registry_root: str | Path, claim_id: str) -> Path:
     """Return the canonical filesystem path for a first-slice `ClaimCard`."""
 
     return claim_cards_dir(registry_root) / claim_card_filename(claim_id)
+
+
+def history_root(registry_root: str | Path) -> Path:
+    """Return the append-only history root beneath a resolved registry root."""
+
+    return Path(registry_root) / _HISTORY_SUBDIR
+
+
+def study_history_dir(registry_root: str | Path, study_id: str) -> Path:
+    """Return the history directory for one `StudyCard` identifier."""
+
+    return history_root(registry_root) / _STUDIES_SUBDIR / study_id
+
+
+def dataset_history_dir(registry_root: str | Path, dataset_id: str) -> Path:
+    """Return the history directory for one `DatasetCard` identifier."""
+
+    return history_root(registry_root) / _DATASETS_SUBDIR / dataset_id
+
+
+def claim_history_dir(registry_root: str | Path, claim_id: str) -> Path:
+    """Return the history directory for one `ClaimCard` identifier."""
+
+    return history_root(registry_root) / _CLAIMS_SUBDIR / claim_id
 
 
 def describe_first_slice_layout() -> dict[str, dict[str, str | bool]]:
@@ -137,12 +163,16 @@ __all__ = [
     "claim_card_path",
     "claim_cards_dir",
     "claim_card_relative_path",
+    "claim_history_dir",
     "dataset_card_path",
     "dataset_cards_dir",
     "dataset_card_relative_path",
+    "dataset_history_dir",
     "describe_first_slice_layout",
     "describe_layout_vs_gateway_boundary",
+    "history_root",
     "study_card_path",
     "study_cards_dir",
     "study_card_relative_path",
+    "study_history_dir",
 ]

@@ -88,9 +88,16 @@ def test_ingest_help_shows_public_study_dataset_and_claim_subcommands_only() -> 
     assert "extract" not in result.stdout
 
 
-def test_update_help_shows_public_dataset_subcommand_only() -> None:
+def test_update_help_shows_public_study_dataset_and_claim_subcommands_only() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "macro_veritas", "update", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+    study_result = subprocess.run(
+        [sys.executable, "-m", "macro_veritas", "update", "study", "--help"],
         check=False,
         capture_output=True,
         text=True,
@@ -103,14 +110,27 @@ def test_update_help_shows_public_dataset_subcommand_only() -> None:
         text=True,
         env=_subprocess_env(),
     )
+    claim_result = subprocess.run(
+        [sys.executable, "-m", "macro_veritas", "update", "claim", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
 
     assert result.returncode == 0, result.stderr
     assert "dataset" in result.stdout
-    assert "study" not in result.stdout
-    assert "claim" not in result.stdout
+    assert "study" in result.stdout
+    assert "claim" in result.stdout
+    assert study_result.returncode == 0, study_result.stderr
+    assert "--study-id" in study_result.stdout
+    assert "--from-file" in study_result.stdout
     assert dataset_result.returncode == 0, dataset_result.stderr
     assert "--dataset-id" in dataset_result.stdout
     assert "--from-file" in dataset_result.stdout
+    assert claim_result.returncode == 0, claim_result.stderr
+    assert "--claim-id" in claim_result.stdout
+    assert "--from-file" in claim_result.stdout
 
 
 def test_ingest_help_shows_from_file_option_for_all_three_card_families() -> None:

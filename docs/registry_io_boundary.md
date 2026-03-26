@@ -8,6 +8,8 @@ operations.
 - It defines the planned module boundary for reading and writing registry cards.
 - It defines where direct referential-integrity checks are expected to happen.
 - It defines the planned mutation-safety rule for future writes.
+- It defines the current snapshot-before-overwrite safety rule for full-replace
+  updates.
 - It defines the minimum planned error surface for registry access.
 - `docs/gateway_contracts.md` defines the exact gateway communication contract
   for results, mutation-plan outputs, and domain-error semantics.
@@ -134,13 +136,20 @@ Why this is the chosen MVP boundary:
 The write rule remains intentionally narrow and is now implemented for
 `StudyCard`, `DatasetCard`, and `ClaimCard`:
 
-- Single-card create and update operations are expected to follow a write-temp-then-replace style atomic update principle for the canonical card file.
+- Single-card create operations follow a write-temp-then-replace style atomic
+  update principle for the canonical card file.
+- Single-card full-replace update operations first preserve the exact prior
+  canonical YAML in the internal history tree, then perform the atomic
+  canonical-file replacement.
 
 Implemented interpretation:
 
 - The target of atomicity is one canonical card file at a time.
 - Future writes should avoid in-place partial overwrite of the canonical file.
-- A successful single-card mutation should appear as one completed replacement of the canonical card file.
+- A successful single-card update should appear as one completed snapshot
+  creation plus one completed replacement of the canonical card file.
+- Snapshot history is internal-only beneath `<registry_root>/history/` and is
+  not part of public read or list resolution.
 
 Explicit limits:
 
@@ -148,6 +157,7 @@ Explicit limits:
 - No cross-card commit bundle is planned yet.
 - No concurrent locking system is planned yet.
 - No rollback engine is planned yet.
+- No public restore or history-browsing CLI is planned yet.
 
 ## Error Surface
 

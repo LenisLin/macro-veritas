@@ -2,7 +2,8 @@
 
 ## Current Status
 
-- Phase: Initialization / first public DatasetCard full-replace update
+- Phase: Initialization / public StudyCard, DatasetCard, and ClaimCard
+  full-replace update plus pre-update snapshot preservation
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -18,9 +19,9 @@
 - A minimal public CLI exists with `status`, `show-config`, `init-layout`,
   `ingest study`, `ingest study --from-file`, `ingest dataset`,
   `ingest dataset --from-file`, `ingest claim`, `ingest claim --from-file`,
-  `update dataset`, `show study`, `show dataset`, `show claim`,
-  `list studies`, `list datasets`, `list claims`, `delete study`,
-  `delete dataset`, and `delete claim`.
+  `update study`, `update dataset`, `update claim`, `show study`,
+  `show dataset`, `show claim`, `list studies`, `list datasets`,
+  `list claims`, `delete study`, `delete dataset`, and `delete claim`.
 - A committed project config defines the current external data root and
   placeholder layout paths.
 - The registry gateway implements real file-backed `StudyCard` read, exists,
@@ -42,7 +43,9 @@
 - The internal command layer implements a real StudyCard delete bridge.
 - The internal command layer implements a real DatasetCard delete bridge.
 - The internal command layer implements a real ClaimCard delete bridge.
+- The internal command layer implements a real StudyCard full-replace update bridge.
 - The internal command layer implements a real DatasetCard full-replace update bridge.
+- The internal command layer implements a real ClaimCard full-replace update bridge.
 - The public CLI exposes the create triangle for `StudyCard`, `DatasetCard`,
   and `ClaimCard` through `ingest study`, `ingest dataset`, and `ingest claim`.
 - The public CLI also exposes single-file YAML create-only ingest through `ingest study --from-file <path.yaml>`, `ingest dataset --from-file <path.yaml>`, and `ingest claim --from-file <path.yaml>`.
@@ -52,8 +55,17 @@
   through `list studies`, `list datasets`, and `list claims`.
 - The public CLI now exposes referentially-aware by-id delete for all three
   core cards through `delete study`, `delete dataset`, and `delete claim`.
+- The public CLI now exposes file-based full-replace StudyCard update through
+  `update study --study-id <ID> --from-file <path.yaml>`.
 - The public CLI now exposes file-based full-replace DatasetCard update through
   `update dataset --dataset-id <ID> --from-file <path.yaml>`.
+- The public CLI now exposes file-based full-replace ClaimCard update through
+  `update claim --claim-id <ID> --from-file <path.yaml>`.
+- StudyCard update preserves the existing closed-to-active status rejection rule
+  at the registry gateway/runtime boundary.
+- Public full-replace update for StudyCard, DatasetCard, and ClaimCard now
+  preserves the exact prior on-disk YAML in an internal append-only
+  `<registry_root>/history/` tree before overwrite.
 - The public show path adapts explicit CLI flags into narrow by-id input,
   calls `get_study_card` / `get_dataset_card` / `get_claim_card`, and returns
   stable JSON to stdout on success.
@@ -77,12 +89,13 @@
 - StudyCard, DatasetCard, and ClaimCard serialization/deserialization use one
   YAML file per card at the canonical path.
 - StudyCard, DatasetCard, and ClaimCard single-card writes use a temp-file plus
-  replace atomic write flow.
+  replace atomic write flow, and full-replace update now adds snapshot-before-overwrite safety.
 - Internal tests cover the StudyCard, DatasetCard, and ClaimCard runtime slices.
 - Internal tests cover the public ingest, public show, and public list CLI
   paths for the three core card families, including single-file `--from-file` ingest for StudyCard, DatasetCard, and ClaimCard.
-- Internal tests cover the public DatasetCard full-replace update CLI path,
-  including target/file mismatch and parent-StudyCard revalidation failures.
+- Internal tests cover the public StudyCard, DatasetCard, and ClaimCard full-replace update
+  CLI paths, including target/file mismatch and status/reference validation
+  failures.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain skeleton-only.
 - AVCP-derived governance assets remain in place as internal process
   scaffolding.
@@ -100,20 +113,19 @@
 ## Explicitly Deferred
 
 - public search or filter for `StudyCard`, `DatasetCard`, or `ClaimCard`
-- public update for `StudyCard`
-- public update for `ClaimCard`
-- public DatasetCard update beyond file-based full replace
+- public StudyCard, DatasetCard, or ClaimCard update beyond file-based full replace
 - force delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
 - cascade delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
 - delete by search or filter for `StudyCard`, `DatasetCard`, or `ClaimCard`
 - restore, undo, trash, or archive semantics for public delete
 - relationship expansion or reverse lookups in public reads
 - pagination or query semantics for public discovery
-- StudyCard update or patch ingest
+- StudyCard patch, partial, or flag-based update
 - DatasetCard patch, partial, or flag-based update
-- ClaimCard update or patch ingest
+- ClaimCard patch, partial, or flag-based update
 - batch or directory-based file update
 - update by search or filter
+- public restore, rollback, or history browsing for update snapshots
 - batch or directory-based file ingest
 - scientific pipelines
 - claim extraction

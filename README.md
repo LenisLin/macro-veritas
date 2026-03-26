@@ -4,7 +4,7 @@
 
 MacroVeritas is a docs-first, CLI-first Python project scaffold for a future claim-centered evidence grading and data-level verification system focused on melanoma, immune checkpoint inhibition, and macrophage literature.
 
-This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, or analysis pipeline is implemented yet. The implemented registry logic remains narrow and limited to create, DatasetCard full-replace update from file, read-by-id, family-level discovery, and referentially-aware by-id delete registry operations.
+This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, or analysis pipeline is implemented yet. The implemented registry logic remains narrow and limited to create, StudyCard, DatasetCard, and ClaimCard full-replace update from file with pre-update snapshot preservation, read-by-id, family-level discovery, and referentially-aware by-id delete registry operations.
 
 ## Current Status
 
@@ -13,7 +13,7 @@ This repository is in the initialization / MVP documentation freeze stage. No sc
 - Repository name: `macro-veritas`
 - Implemented now:
   - lightweight Python package scaffold
-  - minimal CLI commands for status, config inspection, layout initialization, create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, single-file YAML ingest at `ingest study --from-file`, `ingest dataset --from-file`, and `ingest claim --from-file`, file-based full-replace `DatasetCard` update at `update dataset --dataset-id <ID> --from-file <path.yaml>`, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete
+  - minimal CLI commands for status, config inspection, layout initialization, create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, single-file YAML ingest at `ingest study --from-file`, `ingest dataset --from-file`, and `ingest claim --from-file`, file-based full-replace `StudyCard` update at `update study --study-id <ID> --from-file <path.yaml>`, file-based full-replace `DatasetCard` update at `update dataset --dataset-id <ID> --from-file <path.yaml>`, file-based full-replace `ClaimCard` update at `update claim --claim-id <ID> --from-file <path.yaml>`, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete
   - docs describing scope, constraints, and intended architecture
   - committed project config with explicit external data root
 - Not implemented now:
@@ -84,7 +84,9 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `ingest study --from-file`
   - `ingest dataset --from-file`
   - `ingest claim --from-file`
+  - `update study`
   - `update dataset`
+  - `update claim`
   - `show study`
   - `show dataset`
   - `show claim`
@@ -94,13 +96,15 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `delete study`
   - `delete dataset`
   - `delete claim`
-- Five narrow public domain families are now implemented: create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, single-file YAML ingest for all three core cards at `ingest study --from-file`, `ingest dataset --from-file`, and `ingest claim --from-file`, file-based full-replace `DatasetCard` update at `update dataset --dataset-id <ID> --from-file <path.yaml>`, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete.
-- The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, narrow registry-card creation, narrow DatasetCard full-replace update, narrow registry-card read-by-id access, narrow registry-card discovery, and conservative registry-card deletion.
+- Five narrow public domain families are now implemented: create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, single-file YAML ingest for all three core cards at `ingest study --from-file`, `ingest dataset --from-file`, and `ingest claim --from-file`, file-based full-replace `StudyCard` update at `update study --study-id <ID> --from-file <path.yaml>`, file-based full-replace `DatasetCard` update at `update dataset --dataset-id <ID> --from-file <path.yaml>`, file-based full-replace `ClaimCard` update at `update claim --claim-id <ID> --from-file <path.yaml>`, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete.
+- Those full-replace update paths now preserve the exact prior on-disk YAML in an internal append-only history tree before overwrite. No restore or history-browsing CLI exists yet.
+- The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, narrow registry-card creation, narrow StudyCard, DatasetCard, and ClaimCard full-replace update, narrow registry-card read-by-id access, narrow registry-card discovery, and conservative registry-card deletion.
 - CellVoyager code is not integrated into the current MacroVeritas package or CLI surface.
 
 ## Next Milestone
 
 The next milestone is to extend the registry surface carefully beyond the current
 public `StudyCard`, `DatasetCard`, and `ClaimCard` ingest/show/list/delete
-paths plus the narrow file-based `DatasetCard` update path without introducing
-scientific inference logic.
+paths plus the narrow file-based `StudyCard`, `DatasetCard`, and `ClaimCard`
+update paths
+without introducing scientific inference logic.

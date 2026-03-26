@@ -19,14 +19,20 @@ Implemented now:
   create and update
 - gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
   checks for `ClaimCard` create and update
+- pre-update snapshot preservation for `StudyCard`, `DatasetCard`, and
+  `ClaimCard` full-replace update execution
 - gateway-level reverse-dependency checks for `StudyCard` and `DatasetCard`
   delete
 - domain-level translation of lower-level StudyCard/DatasetCard/ClaimCard
-  filesystem/YAML failures
+  filesystem/YAML/snapshot failures
 - internal StudyCard ingest bridge support through `plan_create_study_card`
   plus `create_study_card`
+- internal StudyCard update bridge support through `plan_update_study_card`
+  plus `update_study_card`
 - internal DatasetCard update bridge support through `plan_update_dataset_card`
   plus `update_dataset_card`
+- internal ClaimCard update bridge support through `plan_update_claim_card`
+  plus `update_claim_card`
 
 Non-goals:
 - no CLI wiring
@@ -517,6 +523,10 @@ def describe_registry_gateway_role() -> dict[str, object]:
                 "macro_veritas.commands.ingest.execute_studycard_ingest -> "
                 "plan_create_study_card -> create_study_card"
             ),
+            "StudyCard_update": (
+                "macro_veritas.commands.update.execute_update_study -> "
+                "plan_update_study_card -> update_study_card"
+            ),
             "StudyCard_delete": (
                 "macro_veritas.commands.delete.execute_delete_study -> "
                 "delete_study_card"
@@ -528,6 +538,10 @@ def describe_registry_gateway_role() -> dict[str, object]:
             "DatasetCard_update": (
                 "macro_veritas.commands.update.execute_update_dataset -> "
                 "plan_update_dataset_card -> update_dataset_card"
+            ),
+            "ClaimCard_update": (
+                "macro_veritas.commands.update.execute_update_claim -> "
+                "plan_update_claim_card -> update_claim_card"
             ),
             "ClaimCard_delete": (
                 "macro_veritas.commands.delete.execute_delete_claim -> "

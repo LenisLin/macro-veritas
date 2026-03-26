@@ -25,25 +25,28 @@ Recommended first-pass reading order:
 12. [`docs/payload_contracts.md`](payload_contracts.md) for the frozen command-to-gateway payload and DTO shapes of the first card slice.
 13. [`docs/registry_layout.md`](registry_layout.md) for the frozen filesystem placement, naming, and cross-reference conventions of that first card slice.
 14. [`docs/registry_io_boundary.md`](registry_io_boundary.md) for the frozen future internal access boundary, integrity rule, mutation-safety rule, and registry error surface.
-15. [`docs/gateway_contracts.md`](gateway_contracts.md) for the frozen gateway result, error, and mutation-plan communication contract.
-16. [`docs/studycard_runtime.md`](studycard_runtime.md) for the real file-backed StudyCard runtime slice.
-17. [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) for the real file-backed DatasetCard runtime slice and the thin public CLI entry point.
-18. [`docs/claimcard_runtime.md`](claimcard_runtime.md) for the real file-backed ClaimCard runtime slice.
-19. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real StudyCard ingest runtime path.
-20. [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md) for the first public StudyCard command surface.
-21. [`docs/public_ingest_studycard_from_file.md`](public_ingest_studycard_from_file.md) for the public StudyCard single-file ingest surface.
-22. [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md) for the public DatasetCard flag-based command surface.
-23. [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md) for the public DatasetCard single-file ingest surface.
-24. [`docs/public_update_datasetcard_cli.md`](public_update_datasetcard_cli.md) for the first public DatasetCard update surface.
-25. [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md) for the public ClaimCard flag-based command surface.
-26. [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md) for the public ClaimCard single-file ingest surface.
-27. [`docs/public_show_cli.md`](public_show_cli.md) for the first public read-by-id command surface.
-28. [`docs/public_list_cli.md`](public_list_cli.md) for the first public discovery command surface.
-29. [`docs/public_delete_cli.md`](public_delete_cli.md) for the first public referentially-aware delete command surface.
-30. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
-31. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and module responsibilities.
-32. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
-33. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
+15. [`docs/update_snapshot_policy.md`](update_snapshot_policy.md) for the internal pre-update snapshot safety rule.
+16. [`docs/gateway_contracts.md`](gateway_contracts.md) for the frozen gateway result, error, and mutation-plan communication contract.
+17. [`docs/studycard_runtime.md`](studycard_runtime.md) for the real file-backed StudyCard runtime slice.
+18. [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) for the real file-backed DatasetCard runtime slice and the thin public CLI entry point.
+19. [`docs/claimcard_runtime.md`](claimcard_runtime.md) for the real file-backed ClaimCard runtime slice.
+20. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real StudyCard ingest runtime path.
+21. [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md) for the first public StudyCard command surface.
+22. [`docs/public_ingest_studycard_from_file.md`](public_ingest_studycard_from_file.md) for the public StudyCard single-file ingest surface.
+23. [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md) for the public DatasetCard flag-based command surface.
+24. [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md) for the public DatasetCard single-file ingest surface.
+25. [`docs/public_update_studycard_cli.md`](public_update_studycard_cli.md) for the public StudyCard update surface.
+26. [`docs/public_update_datasetcard_cli.md`](public_update_datasetcard_cli.md) for the public DatasetCard update surface.
+27. [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md) for the public ClaimCard flag-based command surface.
+28. [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md) for the public ClaimCard single-file ingest surface.
+29. [`docs/public_update_claimcard_cli.md`](public_update_claimcard_cli.md) for the public ClaimCard update surface.
+30. [`docs/public_show_cli.md`](public_show_cli.md) for the first public read-by-id command surface.
+31. [`docs/public_list_cli.md`](public_list_cli.md) for the first public discovery command surface.
+32. [`docs/public_delete_cli.md`](public_delete_cli.md) for the first public referentially-aware delete command surface.
+33. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
+34. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and module responsibilities.
+35. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
+36. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
 
 ## Status Labels
 
@@ -72,19 +75,22 @@ These documents mix frozen-position context with design-intent detail.
 - [`docs/registry_layout.md`](registry_layout.md): freezes the first-slice on-disk registry topology, naming, and cross-reference conventions. Defines current frozen position for this slice.
 - [`docs/payload_contracts.md`](payload_contracts.md): freezes the first-slice command-normalized-to-gateway payload and DTO boundary. Defines current frozen position for this slice.
 - [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes the internal registry access boundary, integrity-enforcement point, mutation-safety rule, and error surface. Defines current frozen position for this slice.
+- [`docs/update_snapshot_policy.md`](update_snapshot_policy.md): records the internal pre-update snapshot rule for public full-replace update. Defines current frozen position for this slice.
 - [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the gateway-facing result shapes, error semantics, mutation-plan output contract, and full-replace update rule. Defines current frozen position for this slice.
 - [`docs/studycard_runtime.md`](studycard_runtime.md): records the implemented StudyCard runtime slice. Defines current implemented position for this slice.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records the implemented DatasetCard runtime slice plus the thin public DatasetCard CLI path. Defines current implemented position for this slice.
 - [`docs/claimcard_runtime.md`](claimcard_runtime.md): records the implemented ClaimCard runtime slice. Defines current implemented position for this slice.
-- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the command-family contracts while distinguishing the public `ingest study`, `ingest study --from-file`, `ingest dataset`, `ingest dataset --from-file`, `ingest claim`, `ingest claim --from-file`, `update dataset`, `show study`, `show dataset`, `show claim`, `list studies`, `list datasets`, `list claims`, `delete study`, `delete dataset`, and `delete claim` paths from the still-internal families. Defines current frozen position for this slice.
+- [`docs/cli_command_contracts.md`](cli_command_contracts.md): freezes the command-family contracts while distinguishing the public `ingest study`, `ingest study --from-file`, `ingest dataset`, `ingest dataset --from-file`, `ingest claim`, `ingest claim --from-file`, `update study`, `update dataset`, `update claim`, `show study`, `show dataset`, `show claim`, `list studies`, `list datasets`, `list claims`, `delete study`, `delete dataset`, and `delete claim` paths from the still-internal families. Defines current frozen position for this slice.
 - [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records the StudyCard ingest runtime beneath the public CLI adapter. Defines current implemented position for this slice.
 - [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` surface. Defines current implemented position for this slice.
 - [`docs/public_ingest_studycard_from_file.md`](public_ingest_studycard_from_file.md): records the exact public `ingest study --from-file` surface. Defines current implemented position for this slice.
+- [`docs/public_update_studycard_cli.md`](public_update_studycard_cli.md): records the exact public `update study --study-id <ID> --from-file <path.yaml>` surface. Defines current implemented position for this slice.
 - [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md): records the exact public `ingest dataset` surface. Defines current implemented position for this slice.
 - [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md): records the exact public `ingest dataset --from-file` surface. Defines current implemented position for this slice.
 - [`docs/public_update_datasetcard_cli.md`](public_update_datasetcard_cli.md): records the exact public `update dataset --dataset-id <ID> --from-file <path.yaml>` surface. Defines current implemented position for this slice.
 - [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md): records the exact public `ingest claim` surface. Defines current implemented position for this slice.
 - [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md): records the exact public `ingest claim --from-file` surface. Defines current implemented position for this slice.
+- [`docs/public_update_claimcard_cli.md`](public_update_claimcard_cli.md): records the exact public `update claim --claim-id <ID> --from-file <path.yaml>` surface. Defines current implemented position for this slice.
 - [`docs/public_show_cli.md`](public_show_cli.md): records the exact public `show study`, `show dataset`, and `show claim` surfaces. Defines current implemented position for this slice.
 - [`docs/public_list_cli.md`](public_list_cli.md): records the exact public `list studies`, `list datasets`, and `list claims` surfaces. Defines current implemented position for this slice.
 - [`docs/public_delete_cli.md`](public_delete_cli.md): records the exact public `delete study`, `delete dataset`, and `delete claim` surfaces. Defines current implemented position for this slice.
@@ -97,6 +103,7 @@ These documents describe the public CLI surface and the next layer of object and
 - [`docs/payload_contracts.md`](payload_contracts.md): freezes the exact first-slice payload/DTO shapes exchanged between internal command handlers and gateway operations.
 - [`docs/registry_layout.md`](registry_layout.md): freezes where those first-slice cards conceptually live on disk and how their IDs map to canonical file paths.
 - [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes who owns registry access, where direct-reference checks belong, and what mutation-safety/error rules apply.
+- [`docs/update_snapshot_policy.md`](update_snapshot_policy.md): freezes the covered operations, layout, naming, append-only rule, and failure rule for pre-update snapshots.
 - [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the precise language upper layers should consume from the gateway: success shapes, domain errors, mutation-plan outputs, and the full-replace rule.
 - [`docs/studycard_runtime.md`](studycard_runtime.md): records exactly what StudyCard registry behavior is runtime-real now.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records exactly what DatasetCard registry behavior is runtime-real now, including the public create and full-replace update CLI entry points.
@@ -104,11 +111,13 @@ These documents describe the public CLI surface and the next layer of object and
 - [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md): records exactly what StudyCard ingest runtime behavior is real now.
 - [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md): records the exact public `ingest study` command shape, create-only behavior, and user-facing expectations.
 - [`docs/public_ingest_studycard_from_file.md`](public_ingest_studycard_from_file.md): records the exact public `ingest study --from-file` command shape, YAML input rules, and user-facing expectations.
+- [`docs/public_update_studycard_cli.md`](public_update_studycard_cli.md): records the exact public `update study --study-id <ID> --from-file <path.yaml>` command shape, canonical YAML rules, target-match requirement, and user-facing expectations.
 - [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md): records the exact public `ingest dataset` command shape, create-only behavior, parent-StudyCard requirement, and user-facing expectations.
 - [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md): records the exact public `ingest dataset --from-file` command shape, YAML input rules, parent-StudyCard requirement, and user-facing expectations.
 - [`docs/public_update_datasetcard_cli.md`](public_update_datasetcard_cli.md): records the exact public `update dataset --dataset-id <ID> --from-file <path.yaml>` command shape, canonical YAML rules, target-match requirement, and user-facing expectations.
 - [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md): records the exact public `ingest claim` command shape, create-only behavior, StudyCard and optional DatasetCard reference requirements, and user-facing expectations.
 - [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md): records the exact public `ingest claim --from-file` command shape, YAML input rules, and user-facing expectations.
+- [`docs/public_update_claimcard_cli.md`](public_update_claimcard_cli.md): records the exact public `update claim --claim-id <ID> --from-file <path.yaml>` command shape, canonical YAML rules, target-match requirement, and user-facing expectations.
 - [`docs/public_show_cli.md`](public_show_cli.md): records the exact public `show study`, `show dataset`, and `show claim` command shapes, by-id behavior, and user-facing expectations.
 - [`docs/public_list_cli.md`](public_list_cli.md): records the exact public `list studies`, `list datasets`, and `list claims` command shapes, compact-summary behavior, and user-facing expectations.
 - [`docs/public_delete_cli.md`](public_delete_cli.md): records the exact public `delete study`, `delete dataset`, and `delete claim` command shapes, dependency-blocking behavior, and user-facing expectations.
@@ -130,11 +139,13 @@ If a question is about what is allowed now, read `state`, `constraints`, and
 `decisions` first. If a question is about how the next MVP layer is organized,
 then read `architecture`, `module_map`, `registry_model`, `state_machine`,
 `card_contracts`, `payload_contracts`, `registry_layout`,
-`registry_io_boundary`, `gateway_contracts`, `studycard_runtime`,
+`registry_io_boundary`, `update_snapshot_policy`, `gateway_contracts`, `studycard_runtime`,
 `datasetcard_runtime`, `claimcard_runtime`, `ingest_studycard_runtime`,
 `public_ingest_studycard_cli`, `public_ingest_studycard_from_file`,
+`public_update_studycard_cli`,
 `public_ingest_datasetcard_cli`, `public_ingest_datasetcard_from_file`,
 `public_update_datasetcard_cli`,
-`public_ingest_claimcard_cli`, `public_ingest_claimcard_from_file`, `public_show_cli`, `public_list_cli`,
+`public_ingest_claimcard_cli`, `public_ingest_claimcard_from_file`,
+`public_update_claimcard_cli`, `public_show_cli`, `public_list_cli`,
 `public_delete_cli`, `api_specs`,
 `cli_command_contracts`, and `audit_policy`.

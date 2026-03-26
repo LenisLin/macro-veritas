@@ -7,6 +7,7 @@ Responsibilities:
 - resolve the canonical ClaimCard filesystem path
 - serialize and deserialize one ClaimCard per YAML file
 - apply minimal structural validation for stored and input payloads
+- preserve the exact prior YAML bytes in append-only history before update overwrite
 - write one canonical card file at a time with a temp-file + fsync + replace flow
 - delete one canonical ClaimCard file by canonical ID
 
@@ -33,7 +34,8 @@ from macro_veritas.registry.claim import (
     required_fields,
     storage_field_order,
 )
-from macro_veritas.registry.layout import claim_card_path, claim_cards_dir
+from macro_veritas.registry.history import preserve_pre_update_snapshot
+from macro_veritas.registry.layout import claim_card_path, claim_cards_dir, claim_history_dir
 from macro_veritas.shared.naming import claim_card_filename
 from macro_veritas.shared.types import ClaimCardPayload
 
@@ -174,6 +176,7 @@ def update_claim_card(registry_root: Path, card: Mapping[str, object]) -> ClaimC
     normalized = normalize_claim_card_payload(card)
     path = claim_card_path(registry_root, normalized["claim_id"])
     _read_claim_card_from_path(path)
+    preserve_pre_update_snapshot(path, claim_history_dir(registry_root, normalized["claim_id"]))
     _write_claim_card_file(path, normalized)
     return normalized
 

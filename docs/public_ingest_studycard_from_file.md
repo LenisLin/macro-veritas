@@ -29,6 +29,8 @@ python -m macro_veritas ingest study --from-file <path.yaml>
 - File count: one file only
 - Input keys use the existing StudyCard ingest-input names, not the stored canonical YAML names
 - In particular, the input file uses `created_from`; the stored canonical StudyCard still writes `created_from_note`
+- This is distinct from `update study --study-id <ID> --from-file <path.yaml>`,
+  which expects the canonical stored StudyCard field names
 
 Example:
 
@@ -104,6 +106,8 @@ If an optional key is provided, it must be a string.
 - batch ingest
 - directory scans or config-driven file discovery
 - update, replace, or patch semantics
+- canonical stored-field StudyCard update input; that belongs to
+  `update study --study-id <ID> --from-file <path.yaml>`
 - JSON input mode as a public contract
 - scientific logic
 - evidence grading

@@ -9,11 +9,12 @@ MacroVeritas:
 - file-backed registry gateway behavior for `StudyCard` only
 - conservative YAML serialization and deserialization for one StudyCard per file
 - single-card atomic write behavior for StudyCard create and update
+- pre-update snapshot preservation for full-replace StudyCard update
 - gateway translation of lower-level StudyCard runtime failures into registry
   domain errors
 
 This milestone is intentionally narrow. It proves the first runtime path
-without expanding the public CLI or introducing broader orchestration.
+without introducing broader orchestration.
 
 ## Runtime-Real Now
 
@@ -32,8 +33,12 @@ Interpretation:
 - `get_study_card`, `study_card_exists`, and `list_study_cards` read real files.
 - `plan_create_study_card` and `plan_update_study_card` validate StudyCard input
   and return planning descriptors without writing files.
-- `create_study_card` and `update_study_card` perform real single-card writes
-  through the gateway only.
+- `create_study_card` performs a real single-card write through the gateway
+  only.
+- `update_study_card` snapshots the exact prior YAML into the internal history
+  tree, then performs the real single-card overwrite through the gateway only.
+- The public `ingest study` and `update study` CLI paths now reuse these
+  gateway/runtime helpers through the command layer.
 
 ## Still Non-Runtime
 
@@ -43,7 +48,7 @@ The following remain outside this StudyCard runtime slice:
   [`docs/datasetcard_runtime.md`](datasetcard_runtime.md)
 - all `ClaimCard` gateway reads, listings, existence checks, and mutations
 - ClaimCard referential integrity
-- public CLI wiring for StudyCard create or update
+- CLI parsing and command-layer success/failure formatting
 
 ## Canonical StudyCard Path Rule
 
@@ -74,15 +79,22 @@ Rules:
   values, invalid screening decisions, or a mismatched canonical file name are
   treated as malformed StudyCard content
 
-## Atomic Write Rule
+## Snapshot And Atomic Write Rule
 
-StudyCard create and update use a real single-card atomic write flow:
+StudyCard create uses a real single-card atomic write flow:
 
 1. write the full YAML document to a temp file in the same directory as the
    final canonical file
 2. flush and `fsync` the temp file
 3. `os.replace(...)` the temp file onto the canonical path
 4. `fsync` the parent directory after replacement
+
+StudyCard update adds one safety step before that overwrite:
+
+1. read the current canonical StudyCard file
+2. copy the exact prior YAML bytes to
+   `<registry_root>/history/studies/<study_id>/<timestamp>.yaml`
+3. only after snapshot success, perform the atomic canonical-file replacement
 
 Scope limits:
 
@@ -100,6 +112,7 @@ Implemented translations:
 - duplicate StudyCard create target -> `CardAlreadyExistsError`
 - malformed YAML or malformed StudyCard content -> `RegistryError`
 - attempt to reopen a `closed` StudyCard on update -> `InvalidStateTransitionError`
+- snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe StudyCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`
 - other filesystem failures -> `RegistryError`
@@ -113,6 +126,5 @@ This milestone does not add:
 - evidence grading
 - multi-card transactions
 - manifest or index runtime
-- public CLI create/update commands
 - FastAPI, SQL, notebook workflow, plugin discovery, or orchestration runtime
 - CellVoyager integration

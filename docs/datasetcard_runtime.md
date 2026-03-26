@@ -8,6 +8,7 @@ MacroVeritas.
 - file-backed registry gateway behavior for `DatasetCard`
 - conservative YAML serialization and deserialization for one DatasetCard per file
 - single-card atomic write behavior for DatasetCard create and update
+- pre-update snapshot preservation for full-replace DatasetCard update
 - gateway-level `StudyCard` referential-integrity enforcement for DatasetCard
   create and update
 - thin public CLI exposure for `ingest dataset` create and `update dataset`
@@ -39,8 +40,11 @@ Interpretation:
 
 - `get_dataset_card`, `dataset_card_exists`, and `list_dataset_cards` read real
   files.
-- `create_dataset_card` and `update_dataset_card` perform real single-card
-  writes through the gateway only.
+- `create_dataset_card` performs a real single-card write through the gateway
+  only.
+- `update_dataset_card` snapshots the exact prior YAML into the internal
+  history tree, then performs the real single-card overwrite through the
+  gateway only.
 - `plan_create_dataset_card` and `plan_update_dataset_card` validate input and
   return planning descriptors without writing files.
 
@@ -71,7 +75,8 @@ Scope limits:
 - the public create path still exists at `ingest dataset` and `ingest dataset --from-file`
 - the public update path exists only at `update dataset --dataset-id <ID> --from-file <path.yaml>`
 - update is full-replace only; patch semantics do not exist
-- public `StudyCard` and `ClaimCard` update do not exist
+- public file-based full-replace update now also exists for `StudyCard` and
+  `ClaimCard`, but this document covers the DatasetCard slice only
 - raw `argparse.Namespace` objects are not part of the command-to-gateway boundary
 
 ## Referential Integrity Rule
@@ -129,15 +134,22 @@ Rules:
   identifiers, or a mismatched canonical file name are treated as malformed
   DatasetCard content
 
-## Atomic Write Rule
+## Snapshot And Atomic Write Rule
 
-DatasetCard create and update use a real single-card atomic write flow:
+DatasetCard create uses a real single-card atomic write flow:
 
 1. write the full YAML document to a temp file in the same directory as the
    final canonical file
 2. flush and `fsync` the temp file
 3. `os.replace(...)` the temp file onto the canonical path
 4. `fsync` the parent directory after replacement
+
+DatasetCard update adds one safety step before that overwrite:
+
+1. read the current canonical DatasetCard file
+2. copy the exact prior YAML bytes to
+   `<registry_root>/history/datasets/<dataset_id>/<timestamp>.yaml`
+3. only after snapshot success, perform the atomic canonical-file replacement
 
 Scope limits:
 
@@ -157,6 +169,7 @@ Implemented translations:
 - missing parent `StudyCard` on DatasetCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed DatasetCard content -> `RegistryError`
+- snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe DatasetCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`
 - other filesystem failures -> `RegistryError`
@@ -175,18 +188,17 @@ Public command-bridge translations for `update dataset`:
 - missing parent StudyCard -> `missing_reference`
 - invalid replacement file or invalid DatasetCard data -> `invalid_payload`
 - unsupported operation/identifier -> `unsupported_operation`
-- other gateway/domain failures -> `registry_failure`
+- snapshot failure or other gateway/domain failures -> `registry_failure`
 
 ## Non-Goals
 
 This milestone does not add:
 
-- StudyCard public update
-- ClaimCard public update
 - DatasetCard patch, merge, or partial-update commands
 - scientific logic
 - evidence grading
 - multi-card transactions
 - reverse indexes or manifests
+- restore or history-browsing commands for update snapshots
 - FastAPI, SQL, notebook workflow, plugin discovery, or orchestration runtime
 - CellVoyager integration

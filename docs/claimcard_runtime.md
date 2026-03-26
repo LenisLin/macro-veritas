@@ -8,15 +8,18 @@ MacroVeritas:
 - file-backed registry gateway behavior for `ClaimCard`
 - conservative YAML serialization and deserialization for one ClaimCard per file
 - single-card atomic write behavior for ClaimCard create and update
+- pre-update snapshot preservation for full-replace ClaimCard update
 - gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
   enforcement for ClaimCard create and update
-- the public create-only `macro_veritas ingest claim` CLI entry point as a thin
-  adapter over the existing ClaimCard ingest bridge and gateway path
+- the public `macro_veritas ingest claim` and `macro_veritas update claim` CLI
+  entry points as thin adapters over the existing ClaimCard command bridge and
+  gateway path
 - gateway translation of lower-level ClaimCard runtime failures into registry
   domain errors
 
-This milestone stays intentionally narrow. It makes ClaimCard registry IO and
-create-only public CLI intake real without implementing scientific logic.
+This milestone stays intentionally narrow. It makes ClaimCard registry IO plus
+create-only and full-replace public CLI intake real without implementing
+scientific logic.
 
 ## Runtime-Real Now
 
@@ -34,20 +37,27 @@ writing storage:
 - `plan_create_claim_card(card)`
 - `plan_update_claim_card(card)`
 
-The public CLI entry point that now sits above that gateway/runtime slice is:
+The public CLI entry points that now sit above that gateway/runtime slice are:
 
 - `macro_veritas ingest claim`
+- `macro_veritas update claim`
 
 Interpretation:
 
 - `get_claim_card`, `claim_card_exists`, and `list_claim_cards` read real files
-- `create_claim_card` and `update_claim_card` perform real single-card writes
-  through the gateway only
+- `create_claim_card` performs a real single-card write through the gateway
+  only
+- `update_claim_card` snapshots the exact prior YAML into the internal history
+  tree, then performs the real single-card overwrite through the gateway only
 - `plan_create_claim_card` and `plan_update_claim_card` validate input and
   direct references, then return planning descriptors without writing files
 - `macro_veritas ingest claim` remains a thin adapter: CLI args are normalized
   into command input, then into `ClaimCardPayload`, then routed through
   `plan_create_claim_card(...)` and `create_claim_card(...)`
+- `macro_veritas update claim` remains a thin adapter: the CLI target is
+  normalized into command input, one complete canonical ClaimCard YAML mapping
+  is loaded from file, `claim_id` target/file consistency is enforced, and then
+  `plan_update_claim_card(...)` plus `update_claim_card(...)` are called
 
 ## Referential Integrity Rules
 
@@ -82,6 +92,9 @@ Current implementation notes:
   `plan_update_claim_card`, but those functions still do not write storage
 - the public CLI surfaces those failures as clean command-level
   `missing_reference` results rather than raw filesystem exceptions
+- the public update file shape is the canonical stored ClaimCard shape, so
+  update files use `created_from_note` rather than the ingest-file alias
+  `created_from`
 
 ## Canonical ClaimCard Path Rule
 
@@ -114,15 +127,22 @@ Rules:
   malformed `dataset_ids`, invalid dataset reference identifiers, or a
   mismatched canonical file name are treated as malformed ClaimCard content
 
-## Atomic Write Rule
+## Snapshot And Atomic Write Rule
 
-ClaimCard create and update use a real single-card atomic write flow:
+ClaimCard create uses a real single-card atomic write flow:
 
 1. write the full YAML document to a temp file in the same directory as the
    final canonical file
 2. flush and `fsync` the temp file
 3. `os.replace(...)` the temp file onto the canonical path
 4. `fsync` the parent directory after replacement
+
+ClaimCard update adds one safety step before that overwrite:
+
+1. read the current canonical ClaimCard file
+2. copy the exact prior YAML bytes to
+   `<registry_root>/history/claims/<claim_id>/<timestamp>.yaml`
+3. only after snapshot success, perform the atomic canonical-file replacement
 
 Scope limits:
 
@@ -143,6 +163,7 @@ Implemented translations:
 - missing referenced `DatasetCard` values on ClaimCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed ClaimCard content -> `RegistryError`
+- snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe ClaimCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`
 - other filesystem failures -> `RegistryError`
@@ -160,6 +181,7 @@ This milestone does not add:
 - evidence grading
 - multi-card transactions
 - reverse indexes or manifests
-- public ClaimCard update or patch commands
+- public ClaimCard patch commands
+- restore or history-browsing commands for update snapshots
 - FastAPI, SQL, notebook workflow, plugin discovery, or orchestration runtime
 - CellVoyager integration

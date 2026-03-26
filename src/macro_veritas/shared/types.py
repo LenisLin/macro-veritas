@@ -189,6 +189,13 @@ class StudyCardCLIInput(_StudyCardCLIInputRequired, total=False):
     source_artifact: str
 
 
+class StudyCardUpdateInput(TypedDict):
+    """Typed mapping built from parsed CLI args for public StudyCard update."""
+
+    study_id: str
+    from_file: str
+
+
 class _DatasetCardPayloadRequired(TypedDict):
     """Required keys for a first-slice DatasetCard gateway payload."""
 
@@ -326,6 +333,13 @@ class ClaimCardCLIInput(_ClaimCardCLIInputRequired, total=False):
 
     dataset_ids: Sequence[str]
     claim_summary_handle: str
+
+
+class ClaimCardUpdateInput(TypedDict):
+    """Typed mapping built from parsed CLI args for public ClaimCard update."""
+
+    claim_id: str
+    from_file: str
 
 
 class ShowCLIInput(TypedDict):
@@ -495,6 +509,7 @@ __all__ = [
     "ClaimCardFileInput",
     "ClaimCardIngestInput",
     "ClaimCardPayload",
+    "ClaimCardUpdateInput",
     "ClaimCardStatus",
     "ClaimReviewReadiness",
     "CommandDescriptor",
@@ -543,6 +558,7 @@ __all__ = [
     "StudyCardFileInput",
     "StudyCardIngestInput",
     "StudyCardPayload",
+    "StudyCardUpdateInput",
     "StudyScreeningDecision",
     "StudyCardStatus",
     "DatasetCardSummary",

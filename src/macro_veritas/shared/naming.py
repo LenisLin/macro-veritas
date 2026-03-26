@@ -11,6 +11,8 @@ Boundary docs: `docs/module_map.md`, `docs/registry_layout.md`,
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from .types import ObjectFamilyName, ReservedCLIFamilyName
 
 _RESERVED_CLI_FAMILIES: tuple[ReservedCLIFamilyName, ...] = (
@@ -41,6 +43,7 @@ _OBJECT_FAMILY_LOOKUP: dict[str, ObjectFamilyName] = {
     family.lower(): family for family in _OBJECT_FAMILY_NAMES
 }
 _REGISTRY_SUBDIR_NAMES: tuple[str, ...] = ("studies", "datasets", "claims")
+_HISTORY_SUBDIR_NAME = "history"
 _CARD_FILENAME_EXTENSION = ".yaml"
 
 
@@ -73,6 +76,20 @@ def registry_subdir_names() -> tuple[str, ...]:
     """
 
     return _REGISTRY_SUBDIR_NAMES
+
+
+def history_subdir_name() -> str:
+    """Return the canonical registry history root directory name.
+
+    Inputs:
+        None.
+    Outputs:
+        The single directory name used for append-only update snapshots.
+    Non-goals:
+        This does not create directories or inspect a registry tree.
+    """
+
+    return _HISTORY_SUBDIR_NAME
 
 
 def _card_filename(card_id: str) -> str:
@@ -121,6 +138,26 @@ def claim_card_filename(claim_id: str) -> str:
     return _card_filename(claim_id)
 
 
+def snapshot_filename(timestamp: datetime | None = None) -> str:
+    """Return the canonical filename for one append-only update snapshot.
+
+    Inputs:
+        `timestamp`: optional UTC-aware timestamp. When omitted, the current UTC
+        time is used.
+    Outputs:
+        A filesystem-safe filename in `YYYYMMDDTHHMMSSffffffZ.yaml` form.
+    Non-goals:
+        This does not ensure uniqueness on disk or create files.
+    """
+
+    current = datetime.now(timezone.utc) if timestamp is None else timestamp
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    else:
+        current = current.astimezone(timezone.utc)
+    return current.strftime("%Y%m%dT%H%M%S%fZ.yaml")
+
+
 def list_reserved_cli_families() -> tuple[ReservedCLIFamilyName, ...]:
     """Return the reserved future CLI group names from the docs.
 
@@ -138,8 +175,10 @@ def list_reserved_cli_families() -> tuple[ReservedCLIFamilyName, ...]:
 __all__ = [
     "claim_card_filename",
     "dataset_card_filename",
+    "history_subdir_name",
     "list_reserved_cli_families",
     "normalize_object_family_name",
     "registry_subdir_names",
+    "snapshot_filename",
     "study_card_filename",
 ]

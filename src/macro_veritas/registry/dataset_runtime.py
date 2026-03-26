@@ -7,6 +7,7 @@ Responsibilities:
 - resolve the canonical DatasetCard filesystem path
 - serialize and deserialize one DatasetCard per YAML file
 - apply minimal structural validation for stored and input payloads
+- preserve the exact prior YAML bytes in append-only history before update overwrite
 - write one canonical card file at a time with a temp-file + fsync + replace flow
 - delete one canonical DatasetCard file by canonical ID
 
@@ -34,7 +35,12 @@ from macro_veritas.registry.dataset import (
     required_fields,
     storage_field_order,
 )
-from macro_veritas.registry.layout import dataset_card_path, dataset_cards_dir
+from macro_veritas.registry.history import preserve_pre_update_snapshot
+from macro_veritas.registry.layout import (
+    dataset_card_path,
+    dataset_cards_dir,
+    dataset_history_dir,
+)
 from macro_veritas.shared.naming import dataset_card_filename
 from macro_veritas.shared.types import DatasetCardPayload
 
@@ -182,6 +188,10 @@ def update_dataset_card(registry_root: Path, card: Mapping[str, object]) -> Data
     normalized = normalize_dataset_card_payload(card)
     path = dataset_card_path(registry_root, normalized["dataset_id"])
     _read_dataset_card_from_path(path)
+    preserve_pre_update_snapshot(
+        path,
+        dataset_history_dir(registry_root, normalized["dataset_id"]),
+    )
     _write_dataset_card_file(path, normalized)
     return normalized
 

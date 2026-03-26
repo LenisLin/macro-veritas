@@ -15,11 +15,12 @@ MacroVeritas.
 
 This document now describes a mixed implementation state.
 
-- Sixteen narrow public exceptions now exist: `ingest study`,
+- Eighteen narrow public exceptions now exist: `ingest study`,
   `ingest study --from-file`, `ingest dataset`, `ingest dataset --from-file`,
-  `ingest claim`, `ingest claim --from-file`, `update dataset`, `show study`,
-  `show dataset`, `show claim`, `list studies`, `list datasets`, `list claims`,
-  `delete study`, `delete dataset`, and `delete claim`.
+  `ingest claim`, `ingest claim --from-file`, `update study`,
+  `update dataset`, `update claim`, `show study`, `show dataset`, `show claim`,
+  `list studies`, `list datasets`, `list claims`, `delete study`,
+  `delete dataset`, and `delete claim`.
 - Those public paths are thin adapters over the same narrow internal ingest,
   update, show, list, and delete bridge modules.
 - The rest of the command families remain reserved and non-public.
@@ -81,8 +82,8 @@ This document now describes a mixed implementation state.
   broader identifier allocation
   behavior
 - Non-goals in this milestone: no StudyCard, DatasetCard, or ClaimCard
-  update/patch ingest; no StudyCard or DatasetCard `--from-file` ingest; no
-  batch ingest; no scientific logic; no evidence grading
+  update/patch ingest; no batch ingest; no scientific logic; no evidence
+  grading
 
 ### `show`
 
@@ -125,35 +126,55 @@ This document now describes a mixed implementation state.
 
 - Owning module: `macro_veritas.commands.update`
 - Owning domain: Registry Department / 户部, mutation boundary
-- Purpose: execute the current DatasetCard full-replace update bridge while
-  keeping StudyCard update, ClaimCard update, field-flag update, and patch
+- Purpose: execute the current StudyCard, DatasetCard, and ClaimCard
+  full-replace update bridges while keeping field-flag update and patch
   semantics deferred
 - Payload contract source: [`docs/payload_contracts.md`](payload_contracts.md)
-- MVP payload families touched: `DatasetCardPayload`
-- Expected primary inputs: internal DatasetCard update input carrying one
-  canonical target ID plus one file path; one complete replacement DatasetCard
-  YAML mapping in canonical field shape
-- Expected primary outputs: DatasetCard gateway update-plan request,
-  DatasetCard gateway update execution, and a narrow command result mapping
+- MVP payload families touched: `StudyCardPayload`, `DatasetCardPayload`,
+  `ClaimCardPayload`
+- Expected primary inputs: internal StudyCard, DatasetCard, or ClaimCard
+  update input carrying one canonical target ID plus one file path; one
+  complete replacement StudyCard, DatasetCard, or ClaimCard YAML mapping in
+  canonical field shape
+- Expected primary outputs: StudyCard, DatasetCard, or ClaimCard gateway
+  update-plan request, StudyCard, DatasetCard, or ClaimCard gateway update
+  execution, and a narrow command result mapping
 - Expected dependency boundary: payload-contract docs, gateway-contract docs,
-  DatasetCard runtime docs, public DatasetCard update docs, and registry
-  gateway update contracts
+  StudyCard, DatasetCard, and ClaimCard runtime docs, public StudyCard,
+  DatasetCard, and ClaimCard update docs, and registry gateway update
+  contracts
 - Public paths now:
+  - `macro_veritas update study --study-id <ID> --from-file <path.yaml>`
+    is a thin adapter over the StudyCard update bridge
   - `macro_veritas update dataset --dataset-id <ID> --from-file <path.yaml>`
     is a thin adapter over the DatasetCard update bridge
+  - `macro_veritas update claim --claim-id <ID> --from-file <path.yaml>`
+    is a thin adapter over the ClaimCard update bridge
 - Runtime status now:
+  - public StudyCard full-replace update is implemented through YAML mapping
+    load, CLI target/file target consistency check,
+    `plan_update_study_card(...)`, and `update_study_card(...)`
   - public DatasetCard full-replace update is implemented through YAML mapping
     load, CLI target/file target consistency check,
     `plan_update_dataset_card(...)`, and `update_dataset_card(...)`
+  - public ClaimCard full-replace update is implemented through YAML mapping
+    load, CLI target/file target consistency check, direct reference
+    re-validation, `plan_update_claim_card(...)`, and `update_claim_card(...)`
+  - missing target `StudyCard` failures are translated to clean command-level
+    `missing_reference` results
+  - invalid StudyCard state-transition failures are translated to clean
+    command-level `invalid_payload` results
   - missing target `DatasetCard` and missing parent `StudyCard` failures are
     translated to clean command-level `missing_reference` results
+  - missing target `ClaimCard`, missing parent `StudyCard`, and missing
+    referenced `DatasetCard` failures are translated to clean command-level
+    `missing_reference` results
   - invalid replacement files are translated to clean command-level
     `invalid_payload` results
-- Still deferred inside `update`: StudyCard update, ClaimCard update, patch or
-  partial-update semantics, field-flag input, batch update, and update by
-  search/filter
-- Non-goals in this milestone: no StudyCard update, no ClaimCard update, no
-  patch semantics, no scientific logic, and no evidence grading
+- Still deferred inside `update`: patch or partial-update semantics,
+  field-flag input, batch update, and update by search/filter
+- Non-goals in this milestone: no patch semantics, no scientific logic, and no
+  evidence grading
 
 ### `list`
 
@@ -326,14 +347,17 @@ The frozen internal command style is conservative:
 - static payload-touchpoint descriptors that point to
   [`docs/payload_contracts.md`](payload_contracts.md)
 - runtime execution exists only for the StudyCard, DatasetCard, and ClaimCard
-  ingest bridges, the DatasetCard update bridge, the StudyCard, DatasetCard,
-  and ClaimCard by-id show bridges, the StudyCard, DatasetCard, and ClaimCard
-  family-level list bridges, and the StudyCard, DatasetCard, and ClaimCard
-  by-id delete bridges; other command families remain descriptor/skeleton-only
+  ingest bridges, the StudyCard, DatasetCard, and ClaimCard update bridges,
+  the StudyCard, DatasetCard, and ClaimCard by-id show bridges, the StudyCard,
+  DatasetCard, and ClaimCard family-level list bridges, and the StudyCard,
+  DatasetCard, and ClaimCard by-id delete bridges; other command families
+  remain descriptor/skeleton-only
 - file IO is allowed through the registry gateway for registry mutations and
   through the documented single-file YAML intake paths at `ingest study
   --from-file`, `ingest dataset --from-file`, `ingest claim --from-file`, and
-  `update dataset --dataset-id <ID> --from-file <path.yaml>`
+  `update study --study-id <ID> --from-file <path.yaml>` and
+  `update dataset --dataset-id <ID> --from-file <path.yaml>` and
+  `update claim --claim-id <ID> --from-file <path.yaml>`
 - raw `argparse.Namespace` objects remain outside the command-to-gateway
   boundary
 - no silent side effects
@@ -342,10 +366,11 @@ Interpretation:
 
 - the public CLI adapts parsed `ingest study`, `ingest study --from-file`,
   `ingest dataset`, `ingest dataset --from-file`, `ingest claim`,
-  `ingest claim --from-file`, `update dataset`, `show study`, `show dataset`,
-  `show claim`, `list studies`, `list datasets`, `list claims`, `delete study`,
-  `delete dataset`, and `delete claim` commands into typed mappings and then
-  into normalized internal inputs before calling the gateway
+  `ingest claim --from-file`, `update study`, `update dataset`,
+  `update claim`, `show study`, `show dataset`, `show claim`, `list studies`,
+  `list datasets`, `list claims`, `delete study`, `delete dataset`, and
+  `delete claim` commands into typed mappings and then into normalized
+  internal inputs before calling the gateway
 - the command layer does not write canonical registry files directly
 - the command layer does not bypass the gateway
 - `handle_ingest_command(...)` accepts mapping-based internal input and
@@ -380,8 +405,12 @@ exceptions.
   YAML `DatasetCard` create ingest.
 - `python -m macro_veritas ingest claim --from-file` is public for single-file
   YAML `ClaimCard` create ingest.
+- `python -m macro_veritas update study --study-id <ID> --from-file <path.yaml>`
+  is public for full-replace `StudyCard` update.
 - `python -m macro_veritas update dataset --dataset-id <ID> --from-file <path.yaml>`
   is public for full-replace `DatasetCard` update.
+- `python -m macro_veritas update claim --claim-id <ID> --from-file <path.yaml>`
+  is public for full-replace `ClaimCard` update.
 - `python -m macro_veritas show study` is public for by-id `StudyCard` read.
 - `python -m macro_veritas show dataset` is public for by-id `DatasetCard`
   read.

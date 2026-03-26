@@ -30,6 +30,9 @@ python -m macro_veritas ingest claim --from-file <path.yaml>
 - YAML is loaded safely and the root mapping keys must be strings
 - Input keys use the existing ClaimCard ingest-input names, not the stored canonical YAML names
 - In particular, the input file uses `created_from`; the stored canonical ClaimCard still writes `created_from_note`
+- This is distinct from `update claim --claim-id <ID> --from-file <path.yaml>`,
+  which expects a complete canonical ClaimCard replacement file in stored field
+  shape and therefore requires `created_from_note`, not `created_from`
 
 Example:
 
