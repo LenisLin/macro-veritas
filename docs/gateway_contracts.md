@@ -32,6 +32,8 @@ This document now describes a mixed implementation state.
 - `ClaimCard` create/update and planning enforce referenced `StudyCard`
   existence and referenced `DatasetCard` existence when `dataset_ids` is
   present.
+- `StudyCard`, `DatasetCard`, and `ClaimCard` update execution now acquires one
+  exclusive target-card local-file lock before snapshot plus overwrite.
 - `StudyCard`, `DatasetCard`, and `ClaimCard` delete execution are now
   runtime-real behind the gateway.
 - `StudyCard` and `DatasetCard` delete execution enforce reverse-dependency
@@ -101,6 +103,8 @@ Gateway/domain error categories:
   behind
 - `InvalidStateTransitionError`: the requested change conflicts with the frozen
   lifecycle or transition policy
+- `UpdateLockError`: the exclusive single-card update lock could not be
+  acquired or managed
 - `UnsupportedRegistryOperationError`: the caller asks for an operation or
   input style outside the frozen gateway contract
 
@@ -183,5 +187,7 @@ This milestone does not add or imply:
 - payload conversion runtime
 - patch-merging engine
 - retry runtime
-- concurrency or locking runtime
+- create/delete/show/list locking runtime
+- distributed locking runtime
+- version-counter concurrency control
 - transaction engine

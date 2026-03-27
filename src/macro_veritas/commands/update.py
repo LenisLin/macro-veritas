@@ -50,6 +50,7 @@ from macro_veritas.registry.errors import (
     CardNotFoundError,
     InvalidStateTransitionError,
     RegistryError,
+    UpdateLockError,
     UnsupportedRegistryOperationError,
 )
 from macro_veritas.registry.gateway import (
@@ -576,6 +577,8 @@ def _translate_studycard_gateway_error(
             "invalid_payload",
             f"StudyCard update rejected invalid StudyCard state: {exc}",
         )
+    if isinstance(exc, UpdateLockError):
+        return ("registry_failure", str(exc))
     if isinstance(exc, UnsupportedRegistryOperationError):
         return (
             "unsupported_operation",
@@ -621,6 +624,8 @@ def _translate_datasetcard_gateway_error(
             "DatasetCard update requires the parent StudyCard "
             f"'{parent_study_id}' to exist before replace.",
         )
+    if isinstance(exc, UpdateLockError):
+        return ("registry_failure", str(exc))
     if isinstance(exc, UnsupportedRegistryOperationError):
         return (
             "unsupported_operation",
@@ -682,6 +687,8 @@ def _translate_claimcard_gateway_error(
             "ClaimCard update requires the parent StudyCard "
             f"'{parent_study_id}' to exist before replace.",
         )
+    if isinstance(exc, UpdateLockError):
+        return ("registry_failure", str(exc))
     if isinstance(exc, UnsupportedRegistryOperationError):
         return (
             "unsupported_operation",

@@ -19,12 +19,15 @@ from macro_veritas.shared.naming import (
     claim_card_filename,
     dataset_card_filename,
     history_subdir_name,
+    lock_filename,
+    lock_subdir_name,
     registry_subdir_names,
     study_card_filename,
 )
 
 _STUDIES_SUBDIR, _DATASETS_SUBDIR, _CLAIMS_SUBDIR = registry_subdir_names()
 _HISTORY_SUBDIR = history_subdir_name()
+_LOCKS_SUBDIR = lock_subdir_name()
 
 
 def study_card_relative_path(study_id: str) -> str:
@@ -87,10 +90,28 @@ def history_root(registry_root: str | Path) -> Path:
     return Path(registry_root) / _HISTORY_SUBDIR
 
 
+def lock_root(registry_root: str | Path) -> Path:
+    """Return the update-lock root beneath a resolved registry root."""
+
+    return Path(registry_root) / _LOCKS_SUBDIR
+
+
 def study_history_dir(registry_root: str | Path, study_id: str) -> Path:
     """Return the history directory for one `StudyCard` identifier."""
 
     return history_root(registry_root) / _STUDIES_SUBDIR / study_id
+
+
+def study_lock_dir(registry_root: str | Path) -> Path:
+    """Return the StudyCard update-lock directory beneath a resolved registry root."""
+
+    return lock_root(registry_root) / _STUDIES_SUBDIR
+
+
+def study_lock_path(registry_root: str | Path, study_id: str) -> Path:
+    """Return the StudyCard update-lock path for one canonical identifier."""
+
+    return study_lock_dir(registry_root) / lock_filename(study_id)
 
 
 def dataset_history_dir(registry_root: str | Path, dataset_id: str) -> Path:
@@ -99,10 +120,34 @@ def dataset_history_dir(registry_root: str | Path, dataset_id: str) -> Path:
     return history_root(registry_root) / _DATASETS_SUBDIR / dataset_id
 
 
+def dataset_lock_dir(registry_root: str | Path) -> Path:
+    """Return the DatasetCard update-lock directory beneath a resolved registry root."""
+
+    return lock_root(registry_root) / _DATASETS_SUBDIR
+
+
+def dataset_lock_path(registry_root: str | Path, dataset_id: str) -> Path:
+    """Return the DatasetCard update-lock path for one canonical identifier."""
+
+    return dataset_lock_dir(registry_root) / lock_filename(dataset_id)
+
+
 def claim_history_dir(registry_root: str | Path, claim_id: str) -> Path:
     """Return the history directory for one `ClaimCard` identifier."""
 
     return history_root(registry_root) / _CLAIMS_SUBDIR / claim_id
+
+
+def claim_lock_dir(registry_root: str | Path) -> Path:
+    """Return the ClaimCard update-lock directory beneath a resolved registry root."""
+
+    return lock_root(registry_root) / _CLAIMS_SUBDIR
+
+
+def claim_lock_path(registry_root: str | Path, claim_id: str) -> Path:
+    """Return the ClaimCard update-lock path for one canonical identifier."""
+
+    return claim_lock_dir(registry_root) / lock_filename(claim_id)
 
 
 def describe_first_slice_layout() -> dict[str, dict[str, str | bool]]:
@@ -164,15 +209,22 @@ __all__ = [
     "claim_cards_dir",
     "claim_card_relative_path",
     "claim_history_dir",
+    "claim_lock_dir",
+    "claim_lock_path",
     "dataset_card_path",
     "dataset_cards_dir",
     "dataset_card_relative_path",
     "dataset_history_dir",
+    "dataset_lock_dir",
+    "dataset_lock_path",
     "describe_first_slice_layout",
     "describe_layout_vs_gateway_boundary",
     "history_root",
+    "lock_root",
     "study_card_path",
     "study_cards_dir",
     "study_card_relative_path",
     "study_history_dir",
+    "study_lock_dir",
+    "study_lock_path",
 ]

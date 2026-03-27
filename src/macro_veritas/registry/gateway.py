@@ -21,6 +21,8 @@ Implemented now:
   checks for `ClaimCard` create and update
 - pre-update snapshot preservation for `StudyCard`, `DatasetCard`, and
   `ClaimCard` full-replace update execution
+- single-card exclusive local-file locking for `StudyCard`, `DatasetCard`, and
+  `ClaimCard` full-replace update execution
 - gateway-level reverse-dependency checks for `StudyCard` and `DatasetCard`
   delete
 - domain-level translation of lower-level StudyCard/DatasetCard/ClaimCard
@@ -77,8 +79,11 @@ from macro_veritas.registry.errors import (
     DependencyExistsError,
     InvalidStateTransitionError,
     RegistryError,
+    UpdateLockError,
     UnsupportedRegistryOperationError,
 )
+from macro_veritas.registry.layout import claim_lock_path, dataset_lock_path, study_lock_path
+from macro_veritas.registry.locks import exclusive_card_update_lock
 from macro_veritas.registry.specs import (
     describe_integrity_enforcement_policy,
     describe_registry_gateway_boundary,
@@ -607,6 +612,12 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
             "applies_to": ("plan_update", "update"),
             "not_a_raw_os_exception": True,
         },
+        "UpdateLockError": {
+            "semantic_layer": "gateway/domain",
+            "meaning": "exclusive single-card update lock could not be acquired or managed",
+            "applies_to": ("update",),
+            "not_a_raw_os_exception": True,
+        },
         "UnsupportedRegistryOperationError": {
             "semantic_layer": "gateway/domain",
             "meaning": (
@@ -635,7 +646,9 @@ def describe_atomic_write_policy() -> dict[str, str]:
         "implemented_for": "StudyCard, DatasetCard, and ClaimCard",
         "durability_steps": "fsync temp file before replace; fsync parent directory after replace",
         "multi_card_transaction_guarantee": "not planned in MVP",
-        "concurrent_locking": "not implemented",
+        "concurrent_locking": "exclusive single-card update lock only",
+        "lock_scope": "one target StudyCard or DatasetCard or ClaimCard during full-replace update",
+        "lock_lifetime": "acquire before snapshot; release after snapshot plus atomic overwrite or failure",
     }
 
 
@@ -994,7 +1007,16 @@ def update_study_card(card: StudyCardPayload) -> StudyCardPayload:
     """Replace one StudyCard through the gateway's real runtime path."""
 
     try:
-        return _runtime_update_study_card(_registry_root(), card)
+        registry_root = _registry_root()
+        normalized = normalize_study_card_payload(card)
+        with exclusive_card_update_lock(
+            study_lock_path(registry_root, normalized["study_id"]),
+            card_family="StudyCard",
+            card_id=normalized["study_id"],
+        ):
+            return _runtime_update_study_card(registry_root, normalized)
+    except RegistryError:
+        raise
     except Exception as exc:
         raise _translate_study_runtime_error("update_study_card", exc) from exc
 
@@ -1021,12 +1043,18 @@ def update_dataset_card(card: DatasetCardPayload) -> DatasetCardPayload:
 
     try:
         normalized = normalize_dataset_card_payload(card)
+        registry_root = _registry_root()
         _require_study_reference_exists(
             "update_dataset_card",
             normalized["study_id"],
             referencing_card_family="DatasetCard",
         )
-        return _runtime_update_dataset_card(_registry_root(), normalized)
+        with exclusive_card_update_lock(
+            dataset_lock_path(registry_root, normalized["dataset_id"]),
+            card_family="DatasetCard",
+            card_id=normalized["dataset_id"],
+        ):
+            return _runtime_update_dataset_card(registry_root, normalized)
     except RegistryError:
         raise
     except Exception as exc:
@@ -1098,8 +1126,14 @@ def update_claim_card(card: ClaimCardPayload) -> ClaimCardPayload:
 
     try:
         normalized = normalize_claim_card_payload(card)
+        registry_root = _registry_root()
         _require_claim_references_exist("update_claim_card", normalized)
-        return _runtime_update_claim_card(_registry_root(), normalized)
+        with exclusive_card_update_lock(
+            claim_lock_path(registry_root, normalized["claim_id"]),
+            card_family="ClaimCard",
+            card_id=normalized["claim_id"],
+        ):
+            return _runtime_update_claim_card(registry_root, normalized)
     except RegistryError:
         raise
     except Exception as exc:

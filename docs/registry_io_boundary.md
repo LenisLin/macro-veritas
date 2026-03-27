@@ -10,6 +10,8 @@ operations.
 - It defines the planned mutation-safety rule for future writes.
 - It defines the current snapshot-before-overwrite safety rule for full-replace
   updates.
+- It defines the current single-card exclusive update-lock rule for full-replace
+  updates.
 - It defines the minimum planned error surface for registry access.
 - `docs/gateway_contracts.md` defines the exact gateway communication contract
   for results, mutation-plan outputs, and domain-error semantics.
@@ -138,24 +140,38 @@ The write rule remains intentionally narrow and is now implemented for
 
 - Single-card create operations follow a write-temp-then-replace style atomic
   update principle for the canonical card file.
-- Single-card full-replace update operations first preserve the exact prior
-  canonical YAML in the internal history tree, then perform the atomic
-  canonical-file replacement.
+- Single-card full-replace update operations now acquire one exclusive
+  target-card lock, preserve the exact prior canonical YAML in the internal
+  history tree while that lock is held, then perform the atomic canonical-file
+  replacement and release the lock.
 
 Implemented interpretation:
 
 - The target of atomicity is one canonical card file at a time.
 - Future writes should avoid in-place partial overwrite of the canonical file.
-- A successful single-card update should appear as one completed snapshot
-  creation plus one completed replacement of the canonical card file.
+- A successful single-card update should appear as one completed lock
+  acquisition, one completed snapshot creation, one completed replacement of
+  the canonical card file, and one completed lock release.
 - Snapshot history is internal-only beneath `<registry_root>/history/` and is
   not part of public read or list resolution.
+- Update lock files live beneath `<registry_root>/.locks/` and are not part of
+  public read or list resolution.
+
+Update execution order for the implemented full-replace path:
+
+1. gateway-owned direct reference checks complete before mutation
+2. the gateway acquires the deterministic single-card update lock
+3. the runtime preserves the pre-update snapshot
+4. the runtime atomically overwrites the canonical card file
+5. the lock is released after success or failure
 
 Explicit limits:
 
 - No multi-card transaction guarantee is planned yet.
 - No cross-card commit bundle is planned yet.
-- No concurrent locking system is planned yet.
+- Single-card exclusive locking exists only for full-replace update operations.
+- Create, delete, show, and list remain unlocked.
+- No cross-card lock graph or distributed locking system is planned.
 - No rollback engine is planned yet.
 - No public restore or history-browsing CLI is planned yet.
 
@@ -171,6 +187,7 @@ Gateway/domain categories:
 - `BrokenReferenceError`: direct referenced card is missing
 - `DependencyExistsError`: delete would leave dependent cards behind
 - `InvalidStateTransitionError`: requested change conflicts with the frozen lifecycle/state policy
+- `UpdateLockError`: the exclusive single-card update lock could not be acquired or managed
 - `UnsupportedRegistryOperationError`: requested registry action is outside the supported gateway contract
 
 The runtime slice still uses a small error surface. Lower-level StudyCard,
@@ -185,7 +202,9 @@ The exact gateway-facing meaning of those error categories is frozen in
 This milestone does not add or imply:
 
 - transaction engine
-- concurrent locking system
+- create/delete/show/list locking
+- distributed locking system
+- multi-card lock graph
 - manifest or index engine
 - broad parsing or validation engine
 - scientific logic

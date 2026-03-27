@@ -3,7 +3,8 @@
 ## Current Status
 
 - Phase: Initialization / public StudyCard, DatasetCard, and ClaimCard
-  full-replace update plus pre-update snapshot preservation
+  full-replace update plus pre-update snapshot preservation and single-card
+  exclusive update locking
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -66,6 +67,9 @@
 - Public full-replace update for StudyCard, DatasetCard, and ClaimCard now
   preserves the exact prior on-disk YAML in an internal append-only
   `<registry_root>/history/` tree before overwrite.
+- Public full-replace update for StudyCard, DatasetCard, and ClaimCard now
+  also acquires one exclusive target-card lock beneath
+  `<registry_root>/.locks/` for the snapshot-plus-overwrite critical section.
 - The public show path adapts explicit CLI flags into narrow by-id input,
   calls `get_study_card` / `get_dataset_card` / `get_claim_card`, and returns
   stable JSON to stdout on success.
@@ -96,6 +100,8 @@
 - Internal tests cover the public StudyCard, DatasetCard, and ClaimCard full-replace update
   CLI paths, including target/file mismatch and status/reference validation
   failures.
+- No public restore, rollback, or history-browsing CLI exists for the internal
+  update snapshot tree.
 - `bind`, `extract`, `audit`, `review`, `run`, and `grade` remain skeleton-only.
 - AVCP-derived governance assets remain in place as internal process
   scaffolding.

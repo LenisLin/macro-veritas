@@ -10,6 +10,7 @@ This document bridges the governance freeze to the current package layout.
 - [`docs/registry_layout.md`](registry_layout.md) is the filesystem source of truth for first-slice registry placement and naming.
 - [`docs/registry_io_boundary.md`](registry_io_boundary.md) is the source of truth for registry access and mutation boundaries.
 - [`docs/update_snapshot_policy.md`](update_snapshot_policy.md) is the source of truth for pre-update snapshot preservation.
+- [`docs/update_locking_policy.md`](update_locking_policy.md) is the source of truth for single-card update locking.
 - [`docs/gateway_contracts.md`](gateway_contracts.md) is the source of truth for gateway result, error, and mutation-plan communication contracts.
 - [`docs/studycard_runtime.md`](studycard_runtime.md), [`docs/datasetcard_runtime.md`](datasetcard_runtime.md), and [`docs/claimcard_runtime.md`](claimcard_runtime.md) describe the implemented registry runtime slices.
 - [`docs/cli_command_contracts.md`](cli_command_contracts.md) is the source of truth for reserved internal command-family contracts.
@@ -50,9 +51,10 @@ helper modules.
 | Code Path | Current Role | Explicit Boundary |
 | --- | --- | --- |
 | `src/macro_veritas/shared/types.py` | Lightweight descriptor aliases plus first-slice payload/DTO TypedDicts, including the public StudyCard/DatasetCard/ClaimCard ingest CLI adapters, the public StudyCard, DatasetCard, and ClaimCard update CLI adapters, the single-file StudyCard/DatasetCard/ClaimCard ingest file-input aliases, the public by-id show input boundary, the public family-level list input/summary boundary, and the public by-id delete input boundary | No validation engine, no runtime model classes, no general serializer framework |
-| `src/macro_veritas/shared/naming.py` | Canonical first-slice subdirectory helpers, live-card filenames, and snapshot filename helper | No identifier validation, no filesystem access, no serialization |
-| `src/macro_veritas/registry/layout.py` | Canonical first-slice relative paths plus StudyCard, DatasetCard, ClaimCard, and internal history directory helpers | Path/layout helper layer only; not a caller-facing IO API |
+| `src/macro_veritas/shared/naming.py` | Canonical first-slice subdirectory helpers, live-card filenames, lock filenames, and snapshot filename helper | No identifier validation, no filesystem access, no serialization |
+| `src/macro_veritas/registry/layout.py` | Canonical first-slice relative paths plus StudyCard, DatasetCard, ClaimCard, internal history directories, and update-lock paths | Path/layout helper layer only; not a caller-facing IO API |
 | `src/macro_veritas/registry/history.py` | Internal append-only snapshot helper used before full-replace update overwrite | No restore logic, no history browsing, no metadata manifests |
+| `src/macro_veritas/registry/locks.py` | Internal advisory file-lock helper used only by update execution | No distributed locking, no retries/timeouts, no lock registry or daemon |
 | `src/macro_veritas/registry/gateway.py` | Gateway contract descriptors plus the real StudyCard, DatasetCard, and ClaimCard runtime boundary | Real StudyCard, DatasetCard, and ClaimCard reads/listings/planning/create/update/delete with gateway-owned direct-reference and reverse-dependency checks |
 | `src/macro_veritas/registry/study_runtime.py` | Internal StudyCard-only runtime helper layer beneath the gateway | YAML serialization, minimal validation, canonical path checks, pre-update snapshot preservation, and single-card atomic writes only |
 | `src/macro_veritas/registry/dataset_runtime.py` | Internal DatasetCard-only runtime helper layer beneath the gateway | YAML serialization, minimal validation, canonical path checks, pre-update snapshot preservation, and single-card atomic writes only; direct StudyCard existence checks stay in the gateway |
@@ -100,8 +102,9 @@ The command layer stays conservative and thin.
 - The internal/public update bridge lives at `macro_veritas.commands.update`,
   which adapts CLI inputs and routes full-card update planning/execution to
   `macro_veritas.registry.gateway`.
-- Update-time snapshot preservation lives beneath that gateway boundary in the
-  family runtime helpers plus `macro_veritas.registry.history`.
+- Update-time snapshot preservation plus single-card exclusive update locking
+  live beneath that gateway boundary in `macro_veritas.registry.history`,
+  `macro_veritas.registry.locks`, and the family runtime helpers.
 - File input remains single-file YAML only at `ingest study --from-file`, `ingest dataset --from-file`, `ingest claim --from-file`, `update study --study-id <ID> --from-file <path.yaml>`, `update dataset --dataset-id <ID> --from-file <path.yaml>`, and `update claim --claim-id <ID> --from-file <path.yaml>`.
 - This round must not add FastAPI, SQL, notebook-centric workflow, evidence
   grading logic, or CellVoyager integration.

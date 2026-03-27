@@ -34,6 +34,7 @@ _REGISTRY_ERROR_CATEGORIES: tuple[str, ...] = (
     "BrokenReferenceError",
     "DependencyExistsError",
     "InvalidStateTransitionError",
+    "UpdateLockError",
     "UnsupportedRegistryOperationError",
 )
 

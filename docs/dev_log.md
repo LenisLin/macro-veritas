@@ -4,6 +4,9 @@
 - chore(init): convert AVCP template into MacroVeritas scaffold
 - docs(mvp): establish the MVP documentation freeze across governance, architecture, registry/state/audit, and CLI contract docs; project remains docs-first with no scientific system implemented and CellVoyager reference-only
 
+## v0.15.0 - 2026-03-27
+- release: single-card exclusive locking now exists for StudyCard, DatasetCard, and ClaimCard full-replace update at `update study --study-id <ID> --from-file <path.yaml>`, `update dataset --dataset-id <ID> --from-file <path.yaml>`, and `update claim --claim-id <ID> --from-file <path.yaml>`; the lock is held across snapshot plus overwrite; pre-update snapshots remain in place; no create/delete/show/list locking; no patch semantics; release version chosen: v0.15.0
+
 ## v0.14.0 - 2026-03-26
 - release: public full-replace update now exposed for StudyCard, DatasetCard, and ClaimCard at `update study --study-id <ID> --from-file <path.yaml>`, `update dataset --dataset-id <ID> --from-file <path.yaml>`, and `update claim --claim-id <ID> --from-file <path.yaml>`; update remains full-replace only with no patch semantics; pre-update snapshot preservation now exists for StudyCard, DatasetCard, and ClaimCard updates; release version chosen: v0.14.0
 

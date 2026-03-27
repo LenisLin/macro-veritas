@@ -9,6 +9,7 @@ This milestone is narrow:
 
 - it adds snapshot-on-update safety only
 - it applies only to the public full-replace update paths that already exist
+- it now runs snapshot creation inside the single-card update lock window
 - it does not add restore, history browsing, or diff behavior
 
 ## Covered Operations
@@ -21,6 +22,15 @@ Pre-update snapshots are taken only for:
 
 The create, ingest, show, list, and delete paths are unchanged by this
 milestone.
+
+## Lock Window
+
+Pre-update snapshot creation now happens inside the same exclusive target-card
+lock window used by update execution.
+
+- the update lock is acquired before snapshot creation begins
+- snapshot creation completes before the canonical overwrite starts
+- the lock is released only after overwrite success or failure
 
 ## Snapshot Directory Layout
 
@@ -54,8 +64,8 @@ Rules:
 Snapshot preservation is append-only.
 
 - existing snapshot files are never modified in place
-- update execution writes a new snapshot file before replacing the live
-  canonical card file
+- update execution writes a new snapshot file while the target-card lock is
+  held and before replacing the live canonical card file
 - this milestone does not add history cleanup or retention policy behavior
 
 ## Failure Rule

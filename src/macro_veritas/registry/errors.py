@@ -42,6 +42,10 @@ class InvalidStateTransitionError(RegistryError):
     """Raised when the requested change conflicts with the frozen state policy."""
 
 
+class UpdateLockError(RegistryError):
+    """Raised when an update-exclusive card lock cannot be acquired or managed."""
+
+
 class UnsupportedRegistryOperationError(RegistryError):
     """Raised when the caller asks for behavior outside the frozen gateway contract."""
 
@@ -53,5 +57,6 @@ __all__ = [
     "DependencyExistsError",
     "InvalidStateTransitionError",
     "RegistryError",
+    "UpdateLockError",
     "UnsupportedRegistryOperationError",
 ]

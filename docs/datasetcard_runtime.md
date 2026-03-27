@@ -9,6 +9,7 @@ MacroVeritas.
 - conservative YAML serialization and deserialization for one DatasetCard per file
 - single-card atomic write behavior for DatasetCard create and update
 - pre-update snapshot preservation for full-replace DatasetCard update
+- single-card exclusive local-file locking for full-replace DatasetCard update
 - gateway-level `StudyCard` referential-integrity enforcement for DatasetCard
   create and update
 - thin public CLI exposure for `ingest dataset` create and `update dataset`
@@ -42,9 +43,9 @@ Interpretation:
   files.
 - `create_dataset_card` performs a real single-card write through the gateway
   only.
-- `update_dataset_card` snapshots the exact prior YAML into the internal
-  history tree, then performs the real single-card overwrite through the
-  gateway only.
+- `update_dataset_card` acquires the target-card lock, snapshots the exact
+  prior YAML into the internal history tree while the lock is held, then
+  performs the real single-card overwrite through the gateway only.
 - `plan_create_dataset_card` and `plan_update_dataset_card` validate input and
   return planning descriptors without writing files.
 
@@ -146,16 +147,21 @@ DatasetCard create uses a real single-card atomic write flow:
 
 DatasetCard update adds one safety step before that overwrite:
 
-1. read the current canonical DatasetCard file
-2. copy the exact prior YAML bytes to
+1. acquire the exclusive target-card lock at
+   `<registry_root>/.locks/datasets/<dataset_id>.lock`
+2. read the current canonical DatasetCard file
+3. copy the exact prior YAML bytes to
    `<registry_root>/history/datasets/<dataset_id>/<timestamp>.yaml`
-3. only after snapshot success, perform the atomic canonical-file replacement
+4. only after snapshot success, perform the atomic canonical-file replacement
+5. release the lock after overwrite success or failure
 
 Scope limits:
 
 - atomicity is for one canonical DatasetCard file at a time
+- exclusive locking exists only for full-replace DatasetCard update
+- create, show, list, and delete stay unlocked
 - there is no multi-card transaction support
-- there is no locking or concurrent writer coordination
+- there is no distributed locking, version counter, or force-unlock flow
 
 ## Error Translation Rule
 
@@ -169,6 +175,7 @@ Implemented translations:
 - missing parent `StudyCard` on DatasetCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed DatasetCard content -> `RegistryError`
+- update lock acquisition or release failure -> `UpdateLockError`
 - snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe DatasetCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`
@@ -188,6 +195,7 @@ Public command-bridge translations for `update dataset`:
 - missing parent StudyCard -> `missing_reference`
 - invalid replacement file or invalid DatasetCard data -> `invalid_payload`
 - unsupported operation/identifier -> `unsupported_operation`
+- update lock contention or lock-management failure -> `registry_failure`
 - snapshot failure or other gateway/domain failures -> `registry_failure`
 
 ## Non-Goals

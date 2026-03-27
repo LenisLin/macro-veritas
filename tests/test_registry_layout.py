@@ -7,13 +7,16 @@ from macro_veritas.registry.layout import (
     claim_card_path,
     claim_cards_dir,
     claim_card_relative_path,
+    claim_lock_path,
     dataset_card_path,
     dataset_cards_dir,
     dataset_card_relative_path,
+    dataset_lock_path,
     describe_first_slice_layout,
     study_card_path,
     study_cards_dir,
     study_card_relative_path,
+    study_lock_path,
 )
 from macro_veritas.registry.specs import (
     describe_cross_reference_strategy,
@@ -24,6 +27,8 @@ from macro_veritas.registry.specs import (
 from macro_veritas.shared.naming import (
     claim_card_filename,
     dataset_card_filename,
+    lock_filename,
+    lock_subdir_name,
     registry_subdir_names,
     study_card_filename,
 )
@@ -51,9 +56,11 @@ def _write_config(path: Path, data_root: Path) -> None:
 
 def test_first_slice_registry_naming_helpers() -> None:
     assert registry_subdir_names() == ("studies", "datasets", "claims")
+    assert lock_subdir_name() == ".locks"
     assert study_card_filename("study-001") == "study-001.yaml"
     assert dataset_card_filename("dataset-001") == "dataset-001.yaml"
     assert claim_card_filename("claim-001") == "claim-001.yaml"
+    assert lock_filename("study-001") == "study-001.lock"
 
 
 def test_first_slice_registry_relative_paths() -> None:
@@ -116,4 +123,13 @@ def test_project_config_resolves_first_slice_registry_dirs(tmp_path: Path) -> No
     assert claim_cards_dir(config.registry_dir) == data_root.resolve() / "registry" / "claims"
     assert claim_card_path(config.registry_dir, "claim-001") == (
         data_root.resolve() / "registry" / "claims" / "claim-001.yaml"
+    )
+    assert study_lock_path(config.registry_dir, "study-001") == (
+        data_root.resolve() / "registry" / ".locks" / "studies" / "study-001.lock"
+    )
+    assert dataset_lock_path(config.registry_dir, "dataset-001") == (
+        data_root.resolve() / "registry" / ".locks" / "datasets" / "dataset-001.lock"
+    )
+    assert claim_lock_path(config.registry_dir, "claim-001") == (
+        data_root.resolve() / "registry" / ".locks" / "claims" / "claim-001.lock"
     )

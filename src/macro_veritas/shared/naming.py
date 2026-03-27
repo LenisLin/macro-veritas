@@ -44,7 +44,9 @@ _OBJECT_FAMILY_LOOKUP: dict[str, ObjectFamilyName] = {
 }
 _REGISTRY_SUBDIR_NAMES: tuple[str, ...] = ("studies", "datasets", "claims")
 _HISTORY_SUBDIR_NAME = "history"
+_LOCKS_SUBDIR_NAME = ".locks"
 _CARD_FILENAME_EXTENSION = ".yaml"
+_LOCK_FILENAME_EXTENSION = ".lock"
 
 
 def normalize_object_family_name(name: str) -> str:
@@ -92,8 +94,36 @@ def history_subdir_name() -> str:
     return _HISTORY_SUBDIR_NAME
 
 
+def lock_subdir_name() -> str:
+    """Return the canonical registry lock-root directory name.
+
+    Inputs:
+        None.
+    Outputs:
+        The internal directory name used for update-time advisory lock files.
+    Non-goals:
+        This does not create directories or inspect a registry tree.
+    """
+
+    return _LOCKS_SUBDIR_NAME
+
+
 def _card_filename(card_id: str) -> str:
     return f"{card_id}{_CARD_FILENAME_EXTENSION}"
+
+
+def lock_filename(card_id: str) -> str:
+    """Return the canonical filename for one update lock file.
+
+    Inputs:
+        `card_id`: The card identifier to embed in the filename stem.
+    Outputs:
+        The canonical filename `<card_id>.lock`.
+    Non-goals:
+        This does not validate or rewrite the identifier.
+    """
+
+    return f"{card_id}{_LOCK_FILENAME_EXTENSION}"
 
 
 def study_card_filename(study_id: str) -> str:
@@ -176,6 +206,8 @@ __all__ = [
     "claim_card_filename",
     "dataset_card_filename",
     "history_subdir_name",
+    "lock_filename",
+    "lock_subdir_name",
     "list_reserved_cli_families",
     "normalize_object_family_name",
     "registry_subdir_names",

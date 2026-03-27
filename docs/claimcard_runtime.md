@@ -9,6 +9,7 @@ MacroVeritas:
 - conservative YAML serialization and deserialization for one ClaimCard per file
 - single-card atomic write behavior for ClaimCard create and update
 - pre-update snapshot preservation for full-replace ClaimCard update
+- single-card exclusive local-file locking for full-replace ClaimCard update
 - gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
   enforcement for ClaimCard create and update
 - the public `macro_veritas ingest claim` and `macro_veritas update claim` CLI
@@ -47,8 +48,9 @@ Interpretation:
 - `get_claim_card`, `claim_card_exists`, and `list_claim_cards` read real files
 - `create_claim_card` performs a real single-card write through the gateway
   only
-- `update_claim_card` snapshots the exact prior YAML into the internal history
-  tree, then performs the real single-card overwrite through the gateway only
+- `update_claim_card` acquires the target-card lock, snapshots the exact prior
+  YAML into the internal history tree while the lock is held, then performs the
+  real single-card overwrite through the gateway only
 - `plan_create_claim_card` and `plan_update_claim_card` validate input and
   direct references, then return planning descriptors without writing files
 - `macro_veritas ingest claim` remains a thin adapter: CLI args are normalized
@@ -139,16 +141,21 @@ ClaimCard create uses a real single-card atomic write flow:
 
 ClaimCard update adds one safety step before that overwrite:
 
-1. read the current canonical ClaimCard file
-2. copy the exact prior YAML bytes to
+1. acquire the exclusive target-card lock at
+   `<registry_root>/.locks/claims/<claim_id>.lock`
+2. read the current canonical ClaimCard file
+3. copy the exact prior YAML bytes to
    `<registry_root>/history/claims/<claim_id>/<timestamp>.yaml`
-3. only after snapshot success, perform the atomic canonical-file replacement
+4. only after snapshot success, perform the atomic canonical-file replacement
+5. release the lock after overwrite success or failure
 
 Scope limits:
 
 - atomicity is for one canonical ClaimCard file at a time
+- exclusive locking exists only for full-replace ClaimCard update
+- create, show, list, and delete stay unlocked
 - there is no multi-card transaction support
-- there is no locking or concurrent writer coordination
+- there is no distributed locking, version counter, or force-unlock flow
 
 ## Error Translation Rule
 
@@ -163,6 +170,7 @@ Implemented translations:
 - missing referenced `DatasetCard` values on ClaimCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed ClaimCard content -> `RegistryError`
+- update lock acquisition or release failure -> `UpdateLockError`
 - snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe ClaimCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`
