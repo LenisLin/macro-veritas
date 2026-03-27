@@ -4,6 +4,9 @@
 - chore(init): convert AVCP template into MacroVeritas scaffold
 - docs(mvp): establish the MVP documentation freeze across governance, architecture, registry/state/audit, and CLI contract docs; project remains docs-first with no scientific system implemented and CellVoyager reference-only
 
+## v0.17.0 - 2026-03-27
+- release: parent-aware locking now exists for DatasetCard ingest at `ingest dataset` and `ingest dataset --from-file <path.yaml>`; DatasetCard ingest locks the parent `StudyCard` plus the target `DatasetCard`; reference-aware locking now exists for ClaimCard ingest at `ingest claim` and `ingest claim --from-file <path.yaml>`; ClaimCard ingest locks the parent `StudyCard`, referenced `DatasetCard` values, and the target `ClaimCard`; existing update/delete locking remains in place; `StudyCard` ingest locking remains absent; release version chosen: v0.17.0
+
 ## v0.16.0 - 2026-03-27
 - release: single-card exclusive locking now exists for StudyCard, DatasetCard, and ClaimCard full-replace update at `update study --study-id <ID> --from-file <path.yaml>`, `update dataset --dataset-id <ID> --from-file <path.yaml>`, and `update claim --claim-id <ID> --from-file <path.yaml>` and for `delete study --study-id <ID>`, `delete dataset --dataset-id <ID>`, and `delete claim --claim-id <ID>`; update lock spans snapshot plus overwrite; delete lock spans dependency-check plus delete; create/ingest locking remains absent; no patch semantics; release version chosen: v0.16.0
 

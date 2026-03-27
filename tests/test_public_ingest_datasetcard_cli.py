@@ -9,9 +9,13 @@ import pytest
 
 from macro_veritas.cli import main
 from macro_veritas.commands import ingest
-from macro_veritas.registry.errors import RegistryError, UnsupportedRegistryOperationError
+from macro_veritas.registry.errors import (
+    RegistryError,
+    UnsupportedRegistryOperationError,
+    UpdateLockError,
+)
 from macro_veritas.registry.gateway import create_study_card
-from macro_veritas.registry.layout import dataset_card_path
+from macro_veritas.registry.layout import dataset_card_path, dataset_lock_path, study_lock_path
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 
@@ -150,10 +154,14 @@ def test_public_ingest_dataset_cli_succeeds_and_writes_canonical_datasetcard(
     )
 
     canonical_path = dataset_card_path(data_root.resolve() / "registry", "dataset-001")
+    parent_lock = study_lock_path(data_root.resolve() / "registry", "study-001")
+    target_lock = dataset_lock_path(data_root.resolve() / "registry", "dataset-001")
 
     assert study_result.returncode == 0, study_result.stderr
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "ingest dataset: created DatasetCard dataset-001"
+    assert parent_lock.is_file()
+    assert target_lock.is_file()
     assert canonical_path.read_text(encoding="utf-8") == (
         "\n".join(
             [
@@ -301,6 +309,57 @@ def test_public_ingest_dataset_cli_translates_registry_failure(
     assert exit_code == 1
     assert "ingest dataset failed [registry_failure]" in captured.err
     assert "registry gateway boundary" in captured.err
+
+
+def test_public_ingest_dataset_cli_surfaces_lock_failure_clearly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    data_root = tmp_path / "macro_data"
+    _write_config(config_path, data_root)
+    monkeypatch.setenv("MACRO_VERITAS_CONFIG", str(config_path))
+    create_study_card(_study_card())
+
+    def _raise_lock_failure(card: object) -> object:
+        raise UpdateLockError(
+            "DatasetCard ingest could not acquire the exclusive ingest lock for 'dataset-001'."
+        )
+
+    monkeypatch.setattr(ingest, "create_dataset_card", _raise_lock_failure)
+
+    exit_code = main(
+        [
+            "--config",
+            str(config_path),
+            "ingest",
+            "dataset",
+            "--dataset-id",
+            "dataset-001",
+            "--study-id",
+            "study-001",
+            "--status",
+            "identified",
+            "--modality-scope",
+            "rna-seq",
+            "--platform-summary",
+            "Illumina",
+            "--cohort-summary",
+            "adult cohort",
+            "--locator-confidence-note",
+            "confirmed in supplement",
+            "--source-locator",
+            "https://example.org/dataset-001",
+            "--availability-status",
+            "open",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "ingest dataset failed [registry_failure]" in captured.err
+    assert "exclusive ingest lock" in captured.err
 
 
 def test_public_ingest_dataset_cli_translates_unsupported_operation(

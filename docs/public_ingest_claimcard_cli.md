@@ -72,20 +72,23 @@ The canonical stored ClaimCard still writes `created_from_note` after payload pr
 - Both modes are create-only.
 - Both modes go through the same internal ClaimCard ingest bridge.
 - Both modes prepare a ClaimCard create plan and then execute ClaimCard create through the registry gateway.
+- Both modes now run under the same reference-aware ClaimCard ingest locking rule.
 - If the target ClaimCard already exists, the command fails and does not update or replace the existing file.
 - No patch mode or update mode exists in this milestone.
 
 ## Parent StudyCard Requirement
 
 - `ClaimCard.study_id` must point to an existing canonical parent `StudyCard`.
-- The existence check is enforced at the registry gateway boundary.
+- The existence check is enforced at the registry gateway boundary while the
+  ClaimCard ingest lock set is held.
 - A missing parent StudyCard is surfaced to the CLI as a clean `missing_reference` failure.
 
 ## Optional DatasetCard Reference Requirement
 
 - `ClaimCard.dataset_ids` is optional.
 - If one or more dataset IDs are provided, each referenced `DatasetCard` must already exist at its canonical path.
-- These existence checks are enforced at the registry gateway boundary.
+- These existence checks are enforced at the registry gateway boundary while
+  the ClaimCard ingest lock set is held.
 - Missing referenced DatasetCards are surfaced to the CLI as a clean `missing_reference` failure.
 
 ## Success Output Expectations
@@ -93,7 +96,10 @@ The canonical stored ClaimCard still writes `created_from_note` after payload pr
 - Exit code: `0`
 - Output channel: standard output
 - Output style: one concise line confirming the create, for example `ingest claim: created ClaimCard claim-001`
-- Side effect: one canonical YAML file is written to the configured registry root by the existing ClaimCard gateway/runtime layer
+- Side effect: one canonical YAML file is written to the configured registry
+  root by the existing ClaimCard gateway/runtime layer after reference
+  validation plus duplicate-target checks complete under the ClaimCard ingest
+  lock set
 
 ## Failure Output Expectations
 

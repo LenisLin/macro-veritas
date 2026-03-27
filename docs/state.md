@@ -4,7 +4,8 @@
 
 - Phase: Initialization / public StudyCard, DatasetCard, and ClaimCard
   full-replace update with pre-update snapshot preservation plus single-card
-  exclusive update/delete locking
+  exclusive update/delete locking plus parent-aware DatasetCard ingest locking
+  plus reference-aware ClaimCard ingest locking
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -73,6 +74,13 @@
 - Public by-id delete for StudyCard, DatasetCard, and ClaimCard now also
   acquires one exclusive target-card lock beneath `<registry_root>/.locks/`
   for the dependency-check-plus-delete critical section.
+- Public DatasetCard ingest now also acquires the parent StudyCard lock plus
+  the target DatasetCard lock beneath `<registry_root>/.locks/` for the
+  parent-validation-plus-duplicate-check-plus-create critical section.
+- Public ClaimCard ingest now also acquires the parent StudyCard lock, any
+  referenced DatasetCard locks, and the target ClaimCard lock beneath
+  `<registry_root>/.locks/` for the reference-validation-plus-duplicate-check-
+  plus-create critical section.
 - The public show path adapts explicit CLI flags into narrow by-id input,
   calls `get_study_card` / `get_dataset_card` / `get_claim_card`, and returns
   stable JSON to stdout on success.
@@ -84,9 +92,11 @@
   clean command-level failures.
 - Registry list failures are translated into clean command-level failures.
 - DatasetCard create/update enforce parent StudyCard existence at the gateway
-  boundary.
+  boundary, and DatasetCard create now does so under the parent-aware ingest
+  lock window.
 - ClaimCard create/update enforce parent StudyCard existence and optional
-  referenced DatasetCard existence at the gateway boundary.
+  referenced DatasetCard existence at the gateway boundary, and ClaimCard
+  create now does so under the reference-aware ingest lock window.
 - StudyCard delete is blocked at the gateway boundary when dependent
   DatasetCard or ClaimCard records still exist.
 - DatasetCard delete is blocked at the gateway boundary when dependent
@@ -122,7 +132,9 @@
 ## Explicitly Deferred
 
 - public search or filter for `StudyCard`, `DatasetCard`, or `ClaimCard`
-- create or ingest locking for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- StudyCard create or ingest locking
+- generalized create or ingest locking beyond the current parent-aware
+  DatasetCard ingest path and reference-aware ClaimCard ingest path
 - public StudyCard, DatasetCard, or ClaimCard update beyond file-based full replace
 - force delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
 - cascade delete for `StudyCard`, `DatasetCard`, or `ClaimCard`

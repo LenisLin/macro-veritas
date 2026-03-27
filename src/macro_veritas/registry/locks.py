@@ -1,10 +1,12 @@
 """Narrow advisory file-lock helpers for single-card registry mutations.
 
 This module owns only the local filesystem lock primitive used by the gateway's
-single-card update and delete paths.
+single-card update and delete paths plus the parent-aware DatasetCard ingest
+path and reference-aware ClaimCard ingest path.
 
 Responsibilities:
 - acquire one exclusive advisory lock for one deterministic card-specific file
+- acquire one deterministic ordered set of ClaimCard ingest locks
 - hold that lock for the caller's mutation-critical section
 - release the lock when the caller finishes or fails
 
@@ -16,13 +18,22 @@ Non-goals:
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import Iterable, Iterator
+from contextlib import ExitStack, contextmanager
 import fcntl
 import os
 from pathlib import Path
+from typing import NamedTuple
 
 from macro_veritas.registry.errors import UpdateLockError
+
+
+class IngestLockTarget(NamedTuple):
+    """Describe one deterministic ingest lock target."""
+
+    lock_path: Path
+    card_family: str
+    card_id: str
 
 
 @contextmanager
@@ -92,6 +103,42 @@ def exclusive_card_lock(
 
 
 @contextmanager
+def exclusive_card_delete_lock(
+    lock_path: Path,
+    *,
+    card_family: str,
+    card_id: str,
+) -> Iterator[None]:
+    """Acquire one non-blocking exclusive delete lock for a single target card."""
+
+    with exclusive_card_lock(
+        lock_path,
+        card_family=card_family,
+        card_id=card_id,
+        operation_name="delete",
+    ):
+        yield
+
+
+@contextmanager
+def exclusive_card_ingest_lock(
+    lock_path: Path,
+    *,
+    card_family: str,
+    card_id: str,
+) -> Iterator[None]:
+    """Acquire one non-blocking exclusive ingest lock for a single target card."""
+
+    with exclusive_card_lock(
+        lock_path,
+        card_family=card_family,
+        card_id=card_id,
+        operation_name="ingest",
+    ):
+        yield
+
+
+@contextmanager
 def exclusive_card_update_lock(
     lock_path: Path,
     *,
@@ -110,25 +157,32 @@ def exclusive_card_update_lock(
 
 
 @contextmanager
-def exclusive_card_delete_lock(
-    lock_path: Path,
-    *,
-    card_family: str,
-    card_id: str,
+def exclusive_ordered_ingest_locks(
+    lock_targets: Iterable[IngestLockTarget],
 ) -> Iterator[None]:
-    """Acquire one non-blocking exclusive delete lock for a single target card."""
+    """Acquire deterministic ClaimCard ingest locks in sorted lock-path order."""
 
-    with exclusive_card_lock(
-        lock_path,
-        card_family=card_family,
-        card_id=card_id,
-        operation_name="delete",
-    ):
+    unique_targets: dict[str, IngestLockTarget] = {}
+    for target in lock_targets:
+        unique_targets.setdefault(str(target.lock_path), target)
+
+    with ExitStack() as stack:
+        for target in sorted(unique_targets.values(), key=lambda item: str(item.lock_path)):
+            stack.enter_context(
+                exclusive_card_ingest_lock(
+                    target.lock_path,
+                    card_family=target.card_family,
+                    card_id=target.card_id,
+                )
+            )
         yield
 
 
 __all__ = [
+    "IngestLockTarget",
     "exclusive_card_delete_lock",
+    "exclusive_card_ingest_lock",
     "exclusive_card_lock",
+    "exclusive_ordered_ingest_locks",
     "exclusive_card_update_lock",
 ]

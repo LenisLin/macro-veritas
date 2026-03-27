@@ -34,15 +34,22 @@ This document now describes a mixed implementation state.
   present.
 - `StudyCard`, `DatasetCard`, and `ClaimCard` update execution now acquires one
   exclusive target-card local-file lock before snapshot plus overwrite.
+- `DatasetCard` create execution for the public ingest path now acquires the
+  parent `StudyCard` lock and the target `DatasetCard` lock before parent
+  validation, duplicate-target checks, and create/write.
+- `ClaimCard` create execution for the public ingest path now acquires the
+  parent `StudyCard` lock, any referenced `DatasetCard` locks, and the target
+  `ClaimCard` lock before reference validation, duplicate-target checks, and
+  create/write.
 - `StudyCard`, `DatasetCard`, and `ClaimCard` delete execution are now
   runtime-real behind the gateway.
 - `StudyCard`, `DatasetCard`, and `ClaimCard` delete execution now acquires one
   exclusive target-card local-file lock before dependency-check plus remove.
 - `StudyCard` and `DatasetCard` delete execution enforce reverse-dependency
   blocking before removal.
-- An internal StudyCard ingest bridge now consumes the unchanged StudyCard
-  gateway contract by calling `plan_create_study_card(...)` and then
-  `create_study_card(...)`.
+- Internal StudyCard, DatasetCard, and ClaimCard ingest bridges now consume
+  the unchanged gateway contract by calling `plan_create_*_card(...)` and then
+  `create_*_card(...)`.
 
 ## Access Result Contract
 
@@ -84,8 +91,8 @@ Interpretation notes:
   `create_dataset_card`, `update_dataset_card`, `delete_dataset_card`,
   `create_claim_card`, `update_claim_card`, and `delete_claim_card` are
   separate execution helpers.
-- The internal StudyCard ingest bridge uses this exact split: plan first, then
-  create.
+- The internal StudyCard, DatasetCard, and ClaimCard ingest bridges use this
+  exact split: plan first, then create.
 
 ## Error Semantics
 
@@ -105,8 +112,8 @@ Gateway/domain error categories:
   behind
 - `InvalidStateTransitionError`: the requested change conflicts with the frozen
   lifecycle or transition policy
-- `UpdateLockError`: the exclusive single-card update/delete lock could not be
-  acquired or managed
+- `UpdateLockError`: the exclusive DatasetCard/ClaimCard ingest or
+  update/delete lock could not be acquired or managed
 - `UnsupportedRegistryOperationError`: the caller asks for an operation or
   input style outside the frozen gateway contract
 
@@ -189,7 +196,9 @@ This milestone does not add or imply:
 - payload conversion runtime
 - patch-merging engine
 - retry runtime
-- create/ingest/show/list locking runtime
+- StudyCard create/ingest locking runtime
+- broader create/show/list locking runtime beyond parent-aware DatasetCard
+  ingest and reference-aware ClaimCard ingest
 - distributed locking runtime
 - version-counter concurrency control
 - transaction engine

@@ -6,6 +6,8 @@ This document is the source of truth for file-based `DatasetCard` ingest.
 
 - It defines the public `ingest dataset --from-file` path.
 - It fixes the narrow bridge: file path -> YAML mapping load -> normalized DatasetCard ingest input -> `DatasetCardPayload` -> gateway create -> canonical YAML write.
+- It uses the same parent-aware DatasetCard ingest locking rule as the
+  flag-based public ingest path.
 - It keeps the scope narrow: single-file, create-only, YAML-mapping DatasetCard ingest.
 - It is distinct from `update dataset --dataset-id <ID> --from-file <path.yaml>`, which expects a complete canonical `DatasetCard` replacement file and performs update, not create.
 
@@ -73,7 +75,10 @@ If an optional key is provided, it must be a string.
 ## Parent StudyCard Requirement
 
 - `study_id` must point to an existing canonical parent `StudyCard`.
-- The existence check is enforced at the registry gateway boundary.
+- Public DatasetCard ingest acquires the parent `StudyCard` lock first and the
+  target `DatasetCard` lock second.
+- The parent existence check and duplicate-target check are enforced at the
+  registry gateway boundary while those locks are held.
 - A missing parent StudyCard is surfaced to the CLI as a clean `missing_reference` failure.
 
 ## Mixed-Input Blocking Rule
@@ -105,6 +110,7 @@ If an optional key is provided, it must be a string.
   - unsupported mixed `--from-file` plus field-flag usage
   - missing parent StudyCard
   - duplicate DatasetCard create
+  - ingest lock contention or lock-management failure
   - generic registry gateway failure
 
 ## Non-Goals

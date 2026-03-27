@@ -22,7 +22,9 @@ Implemented now:
 - pre-update snapshot preservation for `StudyCard`, `DatasetCard`, and
   `ClaimCard` full-replace update execution
 - single-card exclusive local-file locking for `StudyCard`, `DatasetCard`, and
-  `ClaimCard` full-replace update execution and by-id delete execution
+  `ClaimCard` full-replace update execution and by-id delete execution plus
+  parent-aware DatasetCard ingest execution and reference-aware ClaimCard
+  ingest execution
 - gateway-level reverse-dependency checks for `StudyCard` and `DatasetCard`
   delete
 - domain-level translation of lower-level StudyCard/DatasetCard/ClaimCard
@@ -83,7 +85,13 @@ from macro_veritas.registry.errors import (
     UnsupportedRegistryOperationError,
 )
 from macro_veritas.registry.layout import claim_lock_path, dataset_lock_path, study_lock_path
-from macro_veritas.registry.locks import exclusive_card_delete_lock, exclusive_card_update_lock
+from macro_veritas.registry.locks import (
+    IngestLockTarget,
+    exclusive_card_delete_lock,
+    exclusive_card_ingest_lock,
+    exclusive_ordered_ingest_locks,
+    exclusive_card_update_lock,
+)
 from macro_veritas.registry.specs import (
     describe_integrity_enforcement_policy,
     describe_registry_gateway_boundary,
@@ -404,6 +412,35 @@ def _require_claim_references_exist(
         _require_claim_dataset_references_exist(operation_name, list(dataset_ids))
 
 
+def _claimcard_ingest_lock_targets(
+    registry_root: Path,
+    card: ClaimCardPayload,
+) -> tuple[IngestLockTarget, ...]:
+    lock_targets: list[IngestLockTarget] = [
+        IngestLockTarget(
+            study_lock_path(registry_root, card["study_id"]),
+            "StudyCard",
+            card["study_id"],
+        )
+    ]
+    for dataset_id in card.get("dataset_ids", ()):
+        lock_targets.append(
+            IngestLockTarget(
+                dataset_lock_path(registry_root, dataset_id),
+                "DatasetCard",
+                dataset_id,
+            )
+        )
+    lock_targets.append(
+        IngestLockTarget(
+            claim_lock_path(registry_root, card["claim_id"]),
+            "ClaimCard",
+            card["claim_id"],
+        )
+    )
+    return tuple(lock_targets)
+
+
 def _require_delete_target_exists(
     *,
     exists: bool,
@@ -528,6 +565,14 @@ def describe_registry_gateway_role() -> dict[str, object]:
                 "macro_veritas.commands.ingest.execute_studycard_ingest -> "
                 "plan_create_study_card -> create_study_card"
             ),
+            "DatasetCard_ingest": (
+                "macro_veritas.commands.ingest.execute_datasetcard_ingest -> "
+                "plan_create_dataset_card -> create_dataset_card"
+            ),
+            "ClaimCard_ingest": (
+                "macro_veritas.commands.ingest.execute_claimcard_ingest -> "
+                "plan_create_claim_card -> create_claim_card"
+            ),
             "StudyCard_update": (
                 "macro_veritas.commands.update.execute_update_study -> "
                 "plan_update_study_card -> update_study_card"
@@ -614,8 +659,11 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
         },
         "UpdateLockError": {
             "semantic_layer": "gateway/domain",
-            "meaning": "exclusive single-card update/delete lock could not be acquired or managed",
-            "applies_to": ("update", "delete"),
+            "meaning": (
+                "exclusive ClaimCard/DatasetCard ingest lock or single-card "
+                "update/delete lock could not be acquired or managed"
+            ),
+            "applies_to": ("create", "update", "delete"),
             "not_a_raw_os_exception": True,
         },
         "UnsupportedRegistryOperationError": {
@@ -646,15 +694,28 @@ def describe_atomic_write_policy() -> dict[str, str]:
         "implemented_for": "StudyCard, DatasetCard, and ClaimCard",
         "durability_steps": "fsync temp file before replace; fsync parent directory after replace",
         "multi_card_transaction_guarantee": "not planned in MVP",
-        "concurrent_locking": "exclusive single-card update/delete lock only",
+        "concurrent_locking": (
+            "exclusive single-card update/delete lock plus parent-aware "
+            "DatasetCard ingest locking plus reference-aware ClaimCard ingest locking"
+        ),
         "lock_scope": (
             "one target StudyCard or DatasetCard or ClaimCard during full-replace update "
-            "or by-id delete"
+            "or by-id delete, plus the parent StudyCard lock and target DatasetCard "
+            "lock during DatasetCard ingest, plus the parent StudyCard lock, "
+            "referenced DatasetCard lock(s), and target ClaimCard lock during "
+            "ClaimCard ingest"
         ),
         "lock_lifetime": (
             "update: acquire before snapshot and release after snapshot plus atomic "
             "overwrite or failure; delete: acquire before dependency check and release "
-            "after dependency check plus delete or failure"
+            "after dependency check plus delete or failure; DatasetCard ingest: acquire "
+            "the parent StudyCard lock, then the target DatasetCard lock, validate the "
+            "parent, re-check duplicate target state, create the canonical file, and "
+            "release both locks after success or failure; ClaimCard ingest: compute "
+            "the parent StudyCard, referenced DatasetCard, and target ClaimCard lock "
+            "paths, sort them lexicographically by full path, acquire them in that "
+            "order, validate references, re-check duplicate target state, create the "
+            "canonical file, and release all locks after success or failure"
         ),
     }
 
@@ -1044,12 +1105,30 @@ def create_dataset_card(card: DatasetCardPayload) -> DatasetCardPayload:
 
     try:
         normalized = normalize_dataset_card_payload(card)
-        _require_study_reference_exists(
-            "create_dataset_card",
-            normalized["study_id"],
-            referencing_card_family="DatasetCard",
-        )
-        return _runtime_create_dataset_card(_registry_root(), normalized)
+        registry_root = _registry_root()
+        parent_study_id = normalized["study_id"]
+        dataset_id = normalized["dataset_id"]
+        with exclusive_card_ingest_lock(
+            study_lock_path(registry_root, parent_study_id),
+            card_family="StudyCard",
+            card_id=parent_study_id,
+        ):
+            with exclusive_card_ingest_lock(
+                dataset_lock_path(registry_root, dataset_id),
+                card_family="DatasetCard",
+                card_id=dataset_id,
+            ):
+                _require_study_reference_exists(
+                    "create_dataset_card",
+                    parent_study_id,
+                    referencing_card_family="DatasetCard",
+                )
+                if _runtime_dataset_card_exists(registry_root, dataset_id):
+                    raise CardAlreadyExistsError(
+                        "create_dataset_card targeted a DatasetCard that already exists "
+                        "at its canonical path."
+                    )
+                return _runtime_create_dataset_card(registry_root, normalized)
     except RegistryError:
         raise
     except Exception as exc:
@@ -1142,8 +1221,17 @@ def create_claim_card(card: ClaimCardPayload) -> ClaimCardPayload:
 
     try:
         normalized = normalize_claim_card_payload(card)
-        _require_claim_references_exist("create_claim_card", normalized)
-        return _runtime_create_claim_card(_registry_root(), normalized)
+        registry_root = _registry_root()
+        with exclusive_ordered_ingest_locks(
+            _claimcard_ingest_lock_targets(registry_root, normalized)
+        ):
+            _require_claim_references_exist("create_claim_card", normalized)
+            if _runtime_claim_card_exists(registry_root, normalized["claim_id"]):
+                raise CardAlreadyExistsError(
+                    "create_claim_card targeted a ClaimCard that already exists "
+                    "at its canonical path."
+                )
+            return _runtime_create_claim_card(registry_root, normalized)
     except RegistryError:
         raise
     except Exception as exc:

@@ -8,6 +8,7 @@ MacroVeritas.
 - file-backed registry gateway behavior for `DatasetCard`
 - conservative YAML serialization and deserialization for one DatasetCard per file
 - single-card atomic write behavior for DatasetCard create and update
+- parent-aware locking for public DatasetCard ingest
 - pre-update snapshot preservation for full-replace DatasetCard update
 - single-card exclusive local-file locking for full-replace DatasetCard update
   and by-id DatasetCard delete
@@ -44,7 +45,8 @@ Interpretation:
 - `get_dataset_card`, `dataset_card_exists`, and `list_dataset_cards` read real
   files.
 - `create_dataset_card` performs a real single-card write through the gateway
-  only.
+  only and now acquires the parent `StudyCard` lock plus the target
+  `DatasetCard` lock for the public ingest critical section.
 - `update_dataset_card` acquires the target-card lock, snapshots the exact
   prior YAML into the internal history tree while the lock is held, then
   performs the real single-card overwrite through the gateway only.
@@ -66,6 +68,7 @@ The public DatasetCard entry points are now real and intentionally thin:
    prepares one full-card `DatasetCardPayload`
 5. `macro_veritas.commands.ingest.execute_datasetcard_ingest_input(...)` calls
    `plan_create_dataset_card(...)` and then `create_dataset_card(...)`
+   under the parent-aware DatasetCard ingest lock window
 6. `macro_veritas.cli` also exposes `update dataset`
 7. the update CLI adapter converts parsed args into a small typed DatasetCard
    update mapping
@@ -100,6 +103,8 @@ Current implementation notes:
 
 - the existence check happens at the gateway boundary, not in CLI code and not
   in the lower DatasetCard serializer/runtime helper
+- DatasetCard create now performs that parent check while the parent StudyCard
+  lock and target DatasetCard lock are both held
 - missing parent `StudyCard` is translated to `BrokenReferenceError` at the
   gateway boundary
 - the public CLI and command bridge translate that domain failure into a clean
@@ -142,13 +147,22 @@ Rules:
 
 ## Mutation Safety Rule
 
-DatasetCard create uses a real single-card atomic write flow:
+DatasetCard create uses a real single-card atomic write flow and now adds one
+parent-aware lock window for public ingest:
 
-1. write the full YAML document to a temp file in the same directory as the
+1. acquire the exclusive parent StudyCard lock at
+   `<registry_root>/.locks/studies/<study_id>.lock`
+2. acquire the exclusive target DatasetCard lock at
+   `<registry_root>/.locks/datasets/<dataset_id>.lock`
+3. validate the parent StudyCard exists while both locks are held
+4. re-check that the target DatasetCard does not already exist while both locks
+   are held
+5. write the full YAML document to a temp file in the same directory as the
    final canonical file
-2. flush and `fsync` the temp file
-3. `os.replace(...)` the temp file onto the canonical path
-4. `fsync` the parent directory after replacement
+6. flush and `fsync` the temp file
+7. `os.replace(...)` the temp file onto the canonical path
+8. `fsync` the parent directory after replacement
+9. release both locks after create success or failure
 
 DatasetCard update adds one safety step before that overwrite:
 
@@ -172,9 +186,10 @@ DatasetCard delete now runs under one narrow lock window:
 Scope limits:
 
 - atomicity is for one canonical DatasetCard file at a time
-- exclusive locking exists only for full-replace DatasetCard update and by-id
-  DatasetCard delete
-- create, show, and list stay unlocked
+- exclusive locking now exists for public DatasetCard ingest, full-replace
+  DatasetCard update, and by-id DatasetCard delete
+- StudyCard ingest and ClaimCard ingest stay unlocked
+- show and list stay unlocked
 - there is no multi-card transaction support
 - there is no distributed locking, version counter, or force-unlock flow
 
@@ -190,7 +205,8 @@ Implemented translations:
 - missing parent `StudyCard` on DatasetCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed DatasetCard content -> `RegistryError`
-- update/delete lock acquisition or release failure -> `UpdateLockError`
+- DatasetCard ingest/update/delete lock acquisition or release failure ->
+  `UpdateLockError`
 - snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe DatasetCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`
@@ -202,6 +218,7 @@ Public command-bridge translations for `ingest dataset`:
 - missing parent StudyCard -> `missing_reference`
 - invalid DatasetCard data -> `invalid_payload`
 - unsupported operation/identifier -> `unsupported_operation`
+- ingest lock contention or lock-management failure -> `registry_failure`
 - other gateway/domain failures -> `registry_failure`
 
 Public command-bridge translations for `update dataset`:

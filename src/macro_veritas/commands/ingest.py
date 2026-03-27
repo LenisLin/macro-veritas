@@ -31,6 +31,7 @@ from macro_veritas.registry.errors import (
     BrokenReferenceError,
     CardAlreadyExistsError,
     RegistryError,
+    UpdateLockError,
     UnsupportedRegistryOperationError,
 )
 from macro_veritas.registry.gateway import (
@@ -1332,6 +1333,8 @@ def _translate_datasetcard_gateway_error(
             "unsupported_operation",
             "DatasetCard ingest rejected an unsupported registry operation or identifier.",
         )
+    if isinstance(exc, UpdateLockError):
+        return ("registry_failure", str(exc))
     if isinstance(exc, RegistryError):
         if _looks_like_invalid_dataset_payload_error(exc):
             return (
@@ -1389,6 +1392,8 @@ def _translate_claimcard_gateway_error(
             "unsupported_operation",
             "ClaimCard ingest rejected an unsupported registry operation or identifier.",
         )
+    if isinstance(exc, UpdateLockError):
+        return ("registry_failure", str(exc))
     if isinstance(exc, RegistryError):
         if _looks_like_invalid_claim_payload_error(exc):
             return (

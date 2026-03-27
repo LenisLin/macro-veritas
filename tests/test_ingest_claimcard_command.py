@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from macro_veritas.commands import ingest
+from macro_veritas.registry.errors import UpdateLockError
 from macro_veritas.registry.gateway import create_dataset_card, create_study_card
 from macro_veritas.registry.layout import claim_card_path
 
@@ -202,6 +203,34 @@ def test_invalid_claimcard_payload_returns_translated_failure_result(
     assert result["target_id"] == "claim-001"
     assert "invalid ClaimCard data" in result["message"]
     assert "status" in result["message"]
+
+
+def test_claimcard_ingest_lock_failure_returns_translated_failure_result(
+    configured_registry_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    create_study_card(_study_card())
+
+    def _raise_lock_failure(card: object) -> object:
+        raise UpdateLockError(
+            "ClaimCard ingest could not acquire the exclusive ingest lock for 'claim-001'."
+        )
+
+    monkeypatch.setattr(ingest, "create_claim_card", _raise_lock_failure)
+
+    result = ingest.execute_claimcard_ingest(**_claimcard_ingest_kwargs())
+
+    assert result == {
+        "ok": False,
+        "operation": "ingest",
+        "card_family": "ClaimCard",
+        "target_id": "claim-001",
+        "message": (
+            "ClaimCard ingest could not acquire the exclusive ingest lock for "
+            "'claim-001'."
+        ),
+        "error_category": "registry_failure",
+    }
 
 
 def test_handle_ingest_command_supports_claimcard_mapping_input(

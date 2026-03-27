@@ -9,6 +9,7 @@ MacroVeritas:
 - conservative YAML serialization and deserialization for one ClaimCard per file
 - single-card atomic write behavior for ClaimCard create and update
 - pre-update snapshot preservation for full-replace ClaimCard update
+- reference-aware local-file locking for public ClaimCard ingest
 - single-card exclusive local-file locking for full-replace ClaimCard update
   and by-id ClaimCard delete
 - gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
@@ -49,7 +50,9 @@ Interpretation:
 
 - `get_claim_card`, `claim_card_exists`, and `list_claim_cards` read real files
 - `create_claim_card` performs a real single-card write through the gateway
-  only
+  only, and public ClaimCard ingest now holds the parent StudyCard lock, any
+  referenced DatasetCard locks, and the target ClaimCard lock across
+  reference validation, duplicate-target checks, and create/write
 - `update_claim_card` acquires the target-card lock, snapshots the exact prior
   YAML into the internal history tree while the lock is held, then performs the
   real single-card overwrite through the gateway only
@@ -144,6 +147,16 @@ ClaimCard create uses a real single-card atomic write flow:
 3. `os.replace(...)` the temp file onto the canonical path
 4. `fsync` the parent directory after replacement
 
+Public ClaimCard ingest now adds one narrow lock window before that write:
+
+1. compute the parent StudyCard, referenced DatasetCard, and target ClaimCard
+   lock paths
+2. sort those full lock paths lexicographically and acquire them in that order
+3. validate direct references while those locks are held
+4. re-check duplicate target state while those locks are held
+5. perform the atomic create/write
+6. release all locks after success or failure
+
 ClaimCard update adds one safety step before that overwrite:
 
 1. acquire the exclusive target-card lock at
@@ -165,9 +178,9 @@ ClaimCard delete now runs under one narrow lock window:
 Scope limits:
 
 - atomicity is for one canonical ClaimCard file at a time
-- exclusive locking exists only for full-replace ClaimCard update and by-id
-  ClaimCard delete
-- create, show, and list stay unlocked
+- exclusive locking now exists for public ClaimCard ingest, full-replace
+  ClaimCard update, and by-id ClaimCard delete
+- plan-create, show, and list stay unlocked
 - there is no multi-card transaction support
 - there is no distributed locking, version counter, or force-unlock flow
 
@@ -184,7 +197,8 @@ Implemented translations:
 - missing referenced `DatasetCard` values on ClaimCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed ClaimCard content -> `RegistryError`
-- update/delete lock acquisition or release failure -> `UpdateLockError`
+- ClaimCard ingest/update/delete lock acquisition or release failure ->
+  `UpdateLockError`
 - snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe ClaimCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`

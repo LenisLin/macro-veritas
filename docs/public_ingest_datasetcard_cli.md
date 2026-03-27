@@ -6,6 +6,8 @@ This document is the source of truth for the public `DatasetCard` ingest surface
 
 - It defines the public `ingest dataset` command in both supported modes.
 - It fixes the end-to-end DatasetCard create bridge: raw CLI input or one YAML mapping -> normalized DatasetCard ingest input -> `DatasetCardPayload` -> gateway create -> canonical YAML file write.
+- It makes the public DatasetCard create path run under parent-aware local
+  locking.
 - It keeps the scope narrow: create-only DatasetCard ingest and nothing broader.
 
 ## Supported Public Modes
@@ -65,14 +67,18 @@ The detailed file contract for file-based mode is frozen at [`docs/public_ingest
 
 - Both modes are create-only.
 - Both modes go through the same internal DatasetCard ingest bridge.
-- Both modes prepare a DatasetCard create plan and then execute DatasetCard create through the registry gateway.
+- Both modes prepare a DatasetCard create plan and then execute DatasetCard
+  create through the registry gateway under parent-aware locking.
 - If the target DatasetCard already exists, the command fails and does not update or replace the existing file.
 - No patch mode or update mode exists in this milestone.
 
 ## Parent StudyCard Requirement
 
 - `DatasetCard.study_id` must point to an existing canonical parent `StudyCard`.
-- The existence check is enforced at the registry gateway boundary.
+- Public DatasetCard ingest acquires the parent `StudyCard` lock first and the
+  target `DatasetCard` lock second.
+- The parent existence check and duplicate-target check are both enforced at
+  the registry gateway boundary while those locks are held.
 - A missing parent StudyCard is surfaced to the CLI as a clean `missing_reference` failure.
 
 ## Success Output Expectations
@@ -90,6 +96,8 @@ The detailed file contract for file-based mode is frozen at [`docs/public_ingest
 - Parser-level invalid choices still use standard `argparse` error output and exit non-zero.
 - File and normalization failures are surfaced as `invalid_payload`.
 - Gateway/domain failures are translated into the command result categories: `duplicate_target`, `missing_reference`, `invalid_payload`, `unsupported_operation`, and `registry_failure`.
+- Lock acquisition or lock-management failure is surfaced as `registry_failure`
+  with the lock error message.
 - The intended user-facing surface is command-level messaging, not a raw filesystem traceback.
 
 ## Non-Goals

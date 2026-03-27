@@ -8,8 +8,16 @@ import sys
 import pytest
 import yaml
 
+from macro_veritas.cli import main
+from macro_veritas.commands import ingest
+from macro_veritas.registry.errors import UpdateLockError
 from macro_veritas.registry.gateway import create_dataset_card, create_study_card
-from macro_veritas.registry.layout import claim_card_path
+from macro_veritas.registry.layout import (
+    claim_card_path,
+    claim_lock_path,
+    dataset_lock_path,
+    study_lock_path,
+)
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 
@@ -141,9 +149,17 @@ def test_public_ingest_claim_from_file_succeeds_and_writes_canonical_claimcard(
     )
 
     canonical_path = claim_card_path(data_root.resolve() / "registry", "claim-001")
+    claim_lock = claim_lock_path(data_root.resolve() / "registry", "claim-001")
+    dataset_one_lock = dataset_lock_path(data_root.resolve() / "registry", "dataset-001")
+    dataset_two_lock = dataset_lock_path(data_root.resolve() / "registry", "dataset-002")
+    parent_lock = study_lock_path(data_root.resolve() / "registry", "study-001")
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "ingest claim: created ClaimCard claim-001"
+    assert claim_lock.is_file()
+    assert dataset_one_lock.is_file()
+    assert dataset_two_lock.is_file()
+    assert parent_lock.is_file()
     assert canonical_path.read_text(encoding="utf-8") == (
         "\n".join(
             [
@@ -356,3 +372,40 @@ def test_public_ingest_claim_from_file_mixed_with_field_flags_fails_cleanly(
     assert "ingest claim failed [invalid_payload]" in result.stderr
     assert "ClaimCard --from-file cannot be combined with field flags" in result.stderr
     assert "--claim-id" in result.stderr
+
+
+def test_public_ingest_claim_from_file_surfaces_lock_failure_clearly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    data_root = tmp_path / "macro_data"
+    ingest_path = tmp_path / "claim-input.yaml"
+    _write_config(config_path, data_root)
+    _write_claim_ingest_file(ingest_path, _claim_ingest_data())
+    monkeypatch.setenv("MACRO_VERITAS_CONFIG", str(config_path))
+    create_study_card(_study_card())
+
+    def _raise_lock_failure(card: object) -> object:
+        raise UpdateLockError(
+            "ClaimCard ingest could not acquire the exclusive ingest lock for 'claim-001'."
+        )
+
+    monkeypatch.setattr(ingest, "create_claim_card", _raise_lock_failure)
+
+    exit_code = main(
+        [
+            "--config",
+            str(config_path),
+            "ingest",
+            "claim",
+            "--from-file",
+            str(ingest_path),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "ingest claim failed [registry_failure]" in captured.err
+    assert "exclusive ingest lock" in captured.err

@@ -11,7 +11,7 @@ import yaml
 from macro_veritas.cli import main
 from macro_veritas.commands import ingest
 from macro_veritas.registry.gateway import create_study_card
-from macro_veritas.registry.layout import dataset_card_path
+from macro_veritas.registry.layout import dataset_card_path, dataset_lock_path, study_lock_path
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 
@@ -123,9 +123,13 @@ def test_public_ingest_dataset_from_file_succeeds_and_writes_canonical_datasetca
     )
 
     canonical_path = dataset_card_path(data_root.resolve() / "registry", "dataset-001")
+    parent_lock = study_lock_path(data_root.resolve() / "registry", "study-001")
+    target_lock = dataset_lock_path(data_root.resolve() / "registry", "dataset-001")
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "ingest dataset: created DatasetCard dataset-001"
+    assert parent_lock.is_file()
+    assert target_lock.is_file()
     assert canonical_path.read_text(encoding="utf-8") == (
         "\n".join(
             [

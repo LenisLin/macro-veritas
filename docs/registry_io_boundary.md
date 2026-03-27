@@ -14,6 +14,10 @@ operations.
   updates.
 - It defines the current single-card exclusive delete-lock rule for by-id
   deletes.
+- It defines the current parent-aware DatasetCard ingest-lock rule for the
+  public create path.
+- It defines the current reference-aware ClaimCard ingest-lock rule for the
+  public create path.
 - It defines the minimum planned error surface for registry access.
 - `docs/gateway_contracts.md` defines the exact gateway communication contract
   for results, mutation-plan outputs, and domain-error semantics.
@@ -106,11 +110,20 @@ Planned direct-reference checks:
 
 Implemented now:
 
-- `DatasetCard` create/update enforce parent `StudyCard` existence at the
+- `DatasetCard` create now acquires the parent `StudyCard` lock and the target
+  `DatasetCard` lock, then enforces parent `StudyCard` existence and duplicate
+  target absence while both locks are held before the DatasetCard runtime
+  helper writes storage.
+- `DatasetCard` update still enforces parent `StudyCard` existence at the
   gateway boundary before the DatasetCard runtime helper writes storage.
 - `DatasetCard` planning descriptors perform the same direct parent existence
   check without writing storage.
-- `ClaimCard` create/update enforce parent `StudyCard` existence and enforce
+- `ClaimCard` create now acquires the parent `StudyCard` lock, any referenced
+  `DatasetCard` locks, and the target `ClaimCard` lock, then enforces parent
+  `StudyCard` existence, referenced `DatasetCard` existence, and duplicate
+  target absence while those locks are held before the ClaimCard runtime
+  helper writes storage.
+- `ClaimCard` update still enforces parent `StudyCard` existence and
   referenced `DatasetCard` existence when `dataset_ids` is present and non-empty.
 - `ClaimCard` planning descriptors perform the same direct checks without
   writing storage.
@@ -142,6 +155,13 @@ The write rule remains intentionally narrow and is now implemented for
 
 - Single-card create operations follow a write-temp-then-replace style atomic
   update principle for the canonical card file.
+- Single-card DatasetCard create through the public ingest path now also
+  acquires the parent `StudyCard` lock and the target `DatasetCard` lock
+  before parent validation, duplicate-target checks, and create/write.
+- Single-card ClaimCard create through the public ingest path now also
+  acquires the parent `StudyCard` lock, any referenced `DatasetCard` locks,
+  and the target `ClaimCard` lock before reference validation, duplicate-
+  target checks, and create/write.
 - Single-card full-replace update operations now acquire one exclusive
   target-card lock, preserve the exact prior canonical YAML in the internal
   history tree while that lock is held, then perform the atomic canonical-file
@@ -162,6 +182,29 @@ Implemented interpretation:
   not part of public read or list resolution.
 - Mutation lock files live beneath `<registry_root>/.locks/` and are not part
   of public read or list resolution.
+
+DatasetCard create execution order for the implemented public ingest path:
+
+1. the gateway normalizes the DatasetCard payload and resolves the registry root
+2. the gateway acquires the deterministic parent StudyCard ingest lock
+3. the gateway acquires the deterministic target DatasetCard ingest lock
+4. the gateway validates parent StudyCard existence under those locks
+5. the gateway re-checks duplicate target state under those locks
+6. the runtime atomically writes the canonical DatasetCard file
+7. both locks are released after success or failure
+
+ClaimCard create execution order for the implemented public ingest path:
+
+1. the gateway normalizes the ClaimCard payload and resolves the registry root
+2. the gateway derives the parent StudyCard, referenced DatasetCard, and target
+   ClaimCard lock paths
+3. the gateway sorts those full lock paths lexicographically and acquires them
+   in that order
+4. the gateway validates the StudyCard and DatasetCard references under those
+   locks
+5. the gateway re-checks duplicate target state under those locks
+6. the runtime atomically writes the canonical ClaimCard file
+7. all locks are released after success or failure
 
 Update execution order for the implemented full-replace path:
 
@@ -184,9 +227,10 @@ Explicit limits:
 
 - No multi-card transaction guarantee is planned yet.
 - No cross-card commit bundle is planned yet.
-- Single-card exclusive locking exists only for full-replace update operations
-  and by-id delete operations.
-- Create, ingest, show, and list remain unlocked.
+- Single-card exclusive locking exists for full-replace update operations,
+  by-id delete operations, parent-aware DatasetCard ingest, and
+  reference-aware ClaimCard ingest only.
+- StudyCard ingest, show, and list remain unlocked.
 - No cross-card lock graph or distributed locking system is planned.
 - No rollback engine is planned yet.
 - No public restore or history-browsing CLI is planned yet.
@@ -203,7 +247,8 @@ Gateway/domain categories:
 - `BrokenReferenceError`: direct referenced card is missing
 - `DependencyExistsError`: delete would leave dependent cards behind
 - `InvalidStateTransitionError`: requested change conflicts with the frozen lifecycle/state policy
-- `UpdateLockError`: the exclusive single-card update/delete lock could not be acquired or managed
+- `UpdateLockError`: the exclusive DatasetCard/ClaimCard ingest or
+  update/delete lock could not be acquired or managed
 - `UnsupportedRegistryOperationError`: requested registry action is outside the supported gateway contract
 
 The runtime slice still uses a small error surface. Lower-level StudyCard,
@@ -218,7 +263,8 @@ The exact gateway-facing meaning of those error categories is frozen in
 This milestone does not add or imply:
 
 - transaction engine
-- create/ingest/show/list locking
+- generalized create/show/list locking
+- StudyCard ingest locking
 - distributed locking system
 - multi-card lock graph
 - manifest or index engine

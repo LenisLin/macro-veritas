@@ -6,6 +6,8 @@ This document is the source of truth for file-based `ClaimCard` ingest.
 
 - It defines the public `ingest claim --from-file` path.
 - It fixes the narrow bridge: file path -> YAML mapping load -> normalized ClaimCard ingest input -> `ClaimCardPayload` -> gateway create -> canonical YAML write.
+- It uses the same reference-aware ClaimCard ingest locking rule as the
+  flag-based `ingest claim` path.
 - It stays aligned with the StudyCard and DatasetCard file-ingest paths: single-file, create-only, YAML-mapping ingest only.
 
 ## Exact CLI Shape
@@ -82,7 +84,9 @@ dataset_ids:
 - Exit code: `0`
 - Output channel: standard output
 - Output style: one concise line, for example `ingest claim: created ClaimCard claim-001`
-- Side effect: the existing ClaimCard create path writes one canonical YAML file beneath the configured registry root
+- Side effect: the existing ClaimCard create path writes one canonical YAML
+  file beneath the configured registry root after reference validation plus
+  duplicate-target checks complete under the ClaimCard ingest lock set
 
 ## Failure Output Expectations
 
@@ -99,6 +103,7 @@ dataset_ids:
   - missing parent `StudyCard`
   - missing referenced `DatasetCard` IDs
   - duplicate ClaimCard create
+  - ClaimCard ingest lock acquisition failure
   - generic registry gateway failure
 
 ## Non-Goals
