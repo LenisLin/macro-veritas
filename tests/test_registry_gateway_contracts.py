@@ -168,7 +168,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
         "update",
     )
     assert error_semantics["DependencyExistsError"]["applies_to"] == ("delete",)
-    assert error_semantics["UpdateLockError"]["applies_to"] == ("update",)
+    assert error_semantics["UpdateLockError"]["applies_to"] == ("update", "delete")
     assert error_semantics["UnsupportedRegistryOperationError"]["not_a_raw_os_exception"] is True
     assert mutation_plan_contract["output_type"] == "MutationPlanDescriptor"
     assert mutation_plan_contract["input_requirement"] == "full_card_payload"
@@ -186,7 +186,7 @@ def test_registry_gateway_descriptors_match_frozen_boundary() -> None:
     assert atomic_policy["write_shape"] == "write-temp-then-replace"
     assert atomic_policy["implemented_for"] == "StudyCard, DatasetCard, and ClaimCard"
     assert atomic_policy["multi_card_transaction_guarantee"] == "not planned in MVP"
-    assert atomic_policy["concurrent_locking"] == "exclusive single-card update lock only"
+    assert atomic_policy["concurrent_locking"] == "exclusive single-card update/delete lock only"
 
     assert layout_boundary["layout_is_access_api"] is False
     assert layout_boundary["cli_should_use_layout_as_io_layer"] is False

@@ -11,6 +11,7 @@ MacroVeritas:
 - single-card atomic write behavior for StudyCard create and update
 - pre-update snapshot preservation for full-replace StudyCard update
 - single-card exclusive local-file locking for full-replace StudyCard update
+  and by-id StudyCard delete
 - gateway translation of lower-level StudyCard runtime failures into registry
   domain errors
 
@@ -28,6 +29,7 @@ The following gateway behavior is now runtime-real for `StudyCard`:
 - `plan_update_study_card(card)`
 - `create_study_card(card)`
 - `update_study_card(card)`
+- `delete_study_card(study_id)`
 
 Interpretation:
 
@@ -39,6 +41,9 @@ Interpretation:
 - `update_study_card` acquires the target-card lock, snapshots the exact prior
   YAML into the internal history tree while the lock is held, then performs the
   real single-card overwrite through the gateway only.
+- `delete_study_card` acquires the target-card lock, re-checks target
+  existence, performs reverse-dependency checks while the lock is held, then
+  performs the real single-card delete through the gateway only.
 - The public `ingest study` and `update study` CLI paths now reuse these
   gateway/runtime helpers through the command layer.
 
@@ -81,7 +86,7 @@ Rules:
   values, invalid screening decisions, or a mismatched canonical file name are
   treated as malformed StudyCard content
 
-## Snapshot And Atomic Write Rule
+## Mutation Safety Rule
 
 StudyCard create uses a real single-card atomic write flow:
 
@@ -101,11 +106,21 @@ StudyCard update adds one safety step before that overwrite:
 4. only after snapshot success, perform the atomic canonical-file replacement
 5. release the lock after overwrite success or failure
 
+StudyCard delete now runs under one narrow lock window:
+
+1. acquire the exclusive target-card lock at
+   `<registry_root>/.locks/studies/<study_id>.lock`
+2. re-check that the canonical StudyCard file still exists while the lock is held
+3. scan existing DatasetCard and ClaimCard records for dependents while the lock is held
+4. only when no dependents exist, delete the canonical StudyCard file
+5. release the lock after delete success or failure
+
 Scope limits:
 
 - atomicity is for one canonical StudyCard file at a time
-- exclusive locking exists only for full-replace StudyCard update
-- create, show, list, and delete stay unlocked
+- exclusive locking exists only for full-replace StudyCard update and by-id
+  StudyCard delete
+- create, show, and list stay unlocked
 - there is no multi-card transaction support
 - there is no distributed locking, version counter, or force-unlock flow
 
@@ -115,11 +130,11 @@ Lower-level StudyCard runtime failures are translated at the gateway boundary.
 
 Implemented translations:
 
-- missing canonical file on read or update -> `CardNotFoundError`
+- missing canonical file on read, update, or delete -> `CardNotFoundError`
 - duplicate StudyCard create target -> `CardAlreadyExistsError`
 - malformed YAML or malformed StudyCard content -> `RegistryError`
 - attempt to reopen a `closed` StudyCard on update -> `InvalidStateTransitionError`
-- update lock acquisition or release failure -> `UpdateLockError`
+- update/delete lock acquisition or release failure -> `UpdateLockError`
 - snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe StudyCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`

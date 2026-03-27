@@ -10,6 +10,7 @@ MacroVeritas:
 - single-card atomic write behavior for ClaimCard create and update
 - pre-update snapshot preservation for full-replace ClaimCard update
 - single-card exclusive local-file locking for full-replace ClaimCard update
+  and by-id ClaimCard delete
 - gateway-level `StudyCard` and optional `DatasetCard` referential-integrity
   enforcement for ClaimCard create and update
 - the public `macro_veritas ingest claim` and `macro_veritas update claim` CLI
@@ -31,6 +32,7 @@ The following gateway behavior is now runtime-real for `ClaimCard`:
 - `list_claim_cards()`
 - `create_claim_card(card)`
 - `update_claim_card(card)`
+- `delete_claim_card(claim_id)`
 
 Planning-only behavior that now returns real mutation descriptors without
 writing storage:
@@ -51,6 +53,9 @@ Interpretation:
 - `update_claim_card` acquires the target-card lock, snapshots the exact prior
   YAML into the internal history tree while the lock is held, then performs the
   real single-card overwrite through the gateway only
+- `delete_claim_card` acquires the target-card lock, re-checks target
+  existence while the lock is held, then performs the real single-card delete
+  through the gateway only
 - `plan_create_claim_card` and `plan_update_claim_card` validate input and
   direct references, then return planning descriptors without writing files
 - `macro_veritas ingest claim` remains a thin adapter: CLI args are normalized
@@ -129,7 +134,7 @@ Rules:
   malformed `dataset_ids`, invalid dataset reference identifiers, or a
   mismatched canonical file name are treated as malformed ClaimCard content
 
-## Snapshot And Atomic Write Rule
+## Mutation Safety Rule
 
 ClaimCard create uses a real single-card atomic write flow:
 
@@ -149,11 +154,20 @@ ClaimCard update adds one safety step before that overwrite:
 4. only after snapshot success, perform the atomic canonical-file replacement
 5. release the lock after overwrite success or failure
 
+ClaimCard delete now runs under one narrow lock window:
+
+1. acquire the exclusive target-card lock at
+   `<registry_root>/.locks/claims/<claim_id>.lock`
+2. re-check that the canonical ClaimCard file still exists while the lock is held
+3. delete the canonical ClaimCard file
+4. release the lock after delete success or failure
+
 Scope limits:
 
 - atomicity is for one canonical ClaimCard file at a time
-- exclusive locking exists only for full-replace ClaimCard update
-- create, show, list, and delete stay unlocked
+- exclusive locking exists only for full-replace ClaimCard update and by-id
+  ClaimCard delete
+- create, show, and list stay unlocked
 - there is no multi-card transaction support
 - there is no distributed locking, version counter, or force-unlock flow
 
@@ -163,14 +177,14 @@ Lower-level ClaimCard runtime failures are translated at the gateway boundary.
 
 Implemented translations:
 
-- missing canonical file on read or update -> `CardNotFoundError`
+- missing canonical file on read, update, or delete -> `CardNotFoundError`
 - duplicate ClaimCard create target -> `CardAlreadyExistsError`
 - missing parent `StudyCard` on ClaimCard create or update ->
   `BrokenReferenceError`
 - missing referenced `DatasetCard` values on ClaimCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed ClaimCard content -> `RegistryError`
-- update lock acquisition or release failure -> `UpdateLockError`
+- update/delete lock acquisition or release failure -> `UpdateLockError`
 - snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe ClaimCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`

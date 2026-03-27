@@ -26,6 +26,7 @@ from macro_veritas.registry.errors import (
     CardNotFoundError,
     DependencyExistsError,
     RegistryError,
+    UpdateLockError,
     UnsupportedRegistryOperationError,
 )
 from macro_veritas.registry.gateway import (
@@ -196,6 +197,8 @@ def translate_gateway_error(
         )
     if isinstance(exc, DependencyExistsError):
         return ("dependency_exists", str(exc))
+    if isinstance(exc, UpdateLockError):
+        return ("registry_failure", str(exc))
     if isinstance(exc, UnsupportedRegistryOperationError):
         return (
             "unsupported_operation",

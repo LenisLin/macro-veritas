@@ -10,6 +10,7 @@ MacroVeritas.
 - single-card atomic write behavior for DatasetCard create and update
 - pre-update snapshot preservation for full-replace DatasetCard update
 - single-card exclusive local-file locking for full-replace DatasetCard update
+  and by-id DatasetCard delete
 - gateway-level `StudyCard` referential-integrity enforcement for DatasetCard
   create and update
 - thin public CLI exposure for `ingest dataset` create and `update dataset`
@@ -30,6 +31,7 @@ The following gateway behavior is runtime-real for `DatasetCard`:
 - `list_dataset_cards()`
 - `create_dataset_card(card)`
 - `update_dataset_card(card)`
+- `delete_dataset_card(dataset_id)`
 
 Planning-only behavior that returns real mutation descriptors without writing
 storage:
@@ -46,6 +48,9 @@ Interpretation:
 - `update_dataset_card` acquires the target-card lock, snapshots the exact
   prior YAML into the internal history tree while the lock is held, then
   performs the real single-card overwrite through the gateway only.
+- `delete_dataset_card` acquires the target-card lock, re-checks target
+  existence, performs reverse-dependency checks while the lock is held, then
+  performs the real single-card delete through the gateway only.
 - `plan_create_dataset_card` and `plan_update_dataset_card` validate input and
   return planning descriptors without writing files.
 
@@ -135,7 +140,7 @@ Rules:
   identifiers, or a mismatched canonical file name are treated as malformed
   DatasetCard content
 
-## Snapshot And Atomic Write Rule
+## Mutation Safety Rule
 
 DatasetCard create uses a real single-card atomic write flow:
 
@@ -155,11 +160,21 @@ DatasetCard update adds one safety step before that overwrite:
 4. only after snapshot success, perform the atomic canonical-file replacement
 5. release the lock after overwrite success or failure
 
+DatasetCard delete now runs under one narrow lock window:
+
+1. acquire the exclusive target-card lock at
+   `<registry_root>/.locks/datasets/<dataset_id>.lock`
+2. re-check that the canonical DatasetCard file still exists while the lock is held
+3. scan existing ClaimCard records for dependents while the lock is held
+4. only when no dependents exist, delete the canonical DatasetCard file
+5. release the lock after delete success or failure
+
 Scope limits:
 
 - atomicity is for one canonical DatasetCard file at a time
-- exclusive locking exists only for full-replace DatasetCard update
-- create, show, list, and delete stay unlocked
+- exclusive locking exists only for full-replace DatasetCard update and by-id
+  DatasetCard delete
+- create, show, and list stay unlocked
 - there is no multi-card transaction support
 - there is no distributed locking, version counter, or force-unlock flow
 
@@ -170,12 +185,12 @@ boundary.
 
 Implemented translations:
 
-- missing canonical file on read or update -> `CardNotFoundError`
+- missing canonical file on read, update, or delete -> `CardNotFoundError`
 - duplicate DatasetCard create target -> `CardAlreadyExistsError`
 - missing parent `StudyCard` on DatasetCard create or update ->
   `BrokenReferenceError`
 - malformed YAML or malformed DatasetCard content -> `RegistryError`
-- update lock acquisition or release failure -> `UpdateLockError`
+- update/delete lock acquisition or release failure -> `UpdateLockError`
 - snapshot creation failure before update overwrite -> `RegistryError`
 - unsafe DatasetCard lookup ID passed to gateway read/existence functions ->
   `UnsupportedRegistryOperationError`

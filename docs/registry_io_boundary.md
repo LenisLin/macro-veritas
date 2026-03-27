@@ -12,6 +12,8 @@ operations.
   updates.
 - It defines the current single-card exclusive update-lock rule for full-replace
   updates.
+- It defines the current single-card exclusive delete-lock rule for by-id
+  deletes.
 - It defines the minimum planned error surface for registry access.
 - `docs/gateway_contracts.md` defines the exact gateway communication contract
   for results, mutation-plan outputs, and domain-error semantics.
@@ -144,6 +146,10 @@ The write rule remains intentionally narrow and is now implemented for
   target-card lock, preserve the exact prior canonical YAML in the internal
   history tree while that lock is held, then perform the atomic canonical-file
   replacement and release the lock.
+- Single-card by-id delete operations now acquire one exclusive target-card
+  lock, re-check target existence while that lock is held, perform reverse-
+  dependency checks under that same lock when required, then delete the
+  canonical card file and release the lock.
 
 Implemented interpretation:
 
@@ -154,8 +160,8 @@ Implemented interpretation:
   the canonical card file, and one completed lock release.
 - Snapshot history is internal-only beneath `<registry_root>/history/` and is
   not part of public read or list resolution.
-- Update lock files live beneath `<registry_root>/.locks/` and are not part of
-  public read or list resolution.
+- Mutation lock files live beneath `<registry_root>/.locks/` and are not part
+  of public read or list resolution.
 
 Update execution order for the implemented full-replace path:
 
@@ -165,12 +171,22 @@ Update execution order for the implemented full-replace path:
 4. the runtime atomically overwrites the canonical card file
 5. the lock is released after success or failure
 
+Delete execution order for the implemented by-id path:
+
+1. the gateway performs the normal fast target-existence check
+2. the gateway acquires the deterministic single-card delete lock
+3. the gateway re-checks target existence under that lock
+4. the gateway performs reverse-dependency checks under that lock when required
+5. the runtime removes the canonical card file
+6. the lock is released after success or failure
+
 Explicit limits:
 
 - No multi-card transaction guarantee is planned yet.
 - No cross-card commit bundle is planned yet.
-- Single-card exclusive locking exists only for full-replace update operations.
-- Create, delete, show, and list remain unlocked.
+- Single-card exclusive locking exists only for full-replace update operations
+  and by-id delete operations.
+- Create, ingest, show, and list remain unlocked.
 - No cross-card lock graph or distributed locking system is planned.
 - No rollback engine is planned yet.
 - No public restore or history-browsing CLI is planned yet.
@@ -187,7 +203,7 @@ Gateway/domain categories:
 - `BrokenReferenceError`: direct referenced card is missing
 - `DependencyExistsError`: delete would leave dependent cards behind
 - `InvalidStateTransitionError`: requested change conflicts with the frozen lifecycle/state policy
-- `UpdateLockError`: the exclusive single-card update lock could not be acquired or managed
+- `UpdateLockError`: the exclusive single-card update/delete lock could not be acquired or managed
 - `UnsupportedRegistryOperationError`: requested registry action is outside the supported gateway contract
 
 The runtime slice still uses a small error surface. Lower-level StudyCard,
@@ -202,7 +218,7 @@ The exact gateway-facing meaning of those error categories is frozen in
 This milestone does not add or imply:
 
 - transaction engine
-- create/delete/show/list locking
+- create/ingest/show/list locking
 - distributed locking system
 - multi-card lock graph
 - manifest or index engine

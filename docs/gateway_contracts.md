@@ -36,6 +36,8 @@ This document now describes a mixed implementation state.
   exclusive target-card local-file lock before snapshot plus overwrite.
 - `StudyCard`, `DatasetCard`, and `ClaimCard` delete execution are now
   runtime-real behind the gateway.
+- `StudyCard`, `DatasetCard`, and `ClaimCard` delete execution now acquires one
+  exclusive target-card local-file lock before dependency-check plus remove.
 - `StudyCard` and `DatasetCard` delete execution enforce reverse-dependency
   blocking before removal.
 - An internal StudyCard ingest bridge now consumes the unchanged StudyCard
@@ -103,7 +105,7 @@ Gateway/domain error categories:
   behind
 - `InvalidStateTransitionError`: the requested change conflicts with the frozen
   lifecycle or transition policy
-- `UpdateLockError`: the exclusive single-card update lock could not be
+- `UpdateLockError`: the exclusive single-card update/delete lock could not be
   acquired or managed
 - `UnsupportedRegistryOperationError`: the caller asks for an operation or
   input style outside the frozen gateway contract
@@ -187,7 +189,7 @@ This milestone does not add or imply:
 - payload conversion runtime
 - patch-merging engine
 - retry runtime
-- create/delete/show/list locking runtime
+- create/ingest/show/list locking runtime
 - distributed locking runtime
 - version-counter concurrency control
 - transaction engine

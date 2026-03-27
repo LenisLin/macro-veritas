@@ -91,7 +91,7 @@ def history_root(registry_root: str | Path) -> Path:
 
 
 def lock_root(registry_root: str | Path) -> Path:
-    """Return the update-lock root beneath a resolved registry root."""
+    """Return the mutation-lock root beneath a resolved registry root."""
 
     return Path(registry_root) / _LOCKS_SUBDIR
 
@@ -103,13 +103,13 @@ def study_history_dir(registry_root: str | Path, study_id: str) -> Path:
 
 
 def study_lock_dir(registry_root: str | Path) -> Path:
-    """Return the StudyCard update-lock directory beneath a resolved registry root."""
+    """Return the StudyCard mutation-lock directory beneath a resolved registry root."""
 
     return lock_root(registry_root) / _STUDIES_SUBDIR
 
 
 def study_lock_path(registry_root: str | Path, study_id: str) -> Path:
-    """Return the StudyCard update-lock path for one canonical identifier."""
+    """Return the StudyCard mutation-lock path for one canonical identifier."""
 
     return study_lock_dir(registry_root) / lock_filename(study_id)
 
@@ -121,13 +121,13 @@ def dataset_history_dir(registry_root: str | Path, dataset_id: str) -> Path:
 
 
 def dataset_lock_dir(registry_root: str | Path) -> Path:
-    """Return the DatasetCard update-lock directory beneath a resolved registry root."""
+    """Return the DatasetCard mutation-lock directory beneath a resolved registry root."""
 
     return lock_root(registry_root) / _DATASETS_SUBDIR
 
 
 def dataset_lock_path(registry_root: str | Path, dataset_id: str) -> Path:
-    """Return the DatasetCard update-lock path for one canonical identifier."""
+    """Return the DatasetCard mutation-lock path for one canonical identifier."""
 
     return dataset_lock_dir(registry_root) / lock_filename(dataset_id)
 
@@ -139,13 +139,13 @@ def claim_history_dir(registry_root: str | Path, claim_id: str) -> Path:
 
 
 def claim_lock_dir(registry_root: str | Path) -> Path:
-    """Return the ClaimCard update-lock directory beneath a resolved registry root."""
+    """Return the ClaimCard mutation-lock directory beneath a resolved registry root."""
 
     return lock_root(registry_root) / _CLAIMS_SUBDIR
 
 
 def claim_lock_path(registry_root: str | Path, claim_id: str) -> Path:
-    """Return the ClaimCard update-lock path for one canonical identifier."""
+    """Return the ClaimCard mutation-lock path for one canonical identifier."""
 
     return claim_lock_dir(registry_root) / lock_filename(claim_id)
 

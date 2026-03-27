@@ -4,7 +4,7 @@
 
 MacroVeritas is a docs-first, CLI-first Python project scaffold for a future claim-centered evidence grading and data-level verification system focused on melanoma, immune checkpoint inhibition, and macrophage literature.
 
-This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, or analysis pipeline is implemented yet. The implemented registry logic remains narrow and limited to create, StudyCard, DatasetCard, and ClaimCard full-replace update from file with pre-update snapshot preservation plus single-card exclusive update locking, read-by-id, family-level discovery, and referentially-aware by-id delete registry operations.
+This repository is in the initialization / MVP documentation freeze stage. No scientific system, evidence grading engine, or analysis pipeline is implemented yet. The implemented registry logic remains narrow and limited to create, StudyCard, DatasetCard, and ClaimCard full-replace update from file with pre-update snapshot preservation plus single-card exclusive update locking, read-by-id, family-level discovery, and referentially-aware by-id delete registry operations that now also run under single-card exclusive delete locking.
 
 ## Current Status
 
@@ -98,6 +98,7 @@ The configured data root is external to the repository. Placeholder runtime dire
   - `delete claim`
 - Five narrow public domain families are now implemented: create-only `StudyCard` / `DatasetCard` / `ClaimCard` ingest, single-file YAML ingest for all three core cards at `ingest study --from-file`, `ingest dataset --from-file`, and `ingest claim --from-file`, file-based full-replace `StudyCard` update at `update study --study-id <ID> --from-file <path.yaml>`, file-based full-replace `DatasetCard` update at `update dataset --dataset-id <ID> --from-file <path.yaml>`, file-based full-replace `ClaimCard` update at `update claim --claim-id <ID> --from-file <path.yaml>`, by-id `StudyCard` / `DatasetCard` / `ClaimCard` show, family-level `StudyCard` / `DatasetCard` / `ClaimCard` list discovery, and referentially-aware by-id `StudyCard` / `DatasetCard` / `ClaimCard` delete.
 - Those full-replace update paths now preserve the exact prior on-disk YAML in an internal append-only history tree before overwrite and run under one single-card exclusive local-file lock during snapshot plus overwrite. No restore or history-browsing CLI exists yet.
+- Those by-id delete paths now run under one single-card exclusive local-file lock during dependency-check plus delete. Create/ingest locking is still deferred.
 - The scaffold does not claim any scientific capability beyond configuration, filesystem layout management, narrow registry-card creation, narrow StudyCard, DatasetCard, and ClaimCard full-replace update, narrow registry-card read-by-id access, narrow registry-card discovery, and conservative registry-card deletion.
 - CellVoyager code is not integrated into the current MacroVeritas package or CLI surface.
 

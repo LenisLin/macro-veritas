@@ -27,27 +27,28 @@ Recommended first-pass reading order:
 14. [`docs/registry_io_boundary.md`](registry_io_boundary.md) for the frozen future internal access boundary, integrity rule, mutation-safety rule, and registry error surface.
 15. [`docs/update_snapshot_policy.md`](update_snapshot_policy.md) for the internal pre-update snapshot safety rule.
 16. [`docs/update_locking_policy.md`](update_locking_policy.md) for the single-card exclusive update-lock rule.
-17. [`docs/gateway_contracts.md`](gateway_contracts.md) for the frozen gateway result, error, and mutation-plan communication contract.
-18. [`docs/studycard_runtime.md`](studycard_runtime.md) for the real file-backed StudyCard runtime slice.
-19. [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) for the real file-backed DatasetCard runtime slice and the thin public CLI entry point.
-20. [`docs/claimcard_runtime.md`](claimcard_runtime.md) for the real file-backed ClaimCard runtime slice.
-21. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real StudyCard ingest runtime path.
-22. [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md) for the first public StudyCard command surface.
-23. [`docs/public_ingest_studycard_from_file.md`](public_ingest_studycard_from_file.md) for the public StudyCard single-file ingest surface.
-24. [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md) for the public DatasetCard flag-based command surface.
-25. [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md) for the public DatasetCard single-file ingest surface.
-26. [`docs/public_update_studycard_cli.md`](public_update_studycard_cli.md) for the public StudyCard update surface.
-27. [`docs/public_update_datasetcard_cli.md`](public_update_datasetcard_cli.md) for the public DatasetCard update surface.
-28. [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md) for the public ClaimCard flag-based command surface.
-29. [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md) for the public ClaimCard single-file ingest surface.
-30. [`docs/public_update_claimcard_cli.md`](public_update_claimcard_cli.md) for the public ClaimCard update surface.
-31. [`docs/public_show_cli.md`](public_show_cli.md) for the first public read-by-id command surface.
-32. [`docs/public_list_cli.md`](public_list_cli.md) for the first public discovery command surface.
-33. [`docs/public_delete_cli.md`](public_delete_cli.md) for the first public referentially-aware delete command surface.
-34. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
-35. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and module responsibilities.
-36. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
-37. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
+17. [`docs/delete_locking_policy.md`](delete_locking_policy.md) for the single-card exclusive delete-lock rule.
+18. [`docs/gateway_contracts.md`](gateway_contracts.md) for the frozen gateway result, error, and mutation-plan communication contract.
+19. [`docs/studycard_runtime.md`](studycard_runtime.md) for the real file-backed StudyCard runtime slice.
+20. [`docs/datasetcard_runtime.md`](datasetcard_runtime.md) for the real file-backed DatasetCard runtime slice and the thin public CLI entry point.
+21. [`docs/claimcard_runtime.md`](claimcard_runtime.md) for the real file-backed ClaimCard runtime slice.
+22. [`docs/ingest_studycard_runtime.md`](ingest_studycard_runtime.md) for the first real StudyCard ingest runtime path.
+23. [`docs/public_ingest_studycard_cli.md`](public_ingest_studycard_cli.md) for the first public StudyCard command surface.
+24. [`docs/public_ingest_studycard_from_file.md`](public_ingest_studycard_from_file.md) for the public StudyCard single-file ingest surface.
+25. [`docs/public_ingest_datasetcard_cli.md`](public_ingest_datasetcard_cli.md) for the public DatasetCard flag-based command surface.
+26. [`docs/public_ingest_datasetcard_from_file.md`](public_ingest_datasetcard_from_file.md) for the public DatasetCard single-file ingest surface.
+27. [`docs/public_update_studycard_cli.md`](public_update_studycard_cli.md) for the public StudyCard update surface.
+28. [`docs/public_update_datasetcard_cli.md`](public_update_datasetcard_cli.md) for the public DatasetCard update surface.
+29. [`docs/public_ingest_claimcard_cli.md`](public_ingest_claimcard_cli.md) for the public ClaimCard flag-based command surface.
+30. [`docs/public_ingest_claimcard_from_file.md`](public_ingest_claimcard_from_file.md) for the public ClaimCard single-file ingest surface.
+31. [`docs/public_update_claimcard_cli.md`](public_update_claimcard_cli.md) for the public ClaimCard update surface.
+32. [`docs/public_show_cli.md`](public_show_cli.md) for the first public read-by-id command surface.
+33. [`docs/public_list_cli.md`](public_list_cli.md) for the first public discovery command surface.
+34. [`docs/public_delete_cli.md`](public_delete_cli.md) for the first public referentially-aware delete command surface.
+35. [`docs/api_specs.md`](api_specs.md) for the current CLI contract and the boundary between implemented public commands and reserved internal command families.
+36. [`docs/cli_command_contracts.md`](cli_command_contracts.md) for the frozen command-family contracts and module responsibilities.
+37. [`docs/data_contracts.md`](data_contracts.md) for the high-level contract categories and the remaining non-frozen object families.
+38. [`docs/audit_policy.md`](audit_policy.md) for routine review policy and the distinction from future escalated review.
 
 ## Status Labels
 
@@ -78,6 +79,7 @@ These documents mix frozen-position context with design-intent detail.
 - [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes the internal registry access boundary, integrity-enforcement point, mutation-safety rule, and error surface. Defines current frozen position for this slice.
 - [`docs/update_snapshot_policy.md`](update_snapshot_policy.md): records the internal pre-update snapshot rule for public full-replace update. Defines current frozen position for this slice.
 - [`docs/update_locking_policy.md`](update_locking_policy.md): records the single-card exclusive update-lock rule for public full-replace update. Defines current frozen position for this slice.
+- [`docs/delete_locking_policy.md`](delete_locking_policy.md): records the single-card exclusive delete-lock rule for public by-id delete. Defines current frozen position for this slice.
 - [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the gateway-facing result shapes, error semantics, mutation-plan output contract, and full-replace update rule. Defines current frozen position for this slice.
 - [`docs/studycard_runtime.md`](studycard_runtime.md): records the implemented StudyCard runtime slice. Defines current implemented position for this slice.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records the implemented DatasetCard runtime slice plus the thin public DatasetCard CLI path. Defines current implemented position for this slice.
@@ -107,6 +109,7 @@ These documents describe the public CLI surface and the next layer of object and
 - [`docs/registry_io_boundary.md`](registry_io_boundary.md): freezes who owns registry access, where direct-reference checks belong, and what mutation-safety/error rules apply.
 - [`docs/update_snapshot_policy.md`](update_snapshot_policy.md): freezes the covered operations, layout, naming, append-only rule, and failure rule for pre-update snapshots.
 - [`docs/update_locking_policy.md`](update_locking_policy.md): freezes the covered operations, deterministic lock paths, scope, lifetime, and failure rule for update-time locking.
+- [`docs/delete_locking_policy.md`](delete_locking_policy.md): freezes the covered operations, deterministic lock paths, scope, lifetime, and failure rule for delete-time locking.
 - [`docs/gateway_contracts.md`](gateway_contracts.md): freezes the precise language upper layers should consume from the gateway: success shapes, domain errors, mutation-plan outputs, and the full-replace rule.
 - [`docs/studycard_runtime.md`](studycard_runtime.md): records exactly what StudyCard registry behavior is runtime-real now.
 - [`docs/datasetcard_runtime.md`](datasetcard_runtime.md): records exactly what DatasetCard registry behavior is runtime-real now, including the public create and full-replace update CLI entry points.
@@ -142,7 +145,8 @@ If a question is about what is allowed now, read `state`, `constraints`, and
 `decisions` first. If a question is about how the next MVP layer is organized,
 then read `architecture`, `module_map`, `registry_model`, `state_machine`,
 `card_contracts`, `payload_contracts`, `registry_layout`,
-`registry_io_boundary`, `update_snapshot_policy`, `update_locking_policy`, `gateway_contracts`, `studycard_runtime`,
+`registry_io_boundary`, `update_snapshot_policy`, `update_locking_policy`,
+`delete_locking_policy`, `gateway_contracts`, `studycard_runtime`,
 `datasetcard_runtime`, `claimcard_runtime`, `ingest_studycard_runtime`,
 `public_ingest_studycard_cli`, `public_ingest_studycard_from_file`,
 `public_update_studycard_cli`,

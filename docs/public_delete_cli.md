@@ -16,6 +16,10 @@ registry files.
 
 These commands are by-id only.
 
+Each command now acquires one exclusive target-card lock at the deterministic
+`.locks/<family>/<id>.lock` path before dependency-check plus delete work
+begins.
+
 ## Dependency-Blocking Rules
 
 - `delete study --study-id <ID>` must fail when any `DatasetCard.study_id`
@@ -27,7 +31,9 @@ These commands are by-id only.
 - `delete claim --claim-id <ID>` may delete directly when the target claim
   exists.
 
-Referential checks happen before delete execution.
+The gateway preserves the current fast target-existence check, then acquires
+the target-card lock, re-checks target existence under that lock, and performs
+dependency checks plus delete while that lock is held.
 
 ## Success Output
 
@@ -41,6 +47,8 @@ Referential checks happen before delete execution.
 - Failure returns a non-zero exit code.
 - Missing targets, dependency-blocked deletes, unsafe identifiers, and other
   registry failures all use this same failure style.
+- Lock contention or lock-management failures surface as `registry_failure`
+  with the precise lock message.
 - Public delete commands do not emit stack traces as the intended user-facing
   surface.
 

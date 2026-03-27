@@ -3,8 +3,8 @@
 ## Current Status
 
 - Phase: Initialization / public StudyCard, DatasetCard, and ClaimCard
-  full-replace update plus pre-update snapshot preservation and single-card
-  exclusive update locking
+  full-replace update with pre-update snapshot preservation plus single-card
+  exclusive update/delete locking
 - Repository identity: MacroVeritas
 - Scientific system status: not implemented
 - Documentation set status: MVP documentation set established with narrow
@@ -70,6 +70,9 @@
 - Public full-replace update for StudyCard, DatasetCard, and ClaimCard now
   also acquires one exclusive target-card lock beneath
   `<registry_root>/.locks/` for the snapshot-plus-overwrite critical section.
+- Public by-id delete for StudyCard, DatasetCard, and ClaimCard now also
+  acquires one exclusive target-card lock beneath `<registry_root>/.locks/`
+  for the dependency-check-plus-delete critical section.
 - The public show path adapts explicit CLI flags into narrow by-id input,
   calls `get_study_card` / `get_dataset_card` / `get_claim_card`, and returns
   stable JSON to stdout on success.
@@ -119,6 +122,7 @@
 ## Explicitly Deferred
 
 - public search or filter for `StudyCard`, `DatasetCard`, or `ClaimCard`
+- create or ingest locking for `StudyCard`, `DatasetCard`, or `ClaimCard`
 - public StudyCard, DatasetCard, or ClaimCard update beyond file-based full replace
 - force delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
 - cascade delete for `StudyCard`, `DatasetCard`, or `ClaimCard`
@@ -132,6 +136,7 @@
 - batch or directory-based file update
 - update by search or filter
 - public restore, rollback, or history browsing for update snapshots
+- public restore, rollback, or history browsing for delete operations
 - batch or directory-based file ingest
 - scientific pipelines
 - claim extraction

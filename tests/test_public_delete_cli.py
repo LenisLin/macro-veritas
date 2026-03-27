@@ -9,7 +9,7 @@ import pytest
 
 from macro_veritas.cli import main
 from macro_veritas.commands import delete as delete_command
-from macro_veritas.registry.errors import RegistryError
+from macro_veritas.registry.errors import RegistryError, UpdateLockError
 from macro_veritas.registry.layout import claim_card_path, dataset_card_path, study_card_path
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
@@ -414,4 +414,40 @@ def test_public_delete_claim_cli_translates_registry_failure(
     assert captured.out == ""
     assert captured.err.strip() == (
         "delete claim failed [registry_failure]: could not delete the requested ClaimCard through the registry gateway."
+    )
+
+
+def test_public_delete_claim_cli_preserves_lock_failure_message(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    data_root = tmp_path / "macro_data"
+    _write_config(config_path, data_root)
+
+    def _raise_lock_failure(claim_id: str) -> None:
+        raise UpdateLockError(
+            f"ClaimCard delete could not acquire the exclusive delete lock for '{claim_id}'."
+        )
+
+    monkeypatch.setattr(delete_command, "delete_claim_card", _raise_lock_failure)
+
+    exit_code = main(
+        [
+            "--config",
+            str(config_path),
+            "delete",
+            "claim",
+            "--claim-id",
+            "claim-001",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err.strip() == (
+        "delete claim failed [registry_failure]: "
+        "ClaimCard delete could not acquire the exclusive delete lock for 'claim-001'."
     )

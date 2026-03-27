@@ -43,7 +43,7 @@ class InvalidStateTransitionError(RegistryError):
 
 
 class UpdateLockError(RegistryError):
-    """Raised when an update-exclusive card lock cannot be acquired or managed."""
+    """Raised when a single-card update/delete lock cannot be acquired or managed."""
 
 
 class UnsupportedRegistryOperationError(RegistryError):

@@ -100,7 +100,7 @@ def lock_subdir_name() -> str:
     Inputs:
         None.
     Outputs:
-        The internal directory name used for update-time advisory lock files.
+        The internal directory name used for mutation-time advisory lock files.
     Non-goals:
         This does not create directories or inspect a registry tree.
     """
@@ -113,7 +113,7 @@ def _card_filename(card_id: str) -> str:
 
 
 def lock_filename(card_id: str) -> str:
-    """Return the canonical filename for one update lock file.
+    """Return the canonical filename for one mutation lock file.
 
     Inputs:
         `card_id`: The card identifier to embed in the filename stem.

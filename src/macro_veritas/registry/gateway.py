@@ -22,7 +22,7 @@ Implemented now:
 - pre-update snapshot preservation for `StudyCard`, `DatasetCard`, and
   `ClaimCard` full-replace update execution
 - single-card exclusive local-file locking for `StudyCard`, `DatasetCard`, and
-  `ClaimCard` full-replace update execution
+  `ClaimCard` full-replace update execution and by-id delete execution
 - gateway-level reverse-dependency checks for `StudyCard` and `DatasetCard`
   delete
 - domain-level translation of lower-level StudyCard/DatasetCard/ClaimCard
@@ -83,7 +83,7 @@ from macro_veritas.registry.errors import (
     UnsupportedRegistryOperationError,
 )
 from macro_veritas.registry.layout import claim_lock_path, dataset_lock_path, study_lock_path
-from macro_veritas.registry.locks import exclusive_card_update_lock
+from macro_veritas.registry.locks import exclusive_card_delete_lock, exclusive_card_update_lock
 from macro_veritas.registry.specs import (
     describe_integrity_enforcement_policy,
     describe_registry_gateway_boundary,
@@ -614,8 +614,8 @@ def describe_gateway_error_semantics() -> dict[str, dict[str, object]]:
         },
         "UpdateLockError": {
             "semantic_layer": "gateway/domain",
-            "meaning": "exclusive single-card update lock could not be acquired or managed",
-            "applies_to": ("update",),
+            "meaning": "exclusive single-card update/delete lock could not be acquired or managed",
+            "applies_to": ("update", "delete"),
             "not_a_raw_os_exception": True,
         },
         "UnsupportedRegistryOperationError": {
@@ -646,9 +646,16 @@ def describe_atomic_write_policy() -> dict[str, str]:
         "implemented_for": "StudyCard, DatasetCard, and ClaimCard",
         "durability_steps": "fsync temp file before replace; fsync parent directory after replace",
         "multi_card_transaction_guarantee": "not planned in MVP",
-        "concurrent_locking": "exclusive single-card update lock only",
-        "lock_scope": "one target StudyCard or DatasetCard or ClaimCard during full-replace update",
-        "lock_lifetime": "acquire before snapshot; release after snapshot plus atomic overwrite or failure",
+        "concurrent_locking": "exclusive single-card update/delete lock only",
+        "lock_scope": (
+            "one target StudyCard or DatasetCard or ClaimCard during full-replace update "
+            "or by-id delete"
+        ),
+        "lock_lifetime": (
+            "update: acquire before snapshot and release after snapshot plus atomic "
+            "overwrite or failure; delete: acquire before dependency check and release "
+            "after dependency check plus delete or failure"
+        ),
     }
 
 
@@ -981,13 +988,24 @@ def delete_study_card(study_id: str) -> None:
     """Delete one StudyCard through the gateway's real runtime path."""
 
     try:
+        registry_root = _registry_root()
         _require_delete_target_exists(
-            exists=_runtime_study_card_exists(_registry_root(), study_id),
+            exists=_runtime_study_card_exists(registry_root, study_id),
             operation_name="delete_study_card",
             card_family="StudyCard",
         )
-        _require_study_delete_allowed(study_id)
-        _runtime_delete_study_card(_registry_root(), study_id)
+        with exclusive_card_delete_lock(
+            study_lock_path(registry_root, study_id),
+            card_family="StudyCard",
+            card_id=study_id,
+        ):
+            _require_delete_target_exists(
+                exists=_runtime_study_card_exists(registry_root, study_id),
+                operation_name="delete_study_card",
+                card_family="StudyCard",
+            )
+            _require_study_delete_allowed(study_id)
+            _runtime_delete_study_card(registry_root, study_id)
     except RegistryError:
         raise
     except Exception as exc:
@@ -1095,13 +1113,24 @@ def delete_dataset_card(dataset_id: str) -> None:
     """Delete one DatasetCard through the gateway's real runtime path."""
 
     try:
+        registry_root = _registry_root()
         _require_delete_target_exists(
-            exists=_runtime_dataset_card_exists(_registry_root(), dataset_id),
+            exists=_runtime_dataset_card_exists(registry_root, dataset_id),
             operation_name="delete_dataset_card",
             card_family="DatasetCard",
         )
-        _require_dataset_delete_allowed(dataset_id)
-        _runtime_delete_dataset_card(_registry_root(), dataset_id)
+        with exclusive_card_delete_lock(
+            dataset_lock_path(registry_root, dataset_id),
+            card_family="DatasetCard",
+            card_id=dataset_id,
+        ):
+            _require_delete_target_exists(
+                exists=_runtime_dataset_card_exists(registry_root, dataset_id),
+                operation_name="delete_dataset_card",
+                card_family="DatasetCard",
+            )
+            _require_dataset_delete_allowed(dataset_id)
+            _runtime_delete_dataset_card(registry_root, dataset_id)
     except RegistryError:
         raise
     except Exception as exc:
@@ -1170,12 +1199,23 @@ def delete_claim_card(claim_id: str) -> None:
     """Delete one ClaimCard through the gateway's real runtime path."""
 
     try:
+        registry_root = _registry_root()
         _require_delete_target_exists(
-            exists=_runtime_claim_card_exists(_registry_root(), claim_id),
+            exists=_runtime_claim_card_exists(registry_root, claim_id),
             operation_name="delete_claim_card",
             card_family="ClaimCard",
         )
-        _runtime_delete_claim_card(_registry_root(), claim_id)
+        with exclusive_card_delete_lock(
+            claim_lock_path(registry_root, claim_id),
+            card_family="ClaimCard",
+            card_id=claim_id,
+        ):
+            _require_delete_target_exists(
+                exists=_runtime_claim_card_exists(registry_root, claim_id),
+                operation_name="delete_claim_card",
+                card_family="ClaimCard",
+            )
+            _runtime_delete_claim_card(registry_root, claim_id)
     except RegistryError:
         raise
     except Exception as exc:
